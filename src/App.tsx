@@ -1,13 +1,17 @@
 import { ReactSketchCanvas } from "react-sketch-canvas";
-
+import "./App.css";
+const styles = {
+  border: 'none'
+};
 function App() {
   return (
-    <ReactSketchCanvas
-      width="100vw"
-      height="100vh"
-      canvasColor="transparent"
-      strokeColor="#a855f7"
-    />
+    <section className="app-container">
+      <ReactSketchCanvas
+        canvasColor="transparent"
+        strokeColor="#a855f7"
+        style={styles}
+      />
+    </section>
   );
 }
 
