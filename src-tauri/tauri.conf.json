@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2.0.0-rc",
-  "productName": "quick-doodle",
+  "productName": "Quick Doodle",
   "version": "0.1.0",
   "identifier": "com.tauri.dev",
   "build": {
@@ -12,16 +12,20 @@
   "app": {
     "windows": [
       {
-        "title": "quick-doodle",
-        "width": 800,
-        "height": 600,
-        "resizable": true,
-        "fullscreen": false
+        "maximized": true,
+        "focus": true,
+        "alwaysOnTop": true,
+        "decorations": false,
+        "transparent": true,
+        "closable": false,
+        "skipTaskbar": true,
+        "hiddenTitle": true
       }
     ],
     "security": {
       "csp": null
-    }
+    },
+    "macOSPrivateApi": true
   },
   "bundle": {
     "active": true,
