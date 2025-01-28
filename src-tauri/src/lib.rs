@@ -8,6 +8,10 @@ use tauri::{
 pub fn run() {
   tauri::Builder::default()
     .setup(|app| {
+      // Hide the dock icon on macOS
+      #[cfg(target_os = "macos")]
+      app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+
       if cfg!(debug_assertions) {
         app.handle().plugin(
           tauri_plugin_log::Builder::default()
@@ -15,11 +19,16 @@ pub fn run() {
             .build(),
         )?;
       }
+      // Quit menu item
       let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+      // Tray menu
       let menu = Menu::with_items(app, &[&quit_i])?;
+      // Tray
       let _tray = TrayIconBuilder::new()
         .menu(&menu)
+        // Left click config for tray icon
         .show_menu_on_left_click(false)
+        // Menu events
         .on_menu_event(|app, event| match event.id.as_ref() {
           "quit" => {
             app.exit(0);
@@ -28,6 +37,7 @@ pub fn run() {
             println!("menu item {:?} not handled", event.id);
           }
         })
+        // Tray icon
         .icon(app.default_window_icon().unwrap().clone())
         .build(app)?;
       Ok(())
