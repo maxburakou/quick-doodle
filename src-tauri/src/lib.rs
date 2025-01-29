@@ -1,9 +1,10 @@
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 
 use tauri::{
+  image::Image,
   Manager,
   menu::{Menu, MenuItem},
-  tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+  tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 };
 
 use std::sync::Mutex;
@@ -28,12 +29,16 @@ pub fn run() {
         )?;
       }
       // Quit menu item
-      let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+      let tray_quit_icon = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
       // Tray menu
-      let menu = Menu::with_items(app, &[&quit_i])?;
-      // Tray
-      let _tray = TrayIconBuilder::new()
-        .menu(&menu)
+      let tray_menu = Menu::with_items(app, &[&tray_quit_icon])?;
+      // Tray icon images
+      let tray_default_image = Image::from_path("./icons/icon.png")?;
+      let tray_active_image = Image::from_path("./icons/tray/tray_icon--active.png")?;
+      let tray_inactive_image = Image::from_path("./icons/tray/tray_icon--inactive.png")?;
+      // Tray icon
+      let _tray_icon = TrayIconBuilder::new()
+        .menu(&tray_menu)
         // Left click config for tray icon
         .show_menu_on_left_click(false)
         // Menu events
@@ -46,7 +51,7 @@ pub fn run() {
           }
         })
         // Tray icon
-        .icon(app.default_window_icon().unwrap().clone())
+        .icon(tray_default_image.clone())
         .on_tray_icon_event(move |tray, event| match event {
           TrayIconEvent::Click {
               button: MouseButton::Left,
@@ -61,10 +66,12 @@ pub fn run() {
                   if *is_visible {
                       // Hide the window
                       let _ = window.hide();
+                      let _ = tray.set_icon(Some(tray_inactive_image.clone()));
                   } else {
                       // Show and focus the window
                       let _ = window.show();
                       let _ = window.set_focus();
+                      let _ = tray.set_icon(Some(tray_active_image.clone()));
                   }
                   // Toggle the state
                   *is_visible = !*is_visible;
