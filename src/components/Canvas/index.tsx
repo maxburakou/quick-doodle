@@ -3,7 +3,7 @@ import {
   type ReactSketchCanvasRef,
 } from "react-sketch-canvas";
 import { useRef } from "react";
-import { useClear, useRedo, useReset, useUndo } from "./hooks";
+import { useShortcuts } from "./hooks";
 
 const CanvasStyles = {
   border: "none",
@@ -12,11 +12,7 @@ const CanvasStyles = {
 
 export const Canvas = () => {
   const canvasRef = useRef<ReactSketchCanvasRef>(null);
-
-  useUndo(canvasRef);
-  useRedo(canvasRef);
-  useClear(canvasRef);
-  useReset(canvasRef);
+  useShortcuts(canvasRef);
 
   return (
     <ReactSketchCanvas
