@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 
 export const useRedo = (canvasRef: React.RefObject<ReactSketchCanvasRef>) => {
   useEffect(() => {
-    const unsubscribe = listen("redo", (event) => {
+    const unsubscribe = listen("redo-canvas", (event) => {
       console.log("Received event:", event.payload);
       canvasRef.current?.redo();
     });

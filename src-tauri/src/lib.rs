@@ -1,10 +1,10 @@
-use tauri::Emitter;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 use tauri::{
+    Emitter,
     image::Image,
-    menu::{Menu, MenuItem},
+    menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
-    Manager, AppHandle, WebviewWindow,
+    Manager, AppHandle
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 use std::sync::{Arc, Mutex};
@@ -22,6 +22,15 @@ impl WindowState {
             tray_icon: Arc::new(Mutex::new(None)),
         }
     }
+}
+
+fn handle_event(app: &AppHandle, event_name: &str) {
+  if let Some(window) = app.get_webview_window("main") {
+      eprintln!("EVENT: {}", event_name);
+      let _ = window.emit(event_name, {}).map_err(|e| {
+          eprintln!("Error emitting {}: {:?}", event_name, e);
+      });
+  }
 }
 
 fn toggle_window(app: &AppHandle) {
@@ -65,18 +74,31 @@ pub fn run() {
                 )?;
             }
 
+            // Tray menu items
+            let menu_item_color = MenuItem::with_id(app, "color", "Color", false, None::<&str>)?;
+            let menu_item_undo = MenuItem::with_id(app, "undo", "Undo", true, None::<&str>)?;
+            let menu_item_redo = MenuItem::with_id(app, "redo", "Redo", true, None::<&str>)?;
+            let menu_item_clear = MenuItem::with_id(app, "clear", "Clear", true, None::<&str>)?;
+            let menu_item_reset = MenuItem::with_id(app, "reset", "Reset", true, None::<&str>)?;
+            let menu_item_quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let menu_item_separator = PredefinedMenuItem::separator(app)?;
+            let menu_item_shortcuts_config = MenuItem::with_id(app, "shortcuts", "Edit Shortcuts", false, None::<&str>)?;
             // Create tray menu
-            let tray_quit_icon = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let tray_menu = Menu::with_items(app, &[&tray_quit_icon])?;
+            let tray_menu = Menu::with_items(app, &[&menu_item_color, &menu_item_separator, &menu_item_undo, &menu_item_redo, &menu_item_clear, &menu_item_reset, &menu_item_separator, &menu_item_shortcuts_config, &menu_item_quit])?;
 
             // Create tray icon
             let tray_icon = TrayIconBuilder::new()
                 .menu(&tray_menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| {
-                    if event.id.as_ref() == "quit" {
-                        app.exit(0);
-                    }
+                  match event.id.as_ref() {
+                      "quit" => app.exit(0),
+                      "reset" => handle_event(app, "reset-canvas"),
+                      "clear" => handle_event(app, "clear-canvas"),
+                      "undo" => handle_event(app, "undo-canvas"),
+                      "redo" => handle_event(app, "redo-canvas"),
+                      &_ => {}
+                  }
                 })
                 .icon(Image::from_path("./icons/tray/tray_icon--inactive.png")?)
                 .on_tray_icon_event(|tray, event| {
@@ -118,12 +140,7 @@ pub fn run() {
                             toggle_window(app);
                         } else if shortcut == &ctrl_d_shortcut {
                             toggle_window(app);
-                            if let Some(window) = app.get_webview_window("main") {
-                                eprintln!("EVENT: reset-canvas");
-                                let _ = window.emit("reset-canvas", {}).map_err(|e| {
-                                    eprintln!("Error emitting reset-canvas: {:?}", e);
-                                });
-                            }
+                            handle_event(app, "reset-canvas");
                         }
                     }
                 })
@@ -137,4 +154,4 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
-}
+      }

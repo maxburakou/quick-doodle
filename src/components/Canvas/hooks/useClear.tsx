@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 
 export const useClear = (canvasRef: React.RefObject<ReactSketchCanvasRef>) => {
   useEffect(() => {
-    const unsubscribe = listen("clear", (event) => {
+    const unsubscribe = listen("clear-canvas", (event) => {
       console.log("Received event:", event.payload);
       canvasRef.current?.clearCanvas();
     });

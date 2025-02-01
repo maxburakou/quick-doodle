@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 
 export const useReset = (canvasRef: React.RefObject<ReactSketchCanvasRef>) => {
   useEffect(() => {
-    const unsubscribe = listen("reset", (event) => {
+    const unsubscribe = listen("reset-canvas", (event) => {
       console.log("Received event:", event.payload);
       canvasRef.current?.resetCanvas();
     });
