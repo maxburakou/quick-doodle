@@ -76,11 +76,11 @@ pub fn run() {
 
             // Tray menu items
             let menu_item_color = MenuItem::with_id(app, "color", "Color", false, None::<&str>)?;
-            let menu_item_undo = MenuItem::with_id(app, "undo", "Undo", true, None::<&str>)?;
-            let menu_item_redo = MenuItem::with_id(app, "redo", "Redo", true, None::<&str>)?;
-            let menu_item_clear = MenuItem::with_id(app, "clear", "Clear", true, None::<&str>)?;
-            let menu_item_reset = MenuItem::with_id(app, "reset", "Reset", true, None::<&str>)?;
-            let menu_item_quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let menu_item_undo = MenuItem::with_id(app, "undo", "Undo", true, Some("CmdOrCtrl+Z"))?;
+            let menu_item_redo = MenuItem::with_id(app, "redo", "Redo", true, Some("Shift+CmdOrCtrl+R"))?;
+            let menu_item_clear = MenuItem::with_id(app, "clear", "Clear", true, Some("CmdOrCtrl+C"))?;
+            let menu_item_reset = MenuItem::with_id(app, "reset", "Reset", true, Some("CmdOrCtrl+R"))?;
+            let menu_item_quit = MenuItem::with_id(app, "quit", "Quit", true, Some("CmdOrCtrl+Q"))?;
             let menu_item_separator = PredefinedMenuItem::separator(app)?;
             let menu_item_shortcuts_config = MenuItem::with_id(app, "shortcuts", "Edit Shortcuts", false, None::<&str>)?;
             // Create tray menu
@@ -109,6 +109,7 @@ pub fn run() {
                     } = event
                     {
                         toggle_window(&tray.app_handle());
+                        handle_event(&tray.app_handle(), "reset-canvas");
                     }
                 })
                 .build(app)?;

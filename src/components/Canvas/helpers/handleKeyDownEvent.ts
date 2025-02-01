@@ -9,7 +9,7 @@ export const handleKeyDownEvent = (
     canvasRef.current?.undo();
   }
 
-  if (event.metaKey && event.key === "r") {
+  if (event.shiftKey && event.metaKey && event.key === "z") {
     event.preventDefault();
     canvasRef.current?.redo();
   }
