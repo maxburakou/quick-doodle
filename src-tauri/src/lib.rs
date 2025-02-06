@@ -4,7 +4,7 @@ use tauri::{
     image::Image,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
-    Manager, AppHandle, Wry
+    Manager, AppHandle, Wry, Result
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 use std::sync::{Arc, Mutex};
@@ -35,6 +35,50 @@ fn handle_event(app: &AppHandle, event_name: &str) {
   }
 }
 
+fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<Menu<Wry>> {
+  let menu_item_color = MenuItem::with_id(app, "color", "Color", false, None::<&str>)?;
+  let menu_item_undo = MenuItem::with_id(app, "undo", "Undo", visibility, Some("CmdOrCtrl+Z"))?;
+  let menu_item_redo = MenuItem::with_id(app, "redo", "Redo", visibility, Some("Shift+CmdOrCtrl+Z"))?;
+  let menu_item_clear = MenuItem::with_id(app, "clear", "Clear", visibility, Some("CmdOrCtrl+C"))?;
+  let menu_item_reset = MenuItem::with_id(app, "reset", "Reset", visibility, Some("CmdOrCtrl+R"))?;
+  let menu_item_quit = MenuItem::with_id(app, "quit", "Quit", true, Some("CmdOrCtrl+Q"))?;
+  let menu_item_quit_canvas = MenuItem::with_id(
+      app,
+      "quit_canvas",
+      if visibility { "Quit Drawing Canvas" } else { "New Drawing Canvas" },
+      true,
+      Some("Shift+CmdOrCtrl+D"),
+  )?;
+  let menu_item_hide_canvas = MenuItem::with_id(
+      app,
+      "hide_canvas",
+      if visibility { "Hide Drawing Canvas" } else { "Show Drawing Canvas" },
+      true,
+      Some("Shift+CmdOrCtrl+S"),
+  )?;
+  let menu_item_separator = PredefinedMenuItem::separator(app)?;
+  let menu_item_shortcuts_config = MenuItem::with_id(app, "shortcuts", "Edit Shortcuts", false, None::<&str>)?;
+
+  Menu::with_items(
+      app,
+      &[
+          &menu_item_color,
+          &menu_item_separator,
+          &menu_item_undo,
+          &menu_item_redo,
+          &menu_item_clear,
+          &menu_item_reset,
+          &menu_item_separator,
+          &menu_item_hide_canvas,
+          &menu_item_quit_canvas,
+          &menu_item_separator,
+          &menu_item_shortcuts_config,
+          &menu_item_quit,
+      ],
+  )
+}
+
+
 fn toggle_window(app: &AppHandle) {
     let state = app.state::<WindowState>();
     let mut is_visible = state.is_visible.lock().unwrap();
@@ -48,52 +92,12 @@ fn toggle_window(app: &AppHandle) {
                 let _ = tray.set_icon(Some(Image::from_path("./icons/tray/tray_icon--inactive.png").unwrap()));
                 let _ = tray.set_icon_as_template(true);
             }
-            if let Some(ref menu) = *tray_menu {
-              if let Some(item) = menu.get("undo") {
-                  let _ = item.as_menuitem().unwrap().set_enabled(false);
-              }
-              if let Some(item) = menu.get("redo") {
-                  let _ = item.as_menuitem().unwrap().set_enabled(false);
-              }
-              if let Some(item) = menu.get("clear") {
-                  let _ = item.as_menuitem().unwrap().set_enabled(false);
-              }
-              if let Some(item) = menu.get("reset") {
-                  let _ = item.as_menuitem().unwrap().set_enabled(false);
-              }
-              if let Some(item) = menu.get("hide_canvas") {
-                  let _ = item.as_menuitem().unwrap().set_text("Show Drawing Canvas");
-              }
-              if let Some(item) = menu.get("quit_canvas") {
-                let _ = item.as_menuitem().unwrap().set_text("New Drawing Canvas");
-              }
-            }
         } else {
             let _ = window.show();
             let _ = window.set_focus();
             if let Some(ref tray) = *tray_icon {
                 let _ = tray.set_icon(Some(Image::from_path("./icons/tray/tray_icon--active.png").unwrap()));
                 let _ = tray.set_icon_as_template(false);
-            }
-            if let Some(ref menu) = *tray_menu {
-              if let Some(item) = menu.get("undo") {
-                  let _ = item.as_menuitem().unwrap().set_enabled(true);
-              }
-              if let Some(item) = menu.get("redo") {
-                  let _ = item.as_menuitem().unwrap().set_enabled(true);
-              }
-              if let Some(item) = menu.get("clear") {
-                  let _ = item.as_menuitem().unwrap().set_enabled(true);
-              }
-              if let Some(item) = menu.get("reset") {
-                  let _ = item.as_menuitem().unwrap().set_enabled(true);
-              }
-              if let Some(item) = menu.get("hide_canvas") {
-                let _ = item.as_menuitem().unwrap().set_text("Hide Drawing Canvas");
-              }
-              if let Some(item) = menu.get("quit_canvas") {
-                let _ = item.as_menuitem().unwrap().set_text("Quit Drawing Canvas");
-              }
             }
         }
         *is_visible = !*is_visible;
@@ -120,18 +124,7 @@ pub fn run() {
             }
 
             // Tray menu items
-            let menu_item_color = MenuItem::with_id(app, "color", "Color", false, None::<&str>)?;
-            let menu_item_undo = MenuItem::with_id(app, "undo", "Undo", false, Some("CmdOrCtrl+Z"))?;
-            let menu_item_redo = MenuItem::with_id(app, "redo", "Redo", false, Some("Shift+CmdOrCtrl+Z"))?;
-            let menu_item_clear = MenuItem::with_id(app, "clear", "Clear", false, Some("CmdOrCtrl+C"))?;
-            let menu_item_reset = MenuItem::with_id(app, "reset", "Reset", false, Some("CmdOrCtrl+R"))?;
-            let menu_item_quit = MenuItem::with_id(app, "quit", "Quit", true, Some("CmdOrCtrl+Q"))?;
-            let menu_item_quit_canvas = MenuItem::with_id(app, "quit_canvas", "Quit Drawing Canvas", true, Some("Shift+CmdOrCtrl+D"))?;
-            let menu_item_hide_canvas = MenuItem::with_id(app, "hide_canvas", "Hide Drawing Canvas", true, Some("Shift+CmdOrCtrl+S"))?;
-            let menu_item_separator = PredefinedMenuItem::separator(app)?;
-            let menu_item_shortcuts_config = MenuItem::with_id(app, "shortcuts", "Edit Shortcuts", false, None::<&str>)?;
-            // Create tray menu
-            let tray_menu = Menu::with_items(app, &[&menu_item_color, &menu_item_separator, &menu_item_undo, &menu_item_redo, &menu_item_clear, &menu_item_reset, &menu_item_separator, &menu_item_hide_canvas, &menu_item_quit_canvas, &menu_item_separator, &menu_item_shortcuts_config, &menu_item_quit])?;
+            let tray_menu = create_tray_menu(app.app_handle(), false)?;
 
             // Create tray icon
             let tray_icon = TrayIconBuilder::new()
