@@ -13,7 +13,6 @@ use std::sync::{Arc, Mutex};
 struct WindowState {
     is_visible: Mutex<bool>,
     tray_icon: Arc<Mutex<Option<TrayIcon>>>,
-    tray_menu: Arc<Mutex<Option<Menu<Wry>>>>,
 }
 
 impl WindowState {
@@ -21,7 +20,6 @@ impl WindowState {
         Self {
             is_visible: Mutex::new(false),
             tray_icon: Arc::new(Mutex::new(None)),
-            tray_menu: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -59,7 +57,7 @@ fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<Menu<Wry>> {
   let menu_item_separator = PredefinedMenuItem::separator(app)?;
   let menu_item_shortcuts_config = MenuItem::with_id(app, "shortcuts", "Edit Shortcuts", false, None::<&str>)?;
 
-  Menu::with_items(
+  return Menu::with_items(
       app,
       &[
           &menu_item_color,
@@ -83,14 +81,15 @@ fn toggle_window(app: &AppHandle) {
     let state = app.state::<WindowState>();
     let mut is_visible = state.is_visible.lock().unwrap();
     let tray_icon = state.tray_icon.lock().unwrap();
-    let tray_menu = state.tray_menu.lock().unwrap();
 
     if let Some(window) = app.get_webview_window("main") {
+        let new_menu = create_tray_menu(app, !*is_visible).unwrap();
         if *is_visible {
             let _ = window.hide();
             if let Some(ref tray) = *tray_icon {
                 let _ = tray.set_icon(Some(Image::from_path("./icons/tray/tray_icon--inactive.png").unwrap()));
                 let _ = tray.set_icon_as_template(true);
+                let _ = tray.set_menu(Some(new_menu));
             }
         } else {
             let _ = window.show();
@@ -98,6 +97,7 @@ fn toggle_window(app: &AppHandle) {
             if let Some(ref tray) = *tray_icon {
                 let _ = tray.set_icon(Some(Image::from_path("./icons/tray/tray_icon--active.png").unwrap()));
                 let _ = tray.set_icon_as_template(false);
+                let _ = tray.set_menu(Some(new_menu));
             }
         }
         *is_visible = !*is_visible;
@@ -165,8 +165,6 @@ pub fn run() {
                 let state = app.state::<WindowState>();
                 let mut tray_lock = state.tray_icon.lock().unwrap();
                 *tray_lock = Some(tray_icon);
-                let mut tray_menu_lock = state.tray_menu.lock().unwrap();
-                *tray_menu_lock = Some(tray_menu);
             }
 
             // Define shortcuts
