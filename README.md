@@ -1,50 +1,31 @@
-# React + TypeScript + Vite
+# 🎨 Quick Doodle
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Quick Doodle is a lightweight macOS application that allows you to draw directly on your screen with ease. Designed for quick annotations, sketches, or presentations, it seamlessly integrates into your workflow.
 
-Currently, two official plugins are available:
+## 🛠 Features
+- Draw anywhere on your screen with a simple click.
+- Toggle visibility of your drawing without losing progress.
+- Undo, redo, clear, or reset your canvas with shortcuts.
+- Minimal and intuitive UI with tray icon control.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚀 How It Works
+### Tray Icon Controls
+- **Right-click** on the tray icon to open the app menu.
+- **Left-click** on the tray icon to start drawing. The icon will turn **green** to indicate drawing mode is active.
+- Click **again** to stop drawing.
 
-## Expanding the ESLint configuration
+## 🎹 Keyboard Shortcuts
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+### 🌍 Global Shortcuts
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl + Shift + D` | Create a new canvas (always fresh) |
+| `Ctrl + Shift + S` | Show/Hide the previous canvas |
 
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
-
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
-
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
-
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
-```
+### 🖌 Application Shortcuts
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl + Z` | Undo the last drawn element |
+| `Ctrl + Shift + Z` | Redo the last undone action |
+| `Ctrl + C` | Clear the canvas (can be undone) |
+| `Ctrl + R` | Reset the canvas (cannot be undone) |
