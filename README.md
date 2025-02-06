@@ -11,6 +11,7 @@ Quick Doodle is a lightweight macOS application that allows you to draw directly
 ## 🚀 How It Works
 ### Tray Icon Controls
 - **Right-click** on the tray icon to open the app menu.
+- Click **again** to close it.
 - **Left-click** on the tray icon to start drawing. The icon will turn **green** to indicate drawing mode is active.
 - Click **again** to stop drawing.
 
