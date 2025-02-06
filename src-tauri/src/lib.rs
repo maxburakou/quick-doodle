@@ -43,12 +43,14 @@ fn toggle_window(app: &AppHandle) {
             let _ = window.hide();
             if let Some(ref tray) = *tray_icon {
                 let _ = tray.set_icon(Some(Image::from_path("./icons/tray/tray_icon--inactive.png").unwrap()));
+                let _ = tray.set_icon_as_template(true);
             }
         } else {
             let _ = window.show();
             let _ = window.set_focus();
             if let Some(ref tray) = *tray_icon {
                 let _ = tray.set_icon(Some(Image::from_path("./icons/tray/tray_icon--active.png").unwrap()));
+                let _ = tray.set_icon_as_template(false);
             }
         }
         *is_visible = !*is_visible;
@@ -108,6 +110,7 @@ pub fn run() {
                   }
                 })
                 .icon(Image::from_path("./icons/tray/tray_icon--inactive.png")?)
+                .icon_as_template(true)
                 .on_tray_icon_event(|tray, event| {
                     if let TrayIconEvent::Click {
                         button: MouseButton::Left,
