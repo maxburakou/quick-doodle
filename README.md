@@ -19,13 +19,13 @@ Quick Doodle is a lightweight macOS application that allows you to draw directly
 ### 🌍 Global Shortcuts
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl + Shift + D` | Create a new canvas (always fresh) |
-| `Ctrl + Shift + S` | Show/Hide the previous canvas |
+| `Ctrl + Shift + D` | **Create New Canvas** (always fresh) |
+| `Ctrl + Shift + S` | **Show/Hide Canvas** (toggle previous one) |
 
 ### 🖌 Application Shortcuts
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl + Z` | Undo the last drawn element |
-| `Ctrl + Shift + Z` | Redo the last undone action |
-| `Ctrl + C` | Clear the canvas (can be undone) |
-| `Ctrl + R` | Reset the canvas (cannot be undone) |
+| `Ctrl + Z` | **Undo** (reverts last drawn element) |
+| `Ctrl + Shift + Z` | **Redo** (restores last undone action) |
+| `Ctrl + C` | **Clear Canvas** (can be undone) |
+| `Ctrl + R` | **Reset Canvas** (cannot be undone) |
