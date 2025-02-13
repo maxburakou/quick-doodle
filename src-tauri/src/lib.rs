@@ -7,7 +7,14 @@ use tauri::{
     Manager, AppHandle, Wry, Result
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
-use std::sync::{Arc, Mutex};
+use std::{path::PathBuf, sync::{Arc, Mutex}};
+
+fn get_icon_path(app: &AppHandle, icon_name: &str) -> PathBuf {
+  app.path()
+      .resource_dir()
+      .expect("Failed to get resource directory")
+      .join(format!("icons/tray/{}", icon_name))
+}
 
 // Define the state
 struct WindowState {
@@ -87,7 +94,7 @@ fn toggle_window(app: &AppHandle) {
         if *is_visible {
             let _ = window.hide();
             if let Some(ref tray) = *tray_icon {
-                let _ = tray.set_icon(Some(Image::from_path("./icons/tray/tray_icon--inactive.png").unwrap()));
+                let _ = tray.set_icon(Some(Image::from_path(get_icon_path(app, "tray_icon--inactive.png")).unwrap()));
                 let _ = tray.set_icon_as_template(true);
                 let _ = tray.set_menu(Some(new_menu));
             }
@@ -95,7 +102,7 @@ fn toggle_window(app: &AppHandle) {
             let _ = window.show();
             let _ = window.set_focus();
             if let Some(ref tray) = *tray_icon {
-                let _ = tray.set_icon(Some(Image::from_path("./icons/tray/tray_icon--active.png").unwrap()));
+                let _ = tray.set_icon(Some(Image::from_path(get_icon_path(app, "tray_icon--active.png")).unwrap()));
                 let _ = tray.set_icon_as_template(false);
                 let _ = tray.set_menu(Some(new_menu));
             }
@@ -145,7 +152,7 @@ pub fn run() {
                       &_ => {}
                   }
                 })
-                .icon(Image::from_path("./icons/tray/tray_icon--inactive.png")?)
+                .icon(Image::from_path(get_icon_path(&app.app_handle(), "tray_icon--inactive.png"))?)
                 .icon_as_template(true)
                 .on_tray_icon_event(|tray, event| {
                     if let TrayIconEvent::Click {
