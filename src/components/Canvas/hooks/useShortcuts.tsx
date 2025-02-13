@@ -10,6 +10,7 @@ export const useShortcuts = (
       handleKeyDownEvent(event, canvasRef);
 
     window.addEventListener("keydown", shortcutHandler);
+    window.addEventListener("contextmenu", (event) => event.preventDefault());
 
     const unsubscribeUndo = handleCanvasEvent("undo-canvas", () =>
       canvasRef.current?.undo()
