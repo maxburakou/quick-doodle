@@ -1,15 +1,15 @@
-use tauri::menu::CheckMenuItem;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 use tauri::{
     Emitter,
     image::Image,
-    menu::{Menu, MenuItem, PredefinedMenuItem},
+    menu::{Menu, MenuItem, PredefinedMenuItem, CheckMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
+    ActivationPolicy::Accessory,
     Manager, AppHandle, Wry, Result
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
-use std::{path::PathBuf, sync::{Arc, Mutex}};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
+use std::{path::PathBuf, sync::{Arc, Mutex}};
 
 fn get_icon_path(app: &AppHandle, icon_name: &str) -> PathBuf {
   app.path()
@@ -141,13 +141,13 @@ fn toggle_autostart(app: &AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
+            // Hide dock icon on macOS
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(Accessory);
+            
             // Initialize state
             let state = WindowState::new();
             app.manage(state);
-
-            // Hide dock icon on macOS
-            #[cfg(target_os = "macos")]
-            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             if cfg!(debug_assertions) {
                 app.handle().plugin(
