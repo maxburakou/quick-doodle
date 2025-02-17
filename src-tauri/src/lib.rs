@@ -1,62 +1,21 @@
 mod helpers;
+mod state;
+mod components;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 use tauri::{
-    image::Image,
-    tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
-    ActivationPolicy::Accessory,
-    Manager, AppHandle
+  image::Image,
+  tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+  ActivationPolicy::Accessory,
+  Manager
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 use tauri_plugin_autostart::MacosLauncher;
-use std::sync::{Arc, Mutex};
 use helpers::{
-    autostart::toggle_autostart, 
-    events::handle_event, 
-    utils::get_icon_path, 
-    tray::create_tray_menu
+  autostart::toggle_autostart, 
+  utils::{get_icon_path, handle_event, toggle_window}, 
 };
-
-// Define the state
-struct WindowState {
-    is_visible: Mutex<bool>,
-    tray_icon: Arc<Mutex<Option<TrayIcon>>>,
-}
-
-impl WindowState {
-    fn new() -> Self {
-        Self {
-            is_visible: Mutex::new(false),
-            tray_icon: Arc::new(Mutex::new(None)),
-        }
-    }
-}
-
-fn toggle_window(app: &AppHandle) {
-    let state = app.state::<WindowState>();
-    let mut is_visible = state.is_visible.lock().unwrap();
-    let tray_icon = state.tray_icon.lock().unwrap();
-
-    if let Some(window) = app.get_webview_window("main") {
-        let new_menu = create_tray_menu(app, !*is_visible).unwrap();
-        if *is_visible {
-            let _ = window.hide();
-            if let Some(ref tray) = *tray_icon {
-                let _ = tray.set_icon(Some(Image::from_path(get_icon_path(app, "tray_icon--inactive.png")).unwrap()));
-                let _ = tray.set_icon_as_template(true);
-                let _ = tray.set_menu(Some(new_menu));
-            }
-        } else {
-            let _ = window.show();
-            let _ = window.set_focus();
-            if let Some(ref tray) = *tray_icon {
-                let _ = tray.set_icon(Some(Image::from_path(get_icon_path(app, "tray_icon--active.png")).unwrap()));
-                let _ = tray.set_icon_as_template(false);
-                let _ = tray.set_menu(Some(new_menu));
-            }
-        }
-        *is_visible = !*is_visible;
-    }
-}
+use components::tray::create_tray_menu;
+use state::WindowState;
 
 pub fn run() {
     tauri::Builder::default()
