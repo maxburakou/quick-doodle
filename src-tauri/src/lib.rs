@@ -1,3 +1,4 @@
+use tauri::menu::CheckMenuItem;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 use tauri::{
     Emitter,
@@ -8,6 +9,7 @@ use tauri::{
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 use std::{path::PathBuf, sync::{Arc, Mutex}};
+use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 
 fn get_icon_path(app: &AppHandle, icon_name: &str) -> PathBuf {
   app.path()
@@ -20,6 +22,7 @@ fn get_icon_path(app: &AppHandle, icon_name: &str) -> PathBuf {
 struct WindowState {
     is_visible: Mutex<bool>,
     tray_icon: Arc<Mutex<Option<TrayIcon>>>,
+    is_autostart_enabled: Mutex<bool>,
 }
 
 impl WindowState {
@@ -27,6 +30,7 @@ impl WindowState {
         Self {
             is_visible: Mutex::new(false),
             tray_icon: Arc::new(Mutex::new(None)),
+            is_autostart_enabled: Mutex::new(false),
         }
     }
 }
@@ -40,7 +44,7 @@ fn handle_event(app: &AppHandle, event_name: &str) {
   }
 }
 
-fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<Menu<Wry>> {
+fn create_tray_menu(app: &AppHandle, visibility: bool, is_autostart_enabled: bool) -> Result<Menu<Wry>> {
   let menu_item_color = MenuItem::with_id(app, "color", "Color", false, None::<&str>)?;
   let menu_item_undo = MenuItem::with_id(app, "undo", "Undo", visibility, Some("CmdOrCtrl+Z"))?;
   let menu_item_redo = MenuItem::with_id(app, "redo", "Redo", visibility, Some("Shift+CmdOrCtrl+Z"))?;
@@ -62,6 +66,14 @@ fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<Menu<Wry>> {
       Some("Shift+CmdOrCtrl+S"),
   )?;
   let menu_item_separator = PredefinedMenuItem::separator(app)?;
+  let menu_item_autostart = CheckMenuItem::with_id(
+      app, 
+      "autostart",
+      "Autostart",
+      true, 
+      is_autostart_enabled, 
+      None::<&str>
+  )?;
   let menu_item_shortcuts_config = MenuItem::with_id(app, "shortcuts", "Edit Shortcuts", false, None::<&str>)?;
 
   return Menu::with_items(
@@ -77,6 +89,7 @@ fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<Menu<Wry>> {
           &menu_item_hide_canvas,
           &menu_item_quit_canvas,
           &menu_item_separator,
+          &menu_item_autostart,
           &menu_item_shortcuts_config,
           &menu_item_quit,
       ],
@@ -88,9 +101,10 @@ fn toggle_window(app: &AppHandle) {
     let state = app.state::<WindowState>();
     let mut is_visible = state.is_visible.lock().unwrap();
     let tray_icon = state.tray_icon.lock().unwrap();
+    let is_autostart_enabled = state.is_autostart_enabled.lock().unwrap();
 
     if let Some(window) = app.get_webview_window("main") {
-        let new_menu = create_tray_menu(app, !*is_visible).unwrap();
+        let new_menu = create_tray_menu(app, !*is_visible, !*is_autostart_enabled).unwrap();
         if *is_visible {
             let _ = window.hide();
             if let Some(ref tray) = *tray_icon {
@@ -109,6 +123,22 @@ fn toggle_window(app: &AppHandle) {
         }
         *is_visible = !*is_visible;
     }
+}
+
+fn toggle_autostart(app: &AppHandle) {
+    let state = app.state::<WindowState>();
+    let mut is_autostart_enabled = state.is_autostart_enabled.lock().unwrap();
+    let autostart_manager = app.autolaunch();
+
+    if *is_autostart_enabled {
+        let _ = autostart_manager.disable();
+    } else {
+        let _ = autostart_manager.enable();
+    }
+
+    *is_autostart_enabled = !*is_autostart_enabled;
+    println!("Autostart state enabled: {}", *is_autostart_enabled);
+    println!("registered for autostart? {}", autostart_manager.is_enabled().unwrap());
 }
 
 pub fn run() {
@@ -130,8 +160,17 @@ pub fn run() {
                 )?;
             }
 
+            #[cfg(desktop)]
+            let _ = app.handle().plugin(tauri_plugin_autostart::init(
+                MacosLauncher::LaunchAgent,
+                Some(vec!["--flag1", "--flag2"]),
+            ));
+            // Get the autostart manager
+            let autostart_manager = app.autolaunch();
+            let is_autostart_enabled = autostart_manager.is_enabled().unwrap();
+
             // Tray menu items
-            let tray_menu = create_tray_menu(app.app_handle(), false)?;
+            let tray_menu = create_tray_menu(app.app_handle(), false, is_autostart_enabled)?;
 
             // Create tray icon
             let tray_icon = TrayIconBuilder::new()
@@ -149,6 +188,7 @@ pub fn run() {
                           toggle_window(app);
                           handle_event(app, "reset-canvas");
                       },
+                      "autostart" => toggle_autostart(app),
                       &_ => {}
                   }
                 })
@@ -172,6 +212,8 @@ pub fn run() {
                 let state = app.state::<WindowState>();
                 let mut tray_lock = state.tray_icon.lock().unwrap();
                 *tray_lock = Some(tray_icon);
+                let mut autostart_lock = state.is_autostart_enabled.lock().unwrap();
+                *autostart_lock = is_autostart_enabled;
             }
 
             // Define shortcuts
