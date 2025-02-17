@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 use helpers::{
     autostart::toggle_autostart, 
     events::handle_event, 
-    icon::get_icon_path, 
+    utils::get_icon_path, 
     tray::create_tray_menu
 };
 
