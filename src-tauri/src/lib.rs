@@ -3,16 +3,16 @@ mod state;
 mod components;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 use tauri::{
-  image::Image,
-  tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-  ActivationPolicy::Accessory,
-  Manager
+    image::Image,
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    ActivationPolicy::Accessory,
+    Manager
 };
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 use tauri_plugin_autostart::MacosLauncher;
 use helpers::{
-  autostart::toggle_autostart, 
-  utils::{get_icon_path, handle_event, toggle_window}, 
+    autostart::toggle_autostart, 
+    shortcuts::register_global_shortcuts, 
+    utils::{get_icon_path, handle_event, toggle_window} 
 };
 use components::tray::create_tray_menu;
 use state::WindowState;
@@ -23,7 +23,7 @@ pub fn run() {
             // Hide dock icon on macOS
             #[cfg(target_os = "macos")]
             app.set_activation_policy(Accessory);
-            
+
             // Initialize state
             let state = WindowState::new();
             app.manage(state);
@@ -80,42 +80,14 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Store tray icon in state correctly
+            // Store tray icon in state
             {
                 let state = app.state::<WindowState>();
                 let mut tray_lock = state.tray_icon.lock().unwrap();
                 *tray_lock = Some(tray_icon);
             }
 
-            // Define shortcuts
-            #[cfg(target_os = "macos")]
-            let ctrl_s_shortcut = Shortcut::new(Some(Modifiers::SHIFT | Modifiers::SUPER), Code::KeyS);
-  
-            #[cfg(not(target_os = "macos"))]
-            let ctrl_s_shortcut = Shortcut::new(Some(Modifiers::SHIFT | Modifiers::CONTROL), Code::KeyS);
-
-            #[cfg(target_os = "macos")]
-            let ctrl_d_shortcut = Shortcut::new(Some(Modifiers::SHIFT | Modifiers::SUPER), Code::KeyD);
-
-            #[cfg(not(target_os = "macos"))]
-            let ctrl_d_shortcut = Shortcut::new(Some(Modifiers::SHIFT | Modifiers::CONTROL), Code::KeyD);
-
-            let global_shortcut_plugin = tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(move |app, shortcut, event| {
-                    if event.state() == ShortcutState::Pressed {
-                        if shortcut == &ctrl_s_shortcut {
-                            toggle_window(app);
-                        } else if shortcut == &ctrl_d_shortcut {
-                            handle_event(app, "reset-canvas");
-                            toggle_window(app);
-                        }
-                    }
-                })
-                .build();
-
-            app.handle().plugin(global_shortcut_plugin)?;
-            app.global_shortcut().register(ctrl_s_shortcut)?;
-            app.global_shortcut().register(ctrl_d_shortcut)?;
+            register_global_shortcuts(app.app_handle());
 
             Ok(())
         })
