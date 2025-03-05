@@ -1,4 +1,5 @@
 import { ReactSketchCanvasRef } from "react-sketch-canvas";
+import { toggleBackground } from "./toggleBackground";
 
 export const handleKeyDownEvent = (
   event: KeyboardEvent,
@@ -23,6 +24,11 @@ export const handleKeyDownEvent = (
 
   if (event.metaKey && event.key === "r") {
     canvasRef.current?.resetCanvas();
+    return;
+  }
+
+  if (event.metaKey && event.key === "a") {
+    toggleBackground();
     return;
   }
 };

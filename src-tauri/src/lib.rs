@@ -1,6 +1,7 @@
 mod helpers;
 mod state;
 mod components;
+use tauri::generate_handler;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 use tauri::{
     image::Image,
@@ -12,13 +13,20 @@ use tauri_plugin_autostart::MacosLauncher;
 use helpers::{
     autostart::toggle_autostart, 
     shortcuts::register_global_shortcuts, 
-    utils::{get_icon_path, handle_event, toggle_window} 
+    utils::{activate_window_background, deactivate_window_background, get_background_state, get_icon_path, handle_event, set_background_state, toggle_background_state, toggle_window, toggle_background} 
 };
 use components::tray::create_tray_menu;
 use state::WindowState;
 
 pub fn run() {
     tauri::Builder::default()
+        .invoke_handler(generate_handler![
+          get_background_state, 
+          set_background_state, 
+          toggle_background_state, 
+          activate_window_background, 
+          deactivate_window_background, 
+          toggle_background])
         .setup(|app| {
             // Hide dock icon on macOS
             #[cfg(target_os = "macos")]
