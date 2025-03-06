@@ -70,6 +70,7 @@ pub fn run() {
                           handle_event(app, "reset-canvas");
                       },
                       "autostart" => toggle_autostart(app),
+                      "background" => toggle_background(app.clone()),
                       &_ => {}
                   }
                 })

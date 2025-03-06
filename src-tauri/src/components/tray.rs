@@ -38,6 +38,13 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<Menu<Wry>> 
       None::<&str>
   )?;
   let menu_item_shortcuts_config = MenuItem::with_id(app, "shortcuts", "Edit Shortcuts", false, None::<&str>)?;
+  let menu_item_background = MenuItem::with_id(
+    app,
+    "background",
+    "Toggle Background",
+    visibility,
+    Some("CmdOrCtrl+A"),
+  )?;
 
   return Menu::with_items(
       app,
@@ -48,6 +55,7 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<Menu<Wry>> 
           &menu_item_redo,
           &menu_item_clear,
           &menu_item_reset,
+          &menu_item_background,
           &menu_item_separator,
           &menu_item_hide_canvas,
           &menu_item_quit_canvas,
