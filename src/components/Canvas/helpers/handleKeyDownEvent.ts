@@ -1,29 +1,30 @@
-import { ReactSketchCanvasRef } from "react-sketch-canvas";
 import { toggleBackground } from "./toggleBackground";
+import { useHistoryStore } from "../../../store";
+
+const { undo, redo, clear, reset } = useHistoryStore.getState();
 
 export const handleKeyDownEvent = (
   event: KeyboardEvent,
-  canvasRef: React.RefObject<ReactSketchCanvasRef>
 ) => {
   event.preventDefault();
 
   if (event.shiftKey && event.metaKey && event.key === "z") {
-    canvasRef.current?.redo();
+    redo();
     return;
   }
 
   if (event.metaKey && event.key === "z") {
-    canvasRef.current?.undo();
+    undo();
     return;
   }
 
   if (event.metaKey && event.key === "c") {
-    canvasRef.current?.clearCanvas();
+    clear();
     return;
   }
 
   if (event.metaKey && event.key === "r") {
-    canvasRef.current?.resetCanvas();
+    reset();
     return;
   }
 
