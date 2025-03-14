@@ -1,0 +1,13 @@
+canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.background-canvas {
+  pointer-events: none;
+}
+
+.canvas-wrapper{
+  position: relative;
+}

@@ -17,6 +17,7 @@ export const Toolbar: React.FC = () => {
         borderRadius: "8px",
         boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
         listStyle: "none",
+        zIndex: 7,
       }}
     >
       {Object.entries(Tool).map(([key, value]) => (
