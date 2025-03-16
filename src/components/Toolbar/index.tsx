@@ -7,7 +7,7 @@ export const Toolbar: React.FC = () => {
   return (
     <menu
       style={{
-        position: "fixed",
+        position: "absolute",
         top: 10,
         left: 100,
         display: "flex",

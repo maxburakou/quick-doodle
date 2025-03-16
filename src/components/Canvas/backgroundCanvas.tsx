@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { useCanvasScaleSetup } from "./hooks";
 import { drawCanvas } from "./helpers";
 import { useHistoryStore } from "../../store";

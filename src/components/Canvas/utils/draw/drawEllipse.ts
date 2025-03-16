@@ -1,21 +1,27 @@
-import { StrokePoint } from "../../../../types";
+import { Drawable, Options } from "roughjs/bin/core";
+import { RoughShape, StrokePoint } from "../../../../types";
+import rough from "roughjs";
+import { generateRoughShape } from "../generateRoughShape";
 
 export const drawEllipse = (
   ctx: CanvasRenderingContext2D,
   start: StrokePoint,
   end: StrokePoint,
   color: string,
-  thickness: number
+  thickness: number,
+  drawable?: Drawable
 ) => {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = thickness;
+  const roughCanvas = rough.canvas(ctx.canvas);
 
-  const centerX = (start.x + end.x) / 2;
-  const centerY = (start.y + end.y) / 2;
-  const radiusX = Math.abs(end.x - start.x) / 2;
-  const radiusY = Math.abs(end.y - start.y) / 2;
+  const options: Options = {
+    stroke: color,
+    strokeWidth: thickness / 1.5,
+    roughness: 1,
+    bowing: 0.5,
+  };
 
-  ctx.beginPath();
-  ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
-  ctx.stroke();
+  const ellipse =
+    drawable || generateRoughShape(RoughShape.Ellipse, start, end, options);
+
+  if (ellipse) roughCanvas.draw(ellipse);
 };

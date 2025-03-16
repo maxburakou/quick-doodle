@@ -1,3 +1,5 @@
+import { Drawable } from "roughjs/bin/core";
+
 export enum Tool {
   Pen = "1",
   Highlighter = "2",
@@ -19,4 +21,5 @@ export interface Stroke {
   color: string;
   thickness: number;
   tool: Tool;
+  drawable?: Drawable;
 }
