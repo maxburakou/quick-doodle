@@ -10,14 +10,12 @@ const Canvas = () => {
 
   const { present } = useHistoryStore();
   useCanvasScaleSetup(canvasRef, ctxRef);
-  
+
   useEffect(() => {
     drawCanvas(present, ctxRef.current);
   }, [present]);
 
-  return (
-    <canvas className="background-canvas" ref={canvasRef} />
-  ) 
+  return <canvas className="background-canvas" ref={canvasRef} />;
 };
 
 export const BackgroundCanvas = memo(Canvas);

@@ -83,7 +83,5 @@ export const drawStrokes = (
       );
       return;
     }
-
-    console.warn(`Unknown tool: ${tool}`);
   });
 };

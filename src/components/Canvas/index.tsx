@@ -1,8 +1,8 @@
-import React, { useRef } from "react";
+import React, { useCallback, useRef } from "react";
 import { Toolbar } from "../Toolbar";
 import { Stroke, StrokePoint } from "../../types";
 import { useHistoryStore, useSettingsStore, useToolStore } from "../../store";
-import { useCanvasScaleSetup, useShortcuts } from "./hooks";
+import { useCanvasScaleSetup, usePointerEvents, useShortcuts } from "./hooks";
 import { clearCanvas, drawCanvas } from "./helpers";
 import { BackgroundCanvas } from "./backgroundCanvas";
 import "./styles.css";
@@ -16,7 +16,8 @@ export const Canvas: React.FC = () => {
   const addPoints = (point: StrokePoint) => pointsRef.current.push(point);
 
   const isDrawingRef = useRef(false);
-  const toggleDrawing = () => (isDrawingRef.current = !isDrawingRef.current);
+  const startDrawing = () => (isDrawingRef.current = true);
+  const stopDrawing = () => (isDrawingRef.current = false);
 
   const drawableSeed = useRef<number>(Date.now());
   const updateDrawableSeed = () => (drawableSeed.current = Date.now());
@@ -44,7 +45,7 @@ export const Canvas: React.FC = () => {
   // };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    toggleDrawing();
+    startDrawing();
     updateDrawableSeed();
 
     const points: StrokePoint[] = [
@@ -87,8 +88,10 @@ export const Canvas: React.FC = () => {
     // updateCanvas();
   };
 
-  const handlePointerUp = () => {
-    toggleDrawing();
+  const handlePointerUp = useCallback(() => {
+    if (!isDrawingRef.current) return;
+
+    stopDrawing();
     // if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
 
     const stroke: Stroke = {
@@ -103,7 +106,9 @@ export const Canvas: React.FC = () => {
     setPoints([]);
 
     clearCanvas(ctxRef.current);
-  };
+  }, [addAction, color, thickness, tool]);
+
+  usePointerEvents(handlePointerUp);
 
   return (
     <section className="canvas-wrapper">
