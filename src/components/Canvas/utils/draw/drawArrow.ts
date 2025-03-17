@@ -1,6 +1,6 @@
 import rough from "roughjs";
 import { RoughShape, StrokePoint } from "../../../../types";
-import { Drawable, Options } from "roughjs/bin/core";
+import { Options } from "roughjs/bin/core";
 import { generateRoughShape } from "../generateRoughShape";
 
 export const drawArrow = (
@@ -9,7 +9,7 @@ export const drawArrow = (
   end: StrokePoint,
   color: string,
   thickness: number,
-  drawable?: Drawable
+  drawableSeed?: number
 ) => {
   const roughCanvas = rough.canvas(ctx.canvas);
 
@@ -18,39 +18,40 @@ export const drawArrow = (
     strokeWidth: thickness / 1.5,
     roughness: 1,
     bowing: 0.5,
+    seed: drawableSeed,
   };
 
   const arrowHeadLength = 15 + thickness * 2.5;
   const angle = Math.atan2(end.y - start.y, end.x - start.x);
 
-  const line =
-    drawable || generateRoughShape(RoughShape.Line, start, end, options);
-
+  const line = generateRoughShape(RoughShape.Line, start, end, options);
   if (line) roughCanvas.draw(line);
 
-  ctx.strokeStyle = color;
-  ctx.fillStyle = color;
-  ctx.lineWidth = thickness;
-
-  const arrowTip = {
-    x: end.x + arrowHeadLength * 0.3 * Math.cos(angle),
-    y: end.y + arrowHeadLength * 0.3 * Math.sin(angle),
+  const arrowHead1: StrokePoint = {
+    x: end.x - arrowHeadLength * Math.cos(angle - Math.PI / 6),
+    y: end.y - arrowHeadLength * Math.sin(angle - Math.PI / 6),
+    pressure: end.pressure,
   };
 
-  const arrowHead1 = {
-    x: end.x - arrowHeadLength * Math.cos(angle - Math.PI / 12),
-    y: end.y - arrowHeadLength * Math.sin(angle - Math.PI / 12),
+  const arrowHead2: StrokePoint = {
+    x: end.x - arrowHeadLength * Math.cos(angle + Math.PI / 6),
+    y: end.y - arrowHeadLength * Math.sin(angle + Math.PI / 6),
+    pressure: end.pressure,
   };
 
-  const arrowHead2 = {
-    x: end.x - arrowHeadLength * Math.cos(angle + Math.PI / 12),
-    y: end.y - arrowHeadLength * Math.sin(angle + Math.PI / 12),
-  };
+  const roughArrowHead1 = generateRoughShape(
+    RoughShape.Line,
+    end,
+    arrowHead1,
+    options
+  );
+  const roughArrowHead2 = generateRoughShape(
+    RoughShape.Line,
+    end,
+    arrowHead2,
+    options
+  );
 
-  ctx.beginPath();
-  ctx.moveTo(arrowTip.x, arrowTip.y);
-  ctx.lineTo(arrowHead1.x, arrowHead1.y);
-  ctx.lineTo(arrowHead2.x, arrowHead2.y);
-  ctx.closePath();
-  ctx.fill();
+  if (roughArrowHead1) roughCanvas.draw(roughArrowHead1);
+  if (roughArrowHead2) roughCanvas.draw(roughArrowHead2);
 };

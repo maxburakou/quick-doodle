@@ -17,7 +17,7 @@ export const drawStrokes = (
   strokes: Stroke[],
   ctx: CanvasRenderingContext2D
 ) => {
-  strokes.forEach(({ points, color, thickness, tool, drawable }) => {
+  strokes.forEach(({ points, color, thickness, tool, drawableSeed }) => {
     const hasMinimumPoints = points.length >= 2;
 
     if (tool === Tool.Pen) {
@@ -37,7 +37,14 @@ export const drawStrokes = (
     }
 
     if (tool === Tool.Arrow && hasMinimumPoints) {
-      drawArrow(ctx, points[0], points[points.length - 1], color, thickness, drawable);
+      drawArrow(
+        ctx,
+        points[0],
+        points[points.length - 1],
+        color,
+        thickness,
+        drawableSeed
+      );
       return;
     }
 
@@ -48,7 +55,7 @@ export const drawStrokes = (
         points[points.length - 1],
         color,
         thickness,
-        drawable
+        drawableSeed
       );
       return;
     }
@@ -60,7 +67,7 @@ export const drawStrokes = (
         points[points.length - 1],
         color,
         thickness,
-        drawable
+        drawableSeed
       );
       return;
     }
@@ -72,7 +79,7 @@ export const drawStrokes = (
         points[points.length - 1],
         color,
         thickness,
-        drawable
+        drawableSeed
       );
       return;
     }

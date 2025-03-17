@@ -1,4 +1,4 @@
-import { Drawable, Options } from "roughjs/bin/core";
+import { Options } from "roughjs/bin/core";
 import { RoughShape, StrokePoint } from "../../../../types";
 import rough from "roughjs";
 import { generateRoughShape } from "../generateRoughShape";
@@ -9,7 +9,7 @@ export const drawLine = (
   end: StrokePoint,
   color: string,
   thickness: number,
-  drawable?: Drawable
+  drawableSeed?: number
 ) => {
   const roughCanvas = rough.canvas(ctx.canvas);
 
@@ -18,10 +18,10 @@ export const drawLine = (
     strokeWidth: thickness / 1.5,
     roughness: 1,
     bowing: 0.5,
+    seed: drawableSeed,
   };
 
-  const line =
-    drawable || generateRoughShape(RoughShape.Line, start, end, options);
+  const line = generateRoughShape(RoughShape.Line, start, end, options);
 
   if (line) roughCanvas.draw(line);
 };
