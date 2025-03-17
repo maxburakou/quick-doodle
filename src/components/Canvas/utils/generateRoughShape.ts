@@ -29,6 +29,30 @@ export const generateRoughShape = (
         end.y - start.y,
         options
       );
+    case RoughShape.Diamond: {
+      const centerX = (start.x + end.x) / 2;
+      const centerY = (start.y + end.y) / 2;
+
+      return generator.polygon(
+        [
+          [centerX, start.y],
+          [end.x, centerY],
+          [centerX, end.y],
+          [start.x, centerY],
+        ],
+        options
+      );
+    }
+    case RoughShape.Polygon:
+      return generator.polygon(
+        [
+          [start.x, start.y],
+          [end.x, start.y],
+          [end.x, end.y],
+          [start.x, end.y],
+        ],
+        options
+      );
     default:
       return;
   }

@@ -1,9 +1,10 @@
 import "./App.css";
-import { Canvas } from "./components/Canvas";
+import { Canvas, Toolbar } from "./components";
 
 function App() {
   return (
     <main className="app-container">
+      <Toolbar />
       <Canvas />
     </main>
   );

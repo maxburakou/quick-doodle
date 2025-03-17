@@ -5,5 +5,6 @@ export enum RoughShape {
   Ellipse = "ellipse",
   Arc = "arc",
   Curve = "curve",
-  Polygon = "polygon"
+  Polygon = "polygon",
+  Diamond = "diamond",
 }

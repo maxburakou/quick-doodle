@@ -1,5 +1,4 @@
 import React, { useCallback, useRef } from "react";
-import { Toolbar } from "../Toolbar";
 import { Stroke, StrokePoint } from "../../types";
 import { useHistoryStore, useSettingsStore, useToolStore } from "../../store";
 import { useCanvasScaleSetup, usePointerEvents, useShortcuts } from "./hooks";
@@ -112,7 +111,6 @@ export const Canvas: React.FC = () => {
 
   return (
     <section className="canvas-wrapper">
-      <Toolbar />
       <canvas
         ref={canvasRef}
         onPointerDown={handlePointerDown}
