@@ -2,6 +2,7 @@ import rough from "roughjs";
 import { RoughShape, StrokePoint } from "../../../../types";
 import { Options } from "roughjs/bin/core";
 import { generateRoughShape } from "../generateRoughShape";
+import { getRoughOptions } from "../getRoughOptions";
 
 export const drawArrow = (
   ctx: CanvasRenderingContext2D,
@@ -13,13 +14,11 @@ export const drawArrow = (
 ) => {
   const roughCanvas = rough.canvas(ctx.canvas);
 
-  const options: Options = {
+  const options: Options = getRoughOptions({
     stroke: color,
     strokeWidth: thickness / 1.5,
-    roughness: 1,
-    bowing: 0.5,
     seed: drawableSeed,
-  };
+  });
 
   const arrowHeadLength = 15 + thickness * 2.5;
   const angle = Math.atan2(end.y - start.y, end.x - start.x);
@@ -28,14 +27,14 @@ export const drawArrow = (
   if (line) roughCanvas.draw(line);
 
   const arrowHead1: StrokePoint = {
-    x: end.x - arrowHeadLength * Math.cos(angle - Math.PI / 6),
-    y: end.y - arrowHeadLength * Math.sin(angle - Math.PI / 6),
+    x: end.x - arrowHeadLength * Math.cos(angle - Math.PI / 10),
+    y: end.y - arrowHeadLength * Math.sin(angle - Math.PI / 10),
     pressure: end.pressure,
   };
 
   const arrowHead2: StrokePoint = {
-    x: end.x - arrowHeadLength * Math.cos(angle + Math.PI / 6),
-    y: end.y - arrowHeadLength * Math.sin(angle + Math.PI / 6),
+    x: end.x - arrowHeadLength * Math.cos(angle + Math.PI / 10),
+    y: end.y - arrowHeadLength * Math.sin(angle + Math.PI / 10),
     pressure: end.pressure,
   };
 
