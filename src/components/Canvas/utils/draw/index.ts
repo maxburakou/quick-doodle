@@ -1,4 +1,4 @@
-import { Stroke, Tool } from "../../../../types";
+import { Stroke, Tool } from "@/types";
 import { drawArrow } from "./drawArrow";
 import { drawEllipse } from "./drawEllipse";
 import { drawHighlighter } from "./drawHighlighter";

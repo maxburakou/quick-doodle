@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Tool } from "../../types";
+import { Tool } from "@/types";
 import { ToolState } from "./types";
 
 export const useToolStore = create<ToolState>((set) => ({

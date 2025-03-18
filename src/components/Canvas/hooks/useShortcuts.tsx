@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { handleCanvasEvent, handleKeyDownEvent } from "../helpers";
-import { useHistoryStore } from "../../../store";
+import { useHistoryStore } from "@/store";
 
 const { undo, redo, clear, reset } = useHistoryStore.getState();
 

@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 const host = process.env.TAURI_DEV_HOST;
+import path from "path";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -35,4 +36,9 @@ export default defineConfig({
     sourcemap: !!process.env.TAURI_ENV_DEBUG,
   },
   plugins: [react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "src"),
+    },
+  },
 });

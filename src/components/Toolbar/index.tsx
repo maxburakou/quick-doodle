@@ -1,5 +1,5 @@
-import { useToolStore } from "../../store";
-import { Tool } from "../../types";
+import { useToolStore } from "@/store";
+import { Tool } from "@/types";
 import {
   Pen,
   Highlighter,

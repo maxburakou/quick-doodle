@@ -1,5 +1,5 @@
 import { Options } from "roughjs/bin/core";
-import { RoughShape, StrokePoint } from "../../../../types";
+import { RoughShape, StrokePoint } from "@/types";
 import rough from "roughjs";
 import { generateRoughShape } from "../generateRoughShape";
 import { getRoughOptions } from "../getRoughOptions";

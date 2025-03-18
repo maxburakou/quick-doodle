@@ -1,5 +1,5 @@
 import rough from "roughjs";
-import { RoughShape, StrokePoint } from "../../../types";
+import { RoughShape, StrokePoint } from "@/types";
 import { Options } from "roughjs/bin/core";
 
 const generator = rough.generator();

@@ -1,6 +1,6 @@
 import { toggleBackground } from "./toggleBackground";
-import { useHistoryStore, useToolStore } from "../../../store";
-import { Tool } from "../../../types";
+import { useHistoryStore, useToolStore } from "@/store";
+import { Tool } from "@/types";
 
 const { undo, redo, clear, reset } = useHistoryStore.getState();
 const { setTool } = useToolStore.getState();

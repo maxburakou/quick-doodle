@@ -1,4 +1,4 @@
-import { StrokePoint } from "../../../../types";
+import { StrokePoint } from "@/types";
 
 export const drawHighlighter = (
   ctx: CanvasRenderingContext2D,
@@ -9,7 +9,7 @@ export const drawHighlighter = (
 ) => {
   ctx.globalAlpha = 0.3;
   ctx.strokeStyle = color;
-  ctx.lineWidth = thickness * 4;
+  ctx.lineWidth = thickness * 5;
   ctx.lineCap = "round";
 
   ctx.beginPath();

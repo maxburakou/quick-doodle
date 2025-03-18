@@ -1,6 +1,8 @@
 menu {
+  margin: 0;
   position: fixed;
   top: 0px;
+  transform: translateY(0);
   right: 0px;
   display: flex;
   gap: 3px;

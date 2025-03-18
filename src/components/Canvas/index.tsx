@@ -1,6 +1,6 @@
 import React, { useCallback, useRef } from "react";
-import { Stroke, StrokePoint } from "../../types";
-import { useHistoryStore, useSettingsStore, useToolStore } from "../../store";
+import { Stroke, StrokePoint } from "@/types";
+import { useHistoryStore, useSettingsStore, useToolStore } from "@/store";
 import { useCanvasScaleSetup, usePointerEvents, useShortcuts } from "./hooks";
 import { clearCanvas, drawCanvas } from "./helpers";
 import { BackgroundCanvas } from "./backgroundCanvas";

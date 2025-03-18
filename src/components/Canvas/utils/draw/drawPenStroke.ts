@@ -1,5 +1,5 @@
 import getStroke from "perfect-freehand";
-import { StrokePoint } from "../../../../types";
+import { StrokePoint } from "@/types";
 
 export const drawPenStroke = (
   ctx: CanvasRenderingContext2D,

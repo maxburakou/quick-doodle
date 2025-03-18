@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef } from "react";
 import { useCanvasScaleSetup } from "./hooks";
 import { drawCanvas } from "./helpers";
-import { useHistoryStore } from "../../store";
+import { useHistoryStore } from "@/store";
 import "./styles.css";
 
 const Canvas = () => {

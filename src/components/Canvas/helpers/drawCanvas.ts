@@ -1,4 +1,4 @@
-import { Stroke } from "../../../types";
+import { Stroke } from "@/types";
 import { drawStrokes } from "../utils";
 
 export const drawCanvas = (

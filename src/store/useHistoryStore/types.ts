@@ -1,4 +1,4 @@
-import { Stroke } from "../../types";
+import { Stroke } from "@/types";
 
 export interface HistoryState {
   past: Stroke[][];
