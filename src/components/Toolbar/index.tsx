@@ -10,6 +10,9 @@ import {
   Circle,
 } from "lucide-react";
 import "./styles.css";
+import { ColorOptions } from "./colorOptions";
+import { ThicknessOptions } from "./thicknessOptions";
+import Draggable from "react-draggable";
 
 const toolIcons = {
   Pen: <Pen size={14} />,
@@ -25,24 +28,34 @@ export const Toolbar: React.FC = () => {
   const { tool, setTool } = useToolStore();
 
   return (
-    <menu>
-      {Object.entries(Tool).map(([key, value], index) => {
-        const isActive = value === tool;
-        return (
-          <li key={value}>
-            <button
-              onClick={() => setTool(value as Tool)}
-              className={isActive ? "--active" : undefined}
-              aria-pressed={value === tool}
-            >
-              {toolIcons[key as keyof typeof toolIcons]}
-              <span className={isActive ? "--active" : undefined}>
-                {index + 1}
-              </span>
-            </button>
-          </li>
-        );
-      })}
-    </menu>
+    <Draggable bounds="parent" scale={1}>
+      <menu>
+        <div className="toolbar">
+          {Object.entries(Tool).map(([key, value], index) => {
+            const isActive = value === tool;
+            return (
+              <li key={value}>
+                <button
+                  onClick={() => setTool(value as Tool)}
+                  className={isActive ? "--active" : undefined}
+                  aria-pressed={value === tool}
+                >
+                  {toolIcons[key as keyof typeof toolIcons]}
+                  <span className={isActive ? "--active" : undefined}>
+                    {index + 1}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </div>
+        <hr />
+        <div className="toolbar-settings">
+          <ColorOptions />
+          <hr className="--vertical" />
+          <ThicknessOptions />
+        </div>
+      </menu>
+    </Draggable>
   );
 };

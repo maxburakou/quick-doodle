@@ -1,6 +1,6 @@
 import React, { useCallback, useRef } from "react";
 import { Stroke, StrokePoint } from "@/types";
-import { useHistoryStore, useSettingsStore, useToolStore } from "@/store";
+import { useHistoryStore, useToolSettingsStore, useToolStore } from "@/store";
 import { useCanvasScaleSetup, usePointerEvents, useShortcuts } from "./hooks";
 import { clearCanvas, drawCanvas } from "./helpers";
 import { BackgroundCanvas } from "./backgroundCanvas";
@@ -23,7 +23,7 @@ export const Canvas: React.FC = () => {
 
   // const rafIdRef = useRef<number | null>(null);
 
-  const { color, thickness } = useSettingsStore();
+  const { color, thickness } = useToolSettingsStore();
   const { tool } = useToolStore();
   const { addAction } = useHistoryStore();
 
@@ -113,6 +113,7 @@ export const Canvas: React.FC = () => {
     <section className="canvas-wrapper">
       <canvas
         ref={canvasRef}
+        className="drawing-canvas"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

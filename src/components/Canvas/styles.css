@@ -5,6 +5,10 @@ canvas {
   cursor: crosshair;
 }
 
+.drawing-canvas {
+  z-index: 1;
+}
+
 .background-canvas {
   pointer-events: none;
 }

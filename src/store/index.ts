@@ -1,3 +1,3 @@
 export { useHistoryStore } from "./useHistoryStore";
-export { useSettingsStore } from "./useSettingsStore";
+export { useToolSettingsStore } from "./useToolSettingsStore";
 export { useToolStore } from "./useToolStore";
