@@ -11,8 +11,8 @@ import {
   GripVertical,
 } from "lucide-react";
 import "./styles.css";
-import { ColorOptions } from "./colorOptions";
-import { ThicknessOptions } from "./thicknessOptions";
+import { ColorOptions } from "./ColorOptions";
+import { ThicknessOptions } from "./ThicknessOptions";
 import Draggable from "react-draggable";
 
 const toolIcons = {
@@ -59,9 +59,9 @@ export const Toolbar: React.FC = () => {
           </div>
         </div>
         <div className="grip-container">
-          <GripVertical size={16} className="toolbar-grip" />
-          <GripVertical size={16} className="toolbar-grip" />
-          <GripVertical size={16} className="toolbar-grip" />
+          <GripVertical size={14} className="toolbar-grip" />
+          <GripVertical size={14} className="toolbar-grip" />
+          <GripVertical size={14} className="toolbar-grip" />
         </div>
       </div>
     </Draggable>

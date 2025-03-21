@@ -137,8 +137,7 @@ hr.--vertical {
   background: none;
 }
 .thickness-button.--active {
-  background: #dcdcdc;
-  color: #444444;
+  border: none;
 }
 
 .thickness-button svg {
@@ -171,4 +170,19 @@ hr.--vertical {
 
 .toolbar-grip {
   color: #dcdcdc;
+}
+
+.color-picker .react-colorful {
+  width: 100px;
+  height: 100px;
+}
+
+.color-picker .react-colorful__hue {
+  height: 14px;
+}
+
+.color-picker .react-colorful__saturation-pointer,
+.color-picker .react-colorful__hue-pointer {
+  width: 16px;
+  height: 16px;
 }

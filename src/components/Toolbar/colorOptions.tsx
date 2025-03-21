@@ -1,9 +1,11 @@
-import { DEFAULT_STROKE_COLORS as colors } from "@/config";
 import { useToolSettingsStore } from "@/store";
 import { Settings } from "lucide-react";
+import { Popover } from "../Popover";
+import { ToolbarColorPicker } from "./toolBarColorPicker";
 
 export const ColorOptions = () => {
-  const { color: selectedColor, setColor } = useToolSettingsStore();
+  const { color: selectedColor, setColor, colors } = useToolSettingsStore();
+
   return (
     <>
       {colors.map((color, index) => (
@@ -16,7 +18,9 @@ export const ColorOptions = () => {
           style={{ backgroundColor: color }}
         />
       ))}
-      <Settings className="settings-button" size={16} />
+      <Popover content={<ToolbarColorPicker />}>
+        <Settings className="settings-button" size={16} />
+      </Popover>
     </>
   );
 };

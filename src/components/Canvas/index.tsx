@@ -3,8 +3,8 @@ import { Stroke, StrokePoint } from "@/types";
 import { useHistoryStore, useToolSettingsStore, useToolStore } from "@/store";
 import { useCanvasScaleSetup, usePointerEvents, useShortcuts } from "./hooks";
 import { clearCanvas, drawCanvas } from "./helpers";
-import { BackgroundCanvas } from "./backgroundCanvas";
 import "./styles.css";
+import { BackgroundCanvas } from "./BackgroundCanvas";
 
 export const Canvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
