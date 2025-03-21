@@ -1,9 +1,12 @@
-import { DEFAULT_STROKE_WIDTH as thicknesses } from "@/config";
 import { useToolSettingsStore } from "@/store";
 import { Minus } from "lucide-react";
 
 export const ThicknessOptions = () => {
-  const { thickness: selectedThickness, setThickness } = useToolSettingsStore();
+  const {
+    thickness: selectedThickness,
+    setThickness,
+    thicknesses,
+  } = useToolSettingsStore();
   return (
     <>
       {thicknesses.map((thickness) => (
