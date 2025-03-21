@@ -10,54 +10,56 @@ const { toNextColor, toPrevColor, toNextThickness, toPrevThickness } =
 export const handleKeyDownEvent = (event: KeyboardEvent) => {
   event.preventDefault();
 
-  if (event.shiftKey && event.metaKey && event.key === "z") {
+  const { metaKey, shiftKey, code } = event;
+
+  if (shiftKey && metaKey && code === "KeyZ") {
     redo();
     return;
   }
 
-  if (event.metaKey && event.key === "z") {
+  if (metaKey && code === "KeyZ") {
     undo();
     return;
   }
 
-  if (event.metaKey && event.key === "c") {
+  if (metaKey && code === "KeyC") {
     clear();
     return;
   }
 
-  if (event.metaKey && event.key === "r") {
+  if (metaKey && code === "KeyR") {
     reset();
     return;
   }
 
-  if (event.metaKey && event.key === "a") {
+  if (metaKey && code === "KeyA") {
     toggleBackground();
     return;
   }
 
   Object.values(Tool).forEach((toolItemKey) => {
-    if (event.key === toolItemKey) {
+    if (code === `Digit${toolItemKey}` || code === `Numpad${toolItemKey}`) {
       setTool(toolItemKey);
       return;
     }
   });
 
-  if (event.key === "{") {
+  if (shiftKey && code === "BracketLeft") {
     toPrevColor();
     return;
   }
 
-  if (event.key === "}") {
+  if (shiftKey && code === "BracketRight") {
     toNextColor();
     return;
   }
 
-  if (event.key === "[") {
+  if (code === "BracketLeft") {
     toPrevThickness();
     return;
   }
 
-  if (event.key === "]") {
+  if (code === "BracketRight") {
     toNextThickness();
     return;
   }
