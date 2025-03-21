@@ -5,7 +5,7 @@ import { DEFAULT_STROKE_COLORS, DEFAULT_STROKE_WIDTH } from "@/config";
 export const useToolSettingsStore = create<ToolSettingsState>((set) => ({
   color: DEFAULT_STROKE_COLORS[0],
   colors: DEFAULT_STROKE_COLORS,
-  thickness: DEFAULT_STROKE_WIDTH[0],
+  thickness: DEFAULT_STROKE_WIDTH[1],
   setColor: (color) => set({ color }),
   setThickness: (thickness) => set({ thickness }),
   updateColor: (newColor: string) =>

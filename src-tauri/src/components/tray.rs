@@ -8,7 +8,6 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<Menu<Wry>> 
   let autostart_manager = app.autolaunch();
   let is_autostart_enabled = autostart_manager.is_enabled().unwrap();
 
-  let menu_item_color = MenuItem::with_id(app, "color", "Color", false, None::<&str>)?;
   let menu_item_undo = MenuItem::with_id(app, "undo", "Undo", visibility, Some("CmdOrCtrl+Z"))?;
   let menu_item_redo = MenuItem::with_id(app, "redo", "Redo", visibility, Some("Shift+CmdOrCtrl+Z"))?;
   let menu_item_clear = MenuItem::with_id(app, "clear", "Clear", visibility, Some("CmdOrCtrl+C"))?;
@@ -37,7 +36,8 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<Menu<Wry>> 
       is_autostart_enabled, 
       None::<&str>
   )?;
-  let menu_item_shortcuts_config = MenuItem::with_id(app, "shortcuts", "Edit Shortcuts", false, None::<&str>)?;
+  // todo: implement shortcuts configuration
+  // let menu_item_shortcuts_config = MenuItem::with_id(app, "shortcuts", "Edit Shortcuts", false, None::<&str>)?;
   let menu_item_background = MenuItem::with_id(
     app,
     "background",
@@ -49,8 +49,6 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<Menu<Wry>> 
   return Menu::with_items(
       app,
       &[
-          &menu_item_color,
-          &menu_item_separator,
           &menu_item_undo,
           &menu_item_redo,
           &menu_item_clear,
@@ -61,7 +59,8 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<Menu<Wry>> 
           &menu_item_quit_canvas,
           &menu_item_separator,
           &menu_item_autostart,
-          &menu_item_shortcuts_config,
+          // todo: implement shortcuts configuration
+          // &menu_item_shortcuts_config,
           &menu_item_quit,
       ],
   )
