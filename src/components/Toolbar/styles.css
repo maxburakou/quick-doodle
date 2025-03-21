@@ -1,23 +1,34 @@
-menu {
-  margin: 0;
+.toolbar-container {
+  display: flex;
+  align-items: center;
   position: fixed;
   top: 0px;
   right: 0px;
   padding: 3px;
+  padding-right: 0px;
   background: #ffffff;
   border: 1px solid #dcdcdc;
   border-radius: 10px;
   list-style: none;
   z-index: 10;
   cursor: pointer;
+  user-select: none;
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.15),
     0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
+.toolbar-content {
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+}
+
 .toolbar {
   display: flex;
   gap: 3px;
+  margin: 0;
+  padding: 0;
 }
 
 li {
@@ -77,8 +88,9 @@ hr {
 
 hr.--vertical {
   width: 1px;
-  height: 16px;
   margin: 0 2px;
+  align-self: stretch;
+  height: auto;
 }
 
 .toolbar-settings {
@@ -114,6 +126,7 @@ hr.--vertical {
   border-radius: 50%;
   background: inherit;
   -webkit-filter: invert(1) grayscale(100%) contrast(2000%);
+  filter: invert(1) grayscale(100%) contrast(2000%);
 }
 
 .thickness-button {
@@ -145,6 +158,17 @@ hr.--vertical {
 }
 
 .react-draggable-dragging {
-  cursor: grabbing;
   opacity: 0.8;
+}
+
+.grip-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  cursor: move;
+}
+
+.toolbar-grip {
+  color: #dcdcdc;
 }

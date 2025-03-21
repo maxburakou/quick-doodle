@@ -8,6 +8,7 @@ import {
   Square,
   Diamond,
   Circle,
+  GripVertical,
 } from "lucide-react";
 import "./styles.css";
 import { ColorOptions } from "./colorOptions";
@@ -28,34 +29,41 @@ export const Toolbar: React.FC = () => {
   const { tool, setTool } = useToolStore();
 
   return (
-    <Draggable bounds="parent" scale={1}>
-      <menu>
-        <div className="toolbar">
-          {Object.entries(Tool).map(([key, value], index) => {
-            const isActive = value === tool;
-            return (
-              <li key={value}>
-                <button
-                  onClick={() => setTool(value as Tool)}
-                  className={isActive ? "--active" : undefined}
-                  aria-pressed={value === tool}
-                >
-                  {toolIcons[key as keyof typeof toolIcons]}
-                  <span className={isActive ? "--active" : undefined}>
-                    {index + 1}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
+    <Draggable bounds="parent" handle=".grip-container" scale={1}>
+      <div className="toolbar-container">
+        <div className="toolbar-content">
+          <menu className="toolbar">
+            {Object.entries(Tool).map(([key, value], index) => {
+              const isActive = value === tool;
+              return (
+                <li key={value}>
+                  <button
+                    onClick={() => setTool(value as Tool)}
+                    className={isActive ? "--active" : undefined}
+                    aria-pressed={value === tool}
+                  >
+                    {toolIcons[key as keyof typeof toolIcons]}
+                    <span className={isActive ? "--active" : undefined}>
+                      {index + 1}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </menu>
+          <hr />
+          <div className="toolbar-settings">
+            <ColorOptions />
+            <hr className="--vertical" />
+            <ThicknessOptions />
+          </div>
         </div>
-        <hr />
-        <div className="toolbar-settings">
-          <ColorOptions />
-          <hr className="--vertical" />
-          <ThicknessOptions />
+        <div className="grip-container">
+          <GripVertical size={16} className="toolbar-grip" />
+          <GripVertical size={16} className="toolbar-grip" />
+          <GripVertical size={16} className="toolbar-grip" />
         </div>
-      </menu>
+      </div>
     </Draggable>
   );
 };
