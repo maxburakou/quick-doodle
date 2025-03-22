@@ -1,7 +1,7 @@
 import { useToolSettingsStore } from "@/store";
 import { Settings } from "lucide-react";
 import { Popover } from "../Popover";
-import { ToolbarColorPicker } from "./ToolBarColorPicker";
+import { ToolbarColorPicker } from "./ToolbarColorPicker";
 
 export const ColorOptions = () => {
   const { color: selectedColor, setColor, colors } = useToolSettingsStore();
