@@ -1,9 +1,11 @@
-import { invoke } from "@tauri-apps/api/core";
+import { useCanvasStore } from "@/store";
+import { CanvasBackground } from "@/types";
 
-export async function toggleBackground() {
-  try {
-    await invoke("toggle_background");
-  } catch (error) {
-    console.error("Error during the background change:", error);
-  }
+export function toggleBackground() {
+  const { background, setBackground } = useCanvasStore.getState();
+  const newBackground =
+    background === CanvasBackground.Transparent
+      ? CanvasBackground.Light
+      : CanvasBackground.Transparent;
+  setBackground(newBackground);
 }

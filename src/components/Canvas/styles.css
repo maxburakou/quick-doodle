@@ -11,8 +11,9 @@ canvas {
 
 .background-canvas {
   pointer-events: none;
+  transition: background 0.2s;
 }
 
-.canvas-wrapper{
+.canvas-wrapper {
   position: relative;
 }

@@ -1,7 +1,6 @@
 mod helpers;
 mod state;
 mod components;
-use tauri::generate_handler;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 use tauri::{
     image::Image,
@@ -13,20 +12,14 @@ use tauri_plugin_autostart::MacosLauncher;
 use helpers::{
     autostart::toggle_autostart, 
     shortcuts::register_global_shortcuts, 
-    utils::{activate_window_background, deactivate_window_background, get_background_state, get_icon_path, handle_event, set_background_state, toggle_background_state, toggle_window, toggle_background} 
+    utils::{get_icon_path, handle_event, toggle_window} 
 };
 use components::tray::create_tray_menu;
 use state::WindowState;
+use tauri_plugin_store;
 
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(generate_handler![
-          get_background_state, 
-          set_background_state, 
-          toggle_background_state, 
-          activate_window_background, 
-          deactivate_window_background, 
-          toggle_background])
         .setup(|app| {
             // Hide dock icon on macOS
             #[cfg(target_os = "macos")]
@@ -70,7 +63,7 @@ pub fn run() {
                           handle_event(app, "reset-canvas");
                       },
                       "autostart" => toggle_autostart(app),
-                      "background" => toggle_background(app.clone()),
+                      "background" => handle_event(app, "toggle-background-canvas"),
                       &_ => {}
                   }
                 })
@@ -100,6 +93,7 @@ pub fn run() {
 
             Ok(())
         })
+        .plugin(tauri_plugin_store::Builder::default().build())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
