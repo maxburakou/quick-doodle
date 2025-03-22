@@ -23,6 +23,7 @@
     "react-dom": "^18.3.1",
     "react-draggable": "^4.4.6",
     "roughjs": "^4.6.6",
+    "use-debounce": "^10.0.4",
     "zustand": "^5.0.3"
   },
   "devDependencies": {

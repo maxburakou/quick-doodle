@@ -186,3 +186,19 @@ hr.--vertical {
   width: 16px;
   height: 16px;
 }
+
+.hex-input {
+  width: 100%;
+  padding: 4px 8px;
+  margin-top: 4px;
+  font-size: 12px;
+  text-align: center;
+  border: 1px solid #dcdcdc;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.hex-input.--invalid {
+  border-color: red;
+}
