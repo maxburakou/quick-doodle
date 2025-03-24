@@ -44,8 +44,6 @@
       "icons/tray/tray_icon--active.png",
       "icons/tray/tray_icon--inactive.png"
     ],
-    "resources": [
-      "icons/**/*"
-    ]
+    "resources": ["icons/**/*"]
   }
 }
