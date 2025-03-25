@@ -1,4 +1,4 @@
-import { useToolStore } from "@/store";
+import { useSetTool, useTool } from "@/store";
 import { Tool } from "@/types";
 import {
   Pen,
@@ -14,7 +14,7 @@ import "./styles.css";
 import { ColorOptions } from "./ColorOptions";
 import { ThicknessOptions } from "./ThicknessOptions";
 import Draggable from "react-draggable";
-import { useToolbarStore } from "@/store/useToolbarStore";
+import { useToolbarVisibility } from "@/store/useToolbarStore";
 
 const toolIcons = {
   Pen: <Pen size={14} />,
@@ -27,8 +27,9 @@ const toolIcons = {
 };
 
 export const Toolbar: React.FC = () => {
-  const { tool, setTool } = useToolStore();
-  const { isVisible } = useToolbarStore();
+  const tool = useTool();
+  const setTool = useSetTool();
+  const isVisible = useToolbarVisibility();
 
   return (
     <Draggable bounds="parent" handle=".grip-container" scale={1}>

@@ -1,12 +1,15 @@
-import { useToolSettingsStore } from "@/store";
+import {
+  useSetToolThickness,
+  useToolThickness,
+  useToolThicknesses,
+} from "@/store";
 import { Minus } from "lucide-react";
 
 export const ThicknessOptions = () => {
-  const {
-    thickness: selectedThickness,
-    setThickness,
-    thicknesses,
-  } = useToolSettingsStore();
+  const selectedThickness = useToolThickness();
+  const thicknesses = useToolThicknesses();
+  const setThickness = useSetToolThickness();
+
   return (
     <>
       {thicknesses.map((thickness) => (

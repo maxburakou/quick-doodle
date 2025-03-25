@@ -2,7 +2,12 @@ import { create } from "zustand";
 import { ToolbarState } from "./types";
 
 export const useToolbarStore = create<ToolbarState>((set) => ({
-  isVisible: true,
-  setIsVisible: (isVisible) => set({ isVisible }),
-  toggleVisibility: () => set((state) => ({ isVisible: !state.isVisible })),
+  visibility: true,
+  setVisibility: (visibility) => set({ visibility }),
+  toggleVisibility: () => set((state) => ({ visibility: !state.visibility })),
 }));
+
+export const useToolbarVisibility = () =>
+  useToolbarStore((state) => state.visibility);
+export const useToggleToolbarVisibility = () =>
+  useToolbarStore((state) => state.toggleVisibility);

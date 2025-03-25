@@ -1,15 +1,15 @@
 import { memo, useEffect, useRef } from "react";
 import { useCanvasScaleSetup } from "./hooks";
 import { drawCanvas } from "./helpers";
-import { useCanvasStore, useHistoryStore } from "@/store";
+import { useCanvasBackground, usePresent } from "@/store";
 import "./styles.css";
 
 const Canvas = () => {
-  const { background } = useCanvasStore();
+  const background = useCanvasBackground();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
-  const { present } = useHistoryStore();
+  const present = usePresent();
   useCanvasScaleSetup(canvasRef, ctxRef);
 
   useEffect(() => {

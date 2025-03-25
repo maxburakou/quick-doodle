@@ -1,11 +1,12 @@
 import { HexColorPicker } from "react-colorful";
 import "./styles.css";
-import { useToolSettingsStore } from "@/store";
+import { useToolColor, useUpdateToolColor } from "@/store";
 import { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 export const ToolbarColorPicker: React.FC = () => {
-  const { color, updateColor } = useToolSettingsStore();
+  const color = useToolColor();
+  const updateColor = useUpdateToolColor();
   const [tempColor, setTempColor] = useState(color);
   const isValid = /^#[0-9A-Fa-f]{6}$/.test(tempColor);
 

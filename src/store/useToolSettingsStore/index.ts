@@ -47,3 +47,25 @@ export const useToolSettingsStore = create<ToolSettingsState>((set, get) => ({
     }
   },
 }));
+
+export const useToolColor = () => useToolSettingsStore((state) => state.color);
+export const useToolColors = () =>
+  useToolSettingsStore((state) => state.colors);
+export const useToolThickness = () =>
+  useToolSettingsStore((state) => state.thickness);
+export const useToolThicknesses = () =>
+  useToolSettingsStore((state) => state.thicknesses);
+export const useSetToolColor = () =>
+  useToolSettingsStore((state) => state.setColor);
+export const useSetToolThickness = () =>
+  useToolSettingsStore((state) => state.setThickness);
+export const useUpdateToolColor = () =>
+  useToolSettingsStore((state) => state.updateColor);
+export const useToNextToolColor = () =>
+  useToolSettingsStore((state) => state.toNextColor);
+export const useToPrevToolColor = () =>
+  useToolSettingsStore((state) => state.toPrevColor);
+export const useToNextToolThickness = () =>
+  useToolSettingsStore((state) => state.toNextThickness);
+export const useToPrevToolThickness = () =>
+  useToolSettingsStore((state) => state.toPrevThickness);

@@ -1,6 +1,6 @@
 import React, { useCallback, useRef } from "react";
 import { Stroke, StrokePoint } from "@/types";
-import { useHistoryStore, useToolSettingsStore, useToolStore } from "@/store";
+import { useAddRecord, useTool, useToolColor, useToolThickness } from "@/store";
 import { useCanvasScaleSetup, usePointerEvents, useShortcuts } from "./hooks";
 import { clearCanvas, drawCanvas } from "./helpers";
 import "./styles.css";
@@ -23,9 +23,10 @@ export const Canvas: React.FC = () => {
 
   // const rafIdRef = useRef<number | null>(null);
 
-  const { color, thickness } = useToolSettingsStore();
-  const { tool } = useToolStore();
-  const { addAction } = useHistoryStore();
+  const color = useToolColor();
+  const thickness = useToolThickness();
+  const tool = useTool();
+  const addAction = useAddRecord();
 
   useShortcuts();
   useCanvasScaleSetup(canvasRef, ctxRef);

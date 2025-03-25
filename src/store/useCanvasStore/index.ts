@@ -13,3 +13,8 @@ export const useCanvasStore = create<CanvasState>((set) => ({
           : CanvasBackground.Transparent,
     })),
 }));
+
+export const useCanvasBackground = () =>
+  useCanvasStore((state) => state.background);
+export const useToggleCanvasBackground = () =>
+  useCanvasStore((state) => state.toggleBackground);

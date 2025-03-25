@@ -1,5 +1,5 @@
 export interface ToolbarState {
-  isVisible: boolean;
-  setIsVisible: (isVisible: boolean) => void;
+  visibility: boolean;
+  setVisibility: (isVisible: boolean) => void;
   toggleVisibility: () => void;
 }
