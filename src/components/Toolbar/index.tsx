@@ -32,7 +32,7 @@ export const Toolbar: React.FC = () => {
 
   return (
     <Draggable bounds="parent" handle=".grip-container" scale={1}>
-      <div className={`toolbar-container ${isVisible ? "--hidden" : ""}`}>
+      <div className={`toolbar-container ${!isVisible ? "--hidden" : ""}`}>
         <div className="toolbar-content">
           <menu className="toolbar">
             {Object.entries(Tool).map(([key, value], index) => {
