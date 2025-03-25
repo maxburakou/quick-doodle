@@ -16,10 +16,24 @@
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.15),
     0 1px 3px rgba(0, 0, 0, 0.1);
+  opacity: 1;
+  transition:
+    opacity 0.3s ease,
+    display 0.3s ease allow-discrete;
 }
 
 .toolbar-container.--hidden {
+  opacity: 0;
   display: none;
+}
+
+@starting-style {
+  .toolbar-container {
+    opacity: 0;
+  }
+  .toolbar-container.--hidden {
+    opacity: 1;
+  }
 }
 
 .toolbar-content {
