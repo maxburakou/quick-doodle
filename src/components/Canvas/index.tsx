@@ -21,8 +21,6 @@ export const Canvas: React.FC = () => {
   const drawableSeed = useRef<number>(Date.now());
   const updateDrawableSeed = () => (drawableSeed.current = Date.now());
 
-  // const rafIdRef = useRef<number | null>(null);
-
   const color = useToolColor();
   const thickness = useToolThickness();
   const tool = useTool();
@@ -30,19 +28,6 @@ export const Canvas: React.FC = () => {
 
   useShortcuts();
   useCanvasScaleSetup(canvasRef, ctxRef);
-
-  // const updateCanvas = () => {
-  //   if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
-  //   rafIdRef.current = requestAnimationFrame(() => {
-  //     const stroke: Stroke = {
-  //       points: pointsRef.current,
-  //       color,
-  //       thickness,
-  //       tool,
-  //     };
-  //     drawCanvas([stroke], ctxRef.current);
-  //   });
-  // };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     startDrawing();
@@ -85,14 +70,12 @@ export const Canvas: React.FC = () => {
 
     addPoints(point);
     drawCanvas([stroke], ctxRef.current);
-    // updateCanvas();
   };
 
   const handlePointerUp = useCallback(() => {
     if (!isDrawingRef.current) return;
 
     stopDrawing();
-    // if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
 
     const stroke: Stroke = {
       points: pointsRef.current,

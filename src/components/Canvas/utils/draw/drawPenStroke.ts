@@ -31,8 +31,16 @@ export const drawPenStroke = (
 
   if (strokePath.length > 0) {
     ctx.moveTo(strokePath[0][0], strokePath[0][1]);
-    strokePath.forEach(([x, y]) => ctx.lineTo(x, y));
+    for (let i = 1; i < strokePath.length - 1; i++) {
+      const [x0, y0] = strokePath[i];
+      const [x1, y1] = strokePath[i + 1];
+      const xc = (x0 + x1) / 2;
+      const yc = (y0 + y1) / 2;
+      ctx.quadraticCurveTo(x0, y0, xc, yc);
+    }
   }
+
+  ctx.closePath();
   ctx.fillStyle = color;
   ctx.fill();
 };
