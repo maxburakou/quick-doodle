@@ -18,8 +18,8 @@
     0 1px 3px rgba(0, 0, 0, 0.1);
   opacity: 1;
   transition:
-    opacity 0.3s ease,
-    display 0.3s ease allow-discrete;
+    opacity 0.2s ease,
+    display 0.2s ease allow-discrete;
 }
 
 .toolbar-container.--hidden {
