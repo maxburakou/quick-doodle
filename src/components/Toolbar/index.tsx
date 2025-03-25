@@ -14,6 +14,7 @@ import "./styles.css";
 import { ColorOptions } from "./ColorOptions";
 import { ThicknessOptions } from "./ThicknessOptions";
 import Draggable from "react-draggable";
+import { useToolbarStore } from "@/store/useToolbarStore";
 
 const toolIcons = {
   Pen: <Pen size={14} />,
@@ -27,10 +28,11 @@ const toolIcons = {
 
 export const Toolbar: React.FC = () => {
   const { tool, setTool } = useToolStore();
+  const { isVisible } = useToolbarStore();
 
   return (
     <Draggable bounds="parent" handle=".grip-container" scale={1}>
-      <div className="toolbar-container">
+      <div className={`toolbar-container ${isVisible ? "--hidden" : ""}`}>
         <div className="toolbar-content">
           <menu className="toolbar">
             {Object.entries(Tool).map(([key, value], index) => {

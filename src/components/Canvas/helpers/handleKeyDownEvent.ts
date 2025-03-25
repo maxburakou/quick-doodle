@@ -1,11 +1,18 @@
-import { toggleBackground } from "./toggleBackground";
-import { useHistoryStore, useToolSettingsStore, useToolStore } from "@/store";
+import {
+  useCanvasStore,
+  useHistoryStore,
+  useToolSettingsStore,
+  useToolStore,
+} from "@/store";
+import { useToolbarStore } from "@/store/useToolbarStore";
 import { Tool } from "@/types";
 
 const { undo, redo, clear, reset } = useHistoryStore.getState();
 const { setTool } = useToolStore.getState();
 const { toNextColor, toPrevColor, toNextThickness, toPrevThickness } =
   useToolSettingsStore.getState();
+const { toggleBackground: toggleCanvas } = useCanvasStore.getState();
+const { toggleVisibility: toggleToolbar } = useToolbarStore.getState();
 
 export const handleKeyDownEvent = (event: KeyboardEvent) => {
   event.preventDefault();
@@ -33,7 +40,12 @@ export const handleKeyDownEvent = (event: KeyboardEvent) => {
   }
 
   if (metaKey && code === "KeyA") {
-    toggleBackground();
+    toggleCanvas();
+    return;
+  }
+
+  if (metaKey && code === "KeyQ") {
+    toggleToolbar();
     return;
   }
 

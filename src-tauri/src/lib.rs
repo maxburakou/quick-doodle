@@ -64,6 +64,7 @@ pub fn run() {
 					}
 					"autostart" => toggle_autostart(app),
 					"background" => handle_event(app, "toggle-background-canvas"),
+					"toolbar" => handle_event(app, "toggle-toolbar-canvas"),
 					&_ => {}
 				})
 				.icon(Image::from_path(get_icon_path(
