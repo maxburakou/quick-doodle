@@ -21,4 +21,5 @@ export interface Stroke {
   thickness: number;
   tool: Tool;
   drawableSeed?: number;
+  isShiftPressed?: boolean;
 }

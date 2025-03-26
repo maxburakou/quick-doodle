@@ -3,6 +3,7 @@ import { RoughShape, StrokePoint } from "@/types";
 import { generateRoughShape } from "../generateRoughShape";
 import rough from "roughjs";
 import { getRoughOptions } from "../getRoughOptions";
+import { constrainToSquareBounds } from "../constrainToSquareBounds";
 
 export const drawDiamond = (
   ctx: CanvasRenderingContext2D,
@@ -10,9 +11,14 @@ export const drawDiamond = (
   end: StrokePoint,
   color: string,
   thickness: number,
-  drawableSeed?: number
+  drawableSeed?: number,
+  isShiftPressed?: boolean
 ) => {
   const roughCanvas = rough.canvas(ctx.canvas);
+
+  const adjustedEnd = isShiftPressed
+    ? constrainToSquareBounds(start, end)
+    : end;
 
   const options: Options = getRoughOptions({
     stroke: color,
@@ -20,7 +26,12 @@ export const drawDiamond = (
     seed: drawableSeed,
   });
 
-  const diamond = generateRoughShape(RoughShape.Diamond, start, end, options);
+  const diamond = generateRoughShape(
+    RoughShape.Diamond,
+    start,
+    adjustedEnd,
+    options
+  );
 
   if (diamond) roughCanvas.draw(diamond);
 };

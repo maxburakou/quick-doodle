@@ -19,83 +19,91 @@ export const drawStrokes = (
   strokes: Stroke[],
   ctx: CanvasRenderingContext2D
 ) => {
-  strokes.forEach(({ points, color, thickness, tool, drawableSeed }) => {
-    const hasMinimumPoints = points.length >= 2;
+  strokes.forEach(
+    ({ points, color, thickness, tool, drawableSeed, isShiftPressed }) => {
+      const hasMinimumPoints = points.length >= 2;
 
-    if (tool === Tool.Pen) {
-      drawPenStroke(ctx, points, color, thickness);
-      return;
-    }
+      if (tool === Tool.Pen) {
+        drawPenStroke(ctx, points, color, thickness);
+        return;
+      }
 
-    if (tool === Tool.Highlighter && hasMinimumPoints) {
-      drawHighlighter(
-        ctx,
-        points[0],
-        points[points.length - 1],
-        color,
-        thickness
-      );
-      return;
-    }
+      if (tool === Tool.Highlighter && hasMinimumPoints) {
+        drawHighlighter(
+          ctx,
+          points[0],
+          points[points.length - 1],
+          color,
+          thickness,
+          isShiftPressed
+        );
+        return;
+      }
 
-    if (tool === Tool.Arrow && hasMinimumPoints) {
-      drawArrow(
-        ctx,
-        points[0],
-        points[points.length - 1],
-        color,
-        thickness,
-        drawableSeed
-      );
-      return;
-    }
+      if (tool === Tool.Arrow && hasMinimumPoints) {
+        drawArrow(
+          ctx,
+          points[0],
+          points[points.length - 1],
+          color,
+          thickness,
+          drawableSeed,
+          isShiftPressed
+        );
+        return;
+      }
 
-    if (tool === Tool.Line && hasMinimumPoints) {
-      drawLine(
-        ctx,
-        points[0],
-        points[points.length - 1],
-        color,
-        thickness,
-        drawableSeed
-      );
-      return;
-    }
+      if (tool === Tool.Line && hasMinimumPoints) {
+        drawLine(
+          ctx,
+          points[0],
+          points[points.length - 1],
+          color,
+          thickness,
+          drawableSeed,
+          isShiftPressed
+        );
+        return;
+      }
 
-    if (tool === Tool.Rectangle && hasMinimumPoints) {
-      drawRectangle(
-        ctx,
-        points[0],
-        points[points.length - 1],
-        color,
-        thickness,
-        drawableSeed
-      );
-      return;
-    }
+      if (tool === Tool.Rectangle && hasMinimumPoints) {
+        drawRectangle(
+          ctx,
+          points[0],
+          points[points.length - 1],
+          color,
+          thickness,
+          drawableSeed,
+          isShiftPressed
+        );
+        return;
+      }
 
-    if (tool === Tool.Ellipse && hasMinimumPoints) {
-      drawEllipse(
-        ctx,
-        points[0],
-        points[points.length - 1],
-        color,
-        thickness,
-        drawableSeed
-      );
-      return;
-    }
+      if (tool === Tool.Ellipse && hasMinimumPoints) {
+        drawEllipse(
+          ctx,
+          points[0],
+          points[points.length - 1],
+          color,
+          thickness,
+          drawableSeed,
+          isShiftPressed
+        );
+        return;
+      }
 
-    if (tool === Tool.Diamond && hasMinimumPoints) {
-      drawDiamond(
-        ctx,
-        points[0],
-        points[points.length - 1],
-        color,
-        thickness,
-        drawableSeed
-      );
-      return;
+      if (tool === Tool.Diamond && hasMinimumPoints) {
+        drawDiamond(
+          ctx,
+          points[0],
+          points[points.length - 1],
+          color,
+          thickness,
+          drawableSeed,
+          isShiftPressed
+        );
+        return;
+      }
     }
-  });
+  );
 };

@@ -3,6 +3,7 @@ import { RoughShape, StrokePoint } from "@/types";
 import { Options } from "roughjs/bin/core";
 import { generateRoughShape } from "../generateRoughShape";
 import { getRoughOptions } from "../getRoughOptions";
+import { constrainLineToAxis } from "../constrainLineToAxis";
 
 export const drawArrow = (
   ctx: CanvasRenderingContext2D,
@@ -10,9 +11,14 @@ export const drawArrow = (
   end: StrokePoint,
   color: string,
   thickness: number,
-  drawableSeed?: number
+  drawableSeed?: number,
+  isShiftPressed?: boolean
 ) => {
   const roughCanvas = rough.canvas(ctx.canvas);
+
+  const adjustedEnd = isShiftPressed
+    ? constrainLineToAxis(start, end, 15)
+    : end;
 
   const options: Options = getRoughOptions({
     stroke: color,
@@ -21,32 +27,32 @@ export const drawArrow = (
   });
 
   const arrowHeadLength = 15 + thickness * 2.5;
-  const angle = Math.atan2(end.y - start.y, end.x - start.x);
+  const angle = Math.atan2(adjustedEnd.y - start.y, adjustedEnd.x - start.x);
 
-  const line = generateRoughShape(RoughShape.Line, start, end, options);
+  const line = generateRoughShape(RoughShape.Line, start, adjustedEnd, options);
   if (line) roughCanvas.draw(line);
 
   const arrowHead1: StrokePoint = {
-    x: end.x - arrowHeadLength * Math.cos(angle - Math.PI / 10),
-    y: end.y - arrowHeadLength * Math.sin(angle - Math.PI / 10),
-    pressure: end.pressure,
+    x: adjustedEnd.x - arrowHeadLength * Math.cos(angle - Math.PI / 10),
+    y: adjustedEnd.y - arrowHeadLength * Math.sin(angle - Math.PI / 10),
+    pressure: adjustedEnd.pressure,
   };
 
   const arrowHead2: StrokePoint = {
-    x: end.x - arrowHeadLength * Math.cos(angle + Math.PI / 10),
-    y: end.y - arrowHeadLength * Math.sin(angle + Math.PI / 10),
-    pressure: end.pressure,
+    x: adjustedEnd.x - arrowHeadLength * Math.cos(angle + Math.PI / 10),
+    y: adjustedEnd.y - arrowHeadLength * Math.sin(angle + Math.PI / 10),
+    pressure: adjustedEnd.pressure,
   };
 
   const roughArrowHead1 = generateRoughShape(
     RoughShape.Line,
-    end,
+    adjustedEnd,
     arrowHead1,
     options
   );
   const roughArrowHead2 = generateRoughShape(
     RoughShape.Line,
-    end,
+    adjustedEnd,
     arrowHead2,
     options
   );

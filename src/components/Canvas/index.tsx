@@ -55,41 +55,51 @@ export const Canvas: React.FC = () => {
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawingRef.current) return;
 
+    const isShiftPressed = e.shiftKey;
+
     const point: StrokePoint = {
       x: e.nativeEvent.offsetX,
       y: e.nativeEvent.offsetY,
       pressure: e.pressure,
     };
+
     const stroke: Stroke = {
       points: pointsRef.current,
       color,
       thickness,
       tool,
       drawableSeed: drawableSeed.current,
+      isShiftPressed,
     };
 
     addPoints(point);
     drawCanvas([stroke], ctxRef.current);
   };
 
-  const handlePointerUp = useCallback(() => {
-    if (!isDrawingRef.current) return;
+  const handlePointerUp = useCallback(
+    (e?: React.PointerEvent<HTMLCanvasElement>) => {
+      if (!isDrawingRef.current) return;
 
-    stopDrawing();
+      stopDrawing();
 
-    const stroke: Stroke = {
-      points: pointsRef.current,
-      color,
-      thickness,
-      tool,
-      drawableSeed: drawableSeed.current,
-    };
+      const isShiftPressed = e?.shiftKey;
 
-    addAction(stroke);
-    setPoints([]);
+      const stroke: Stroke = {
+        points: pointsRef.current,
+        color,
+        thickness,
+        tool,
+        drawableSeed: drawableSeed.current,
+        isShiftPressed,
+      };
 
-    clearCanvas(ctxRef.current);
-  }, [addAction, color, thickness, tool]);
+      addAction(stroke);
+      setPoints([]);
+
+      clearCanvas(ctxRef.current);
+    },
+    [addAction, color, thickness, tool]
+  );
 
   usePointerEvents(handlePointerUp);
 
