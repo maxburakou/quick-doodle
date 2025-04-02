@@ -34,3 +34,20 @@ export {
   useToolbarVisibility,
   useToggleToolbarVisibility,
 } from "./useToolbarStore";
+export {
+  useTextEditorStore,
+  useSetTextEditorInputText,
+  useSetTextEditorStartPoint,
+  useTextEditorInputText,
+  useTextEditorStartPoint,
+  useResetTextEditorState,
+} from "./useTextEditorStore";
+export {
+  useTextSettingsStore,
+  useFontSize,
+  useFontSizes,
+  useSetFontSize,
+  useToNextFontSize,
+  useToPrevFontSize,
+  useUpdateFontSize,
+} from "./tools/useTextSettingsStore";

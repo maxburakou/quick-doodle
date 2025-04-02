@@ -6,7 +6,7 @@ export enum Tool {
   Rectangle = "5",
   Diamond = "6",
   Ellipse = "7",
-  // Text = "8",
+  Text = "8",
 }
 
 export interface StrokePoint {
@@ -22,4 +22,5 @@ export interface Stroke {
   tool: Tool;
   drawableSeed?: number;
   isShiftPressed?: boolean;
+  text?: string;
 }

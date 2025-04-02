@@ -11,6 +11,8 @@ export const useToolSettingsStore = create<ToolSettingsState>((set, get) => ({
   setThickness: (thickness) => set({ thickness }),
   updateColor: (newColor: string) =>
     set(({ colors, color }) => {
+      if (newColor === color || colors.includes(newColor)) return {};
+
       const updatedColors = colors.map((c) => (c === color ? newColor : c));
       return { colors: updatedColors, color: newColor };
     }),

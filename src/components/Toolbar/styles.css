@@ -165,6 +165,14 @@ hr.--vertical {
   transform: translate(-50%, -50%);
 }
 
+.fontsize-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: x-small;
+}
+
 .settings-button {
   color: #444444;
   transition: all 0.2s;
@@ -205,7 +213,16 @@ hr.--vertical {
   height: 16px;
 }
 
-.hex-input {
+.fontsize-picker {
+  width: 40px;
+}
+.fontsize-picker .fontsize-input {
+  margin: 0;
+  padding: 4px;
+}
+
+.hex-input,
+.fontsize-input {
   width: 100%;
   padding: 4px 8px;
   margin-top: 4px;
@@ -217,6 +234,32 @@ hr.--vertical {
   transition: border-color 0.2s;
 }
 
-.hex-input.--invalid {
+.hex-input.--invalid,
+.fontsize-input.--invalid {
   border-color: red;
+}
+
+.fontsize-arrows {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  transform: translateY(-50%);
+}
+
+.fontsize-arrows button {
+  all: unset;
+  cursor: pointer;
+  font-size: 8px;
+  line-height: 1;
+  padding: 2px;
+  user-select: none;
+  color: #dcdcdc;
+  transition: color 0.2s;
+}
+
+.fontsize-arrows button:hover {
+  color: #444444;
 }

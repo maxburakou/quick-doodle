@@ -9,12 +9,14 @@ import {
   Diamond,
   Circle,
   GripVertical,
+  Type,
 } from "lucide-react";
 import "./styles.css";
 import { ColorOptions } from "./ColorOptions";
 import { ThicknessOptions } from "./ThicknessOptions";
 import Draggable from "react-draggable";
 import { useToolbarVisibility } from "@/store/useToolbarStore";
+import { FontSizeOptions } from "./FontSizeOpitons";
 
 const toolIcons = {
   Pen: <Pen size={14} />,
@@ -24,6 +26,7 @@ const toolIcons = {
   Rectangle: <Square size={14} />,
   Diamond: <Diamond size={14} />,
   Ellipse: <Circle size={14} />,
+  Text: <Type size={14} />,
 };
 
 export const Toolbar: React.FC = () => {
@@ -58,7 +61,7 @@ export const Toolbar: React.FC = () => {
           <div className="toolbar-settings">
             <ColorOptions />
             <hr className="--vertical" />
-            <ThicknessOptions />
+            {tool === Tool.Text ? <FontSizeOptions /> : <ThicknessOptions />}
           </div>
         </div>
         <div className="grip-container">

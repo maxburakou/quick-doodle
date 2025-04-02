@@ -9,11 +9,6 @@ canvas {
   z-index: 1;
 }
 
-.background-canvas {
-  pointer-events: none;
-  transition: background 0.2s;
-}
-
 .canvas-wrapper {
   position: relative;
 }

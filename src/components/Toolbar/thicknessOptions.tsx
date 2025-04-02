@@ -12,9 +12,9 @@ export const ThicknessOptions = () => {
 
   return (
     <>
-      {thicknesses.map((thickness) => (
+      {thicknesses.map((thickness, index) => (
         <button
-          key={thickness}
+          key={index}
           onClick={() => setThickness(thickness)}
           className={`options-button thickness-button ${
             thickness === selectedThickness ? "--active" : ""

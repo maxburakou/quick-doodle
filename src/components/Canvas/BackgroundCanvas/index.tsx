@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef } from "react";
-import { useCanvasScaleSetup } from "./hooks";
-import { drawCanvas } from "./helpers";
+import { useCanvasScaleSetup } from "../hooks";
+import { drawCanvas } from "../helpers";
 import { useCanvasBackground, usePresent } from "@/store";
 import "./styles.css";
 
