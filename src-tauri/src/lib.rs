@@ -93,8 +93,6 @@ pub fn run() {
 			}
 
 			register_global_shortcuts(app.app_handle());
-      let window = app.get_webview_window("main").unwrap();
-      window.open_devtools();
 
 			Ok(())
 		})
