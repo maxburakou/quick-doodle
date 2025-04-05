@@ -38,7 +38,7 @@ export const AutoSizeTextarea = forwardRef<HTMLTextAreaElement>(
     return (
       <label
         className="input-sizer stacked"
-        data-value={text || " "}
+        data-value={text || "."}
         style={{ top: point?.y, left: point?.x, color, fontSize }}
       >
         <textarea

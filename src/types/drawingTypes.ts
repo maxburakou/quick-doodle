@@ -15,6 +15,11 @@ export interface StrokePoint {
   pressure: number;
 }
 
+export interface TextElement {
+  value: string;
+  fontSize: number;
+}
+
 export interface Stroke {
   points: StrokePoint[];
   color: string;
@@ -22,5 +27,5 @@ export interface Stroke {
   tool: Tool;
   drawableSeed?: number;
   isShiftPressed?: boolean;
-  text?: string;
+  text?: TextElement;
 }

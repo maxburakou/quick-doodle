@@ -5,7 +5,7 @@ import {
   useToolSettingsStore,
   useToolStore,
 } from "@/store";
-import { Stroke } from "@/types";
+import { Stroke, TextElement } from "@/types";
 
 const { addAction } = useHistoryStore.getState();
 
@@ -15,13 +15,18 @@ export const handleInputSubmit = () => {
   const { fontSize } = useTextSettingsStore.getState();
   const { tool } = useToolStore.getState();
 
+  const text: TextElement = {
+    value: inputText,
+    fontSize,
+  };
+
   if (inputText && startPoint) {
     const stroke: Stroke = {
       points: [startPoint],
       color,
       thickness: fontSize,
       tool,
-      text: inputText,
+      text,
     };
     addAction(stroke);
   }

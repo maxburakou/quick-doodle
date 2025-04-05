@@ -3,8 +3,6 @@ textarea {
   margin: 0;
   resize: none;
   outline: none;
-  overflow: hidden;
-  width: fit-content;
   color: inherit;
   font-size: inherit;
 }
@@ -16,7 +14,8 @@ textarea {
   position: absolute;
   padding: 0;
   margin: 0;
-  border: dotted 1px black;
+  outline: dotted 1px #444444;
+  width: min-content;
 }
 
 .input-sizer.stacked {
@@ -31,7 +30,6 @@ textarea {
 .input-sizer::after,
 .input-sizer textarea {
   width: auto;
-  min-width: 1em;
   grid-area: 1 / 2;
   font: inherit;
   margin: 0;
@@ -39,10 +37,11 @@ textarea {
   background: none;
   appearance: none;
   border: none;
+  line-height: 1.1;
 }
 
 .input-sizer::after {
   content: attr(data-value) " ";
   visibility: hidden;
-  white-space: pre-wrap;
+  white-space: pre;
 }

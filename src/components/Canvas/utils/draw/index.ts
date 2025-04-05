@@ -116,7 +116,7 @@ export const drawStrokes = (
       }
 
       if (tool === Tool.Text && text) {
-        drawText(ctx, points, color, thickness, text);
+        drawText(ctx, points, color, text);
         return;
       }
     }

@@ -16,7 +16,7 @@ import { ColorOptions } from "./ColorOptions";
 import { ThicknessOptions } from "./ThicknessOptions";
 import Draggable from "react-draggable";
 import { useToolbarVisibility } from "@/store/useToolbarStore";
-import { FontSizeOptions } from "./FontSizeOpitons";
+import { FontSizeOptions } from "./FontSizeOptions";
 
 const toolIcons = {
   Pen: <Pen size={14} />,
