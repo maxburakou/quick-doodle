@@ -1,6 +1,7 @@
 import {
   useCanvasStore,
   useHistoryStore,
+  useTextSettingsStore,
   useToolSettingsStore,
   useToolStore,
 } from "@/store";
@@ -13,11 +14,14 @@ const { toNextColor, toPrevColor, toNextThickness, toPrevThickness } =
   useToolSettingsStore.getState();
 const { toggleBackground: toggleCanvas } = useCanvasStore.getState();
 const { toggleVisibility: toggleToolbar } = useToolbarStore.getState();
+const { toNextFontSize, toPrevFontSize } = useTextSettingsStore.getState();
 
 export const handleKeyDownEvent = (event: KeyboardEvent) => {
   event.preventDefault();
 
   const { metaKey, shiftKey, code } = event;
+
+  const { tool } = useToolStore.getState();
 
   if (shiftKey && metaKey && code === "KeyZ") {
     redo();
@@ -67,11 +71,19 @@ export const handleKeyDownEvent = (event: KeyboardEvent) => {
   }
 
   if (code === "BracketLeft") {
+    if (tool === Tool.Text) {
+      toPrevFontSize();
+      return;
+    }
     toPrevThickness();
     return;
   }
 
   if (code === "BracketRight") {
+    if (tool === Tool.Text) {
+      toNextFontSize();
+      return;
+    }
     toNextThickness();
     return;
   }
