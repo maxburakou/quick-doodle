@@ -1,0 +1,4 @@
+.background-canvas {
+  pointer-events: none;
+  transition: background 0.2s;
+}

@@ -1,0 +1,47 @@
+textarea {
+  padding: 0;
+  margin: 0;
+  resize: none;
+  outline: none;
+  color: inherit;
+  font-size: inherit;
+}
+
+.input-sizer {
+  display: inline-grid;
+  vertical-align: top;
+  align-items: center;
+  position: absolute;
+  padding: 0;
+  margin: 0;
+  outline: dotted 1px #444444;
+  width: min-content;
+}
+
+.input-sizer.stacked {
+  align-items: stretch;
+}
+
+.input-sizer.stacked::after,
+.input-sizer.stacked textarea {
+  grid-area: 2 / 1;
+}
+
+.input-sizer::after,
+.input-sizer textarea {
+  width: auto;
+  grid-area: 1 / 2;
+  font: inherit;
+  margin: 0;
+  resize: none;
+  background: none;
+  appearance: none;
+  border: none;
+  line-height: 1.1;
+}
+
+.input-sizer::after {
+  content: attr(data-value) " ";
+  visibility: hidden;
+  white-space: pre;
+}

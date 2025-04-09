@@ -1,0 +1,14 @@
+canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  cursor: crosshair;
+}
+
+.drawing-canvas {
+  z-index: 1;
+}
+
+.canvas-wrapper {
+  position: relative;
+}

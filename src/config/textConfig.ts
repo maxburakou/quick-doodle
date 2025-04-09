@@ -1,0 +1,1 @@
+export const DEFAULT_FONT_SIZE = [28, 40, 52];

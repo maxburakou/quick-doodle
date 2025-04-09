@@ -1,0 +1,265 @@
+.toolbar-container {
+  display: flex;
+  align-items: center;
+  position: fixed;
+  top: 0px;
+  right: 0px;
+  padding: 3px;
+  padding-right: 0px;
+  background: #ffffff;
+  border: 1px solid #dcdcdc;
+  border-radius: 10px;
+  list-style: none;
+  z-index: 10;
+  cursor: pointer;
+  user-select: none;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    0 1px 3px rgba(0, 0, 0, 0.1);
+  opacity: 1;
+  transition:
+    opacity 0.2s ease,
+    display 0.2s ease allow-discrete;
+}
+
+.toolbar-container.--hidden {
+  opacity: 0;
+  display: none;
+}
+
+@starting-style {
+  .toolbar-container {
+    opacity: 0;
+  }
+  .toolbar-container.--hidden {
+    opacity: 1;
+  }
+}
+
+.toolbar-content {
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.toolbar {
+  display: flex;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+}
+
+li {
+  display: flex;
+}
+
+button {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  background: transparent;
+  color: #444444;
+  transition: all 0.2s;
+  transform: 0.1s;
+  position: relative;
+}
+
+button:hover {
+  background: #dcdcdc;
+}
+
+button.--active {
+  background: #007aff;
+  color: #ffffff;
+}
+
+span {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  font-size: 9px;
+  color: #444444;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+}
+
+span.--active {
+  color: #ffffff;
+}
+
+hr {
+  display: block;
+  margin: 2px 0;
+  border: none;
+  height: 1px;
+  background: #dcdcdc;
+}
+
+hr.--vertical {
+  width: 1px;
+  margin: 0 2px;
+  align-self: stretch;
+  height: auto;
+}
+
+.toolbar-settings {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.options-button {
+  width: 16px;
+  height: 16px;
+  overflow: hidden;
+  border: 1px solid #dcdcdc;
+  border-radius: 50%;
+}
+
+.options-button:hover {
+  transform: scale(1.1);
+}
+
+.options-button.--active {
+  border: 1px solid #444444;
+}
+
+.color-button.--active::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40%;
+  height: 40%;
+  border-radius: 50%;
+  background: inherit;
+  -webkit-filter: invert(1) grayscale(100%) contrast(2000%);
+  filter: invert(1) grayscale(100%) contrast(2000%);
+}
+
+.thickness-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+}
+.thickness-button.--active {
+  border: none;
+}
+
+.thickness-button svg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.fontsize-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: x-small;
+}
+
+.settings-button {
+  color: #444444;
+  transition: all 0.2s;
+}
+
+.settings-button:hover {
+  transform: rotate(45deg);
+}
+
+.react-draggable-dragging {
+  opacity: 0.8;
+}
+
+.grip-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  cursor: move;
+}
+
+.toolbar-grip {
+  color: #dcdcdc;
+}
+
+.color-picker .react-colorful {
+  width: 100px;
+  height: 100px;
+}
+
+.color-picker .react-colorful__hue {
+  height: 14px;
+}
+
+.color-picker .react-colorful__saturation-pointer,
+.color-picker .react-colorful__hue-pointer {
+  width: 16px;
+  height: 16px;
+}
+
+.fontsize-picker {
+  width: 40px;
+}
+.fontsize-picker .fontsize-input {
+  margin: 0;
+  padding: 4px;
+}
+
+.hex-input,
+.fontsize-input {
+  width: 100%;
+  padding: 4px 8px;
+  margin-top: 4px;
+  font-size: 12px;
+  text-align: center;
+  border: 1px solid #dcdcdc;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.hex-input.--invalid,
+.fontsize-input.--invalid {
+  border-color: red;
+}
+
+.fontsize-arrows {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  transform: translateY(-50%);
+}
+
+.fontsize-arrows button {
+  all: unset;
+  cursor: pointer;
+  font-size: 8px;
+  line-height: 1;
+  padding: 2px;
+  user-select: none;
+  color: #dcdcdc;
+  transition: color 0.2s;
+}
+
+.fontsize-arrows button:hover {
+  color: #444444;
+}

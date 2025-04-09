@@ -1,11 +1,13 @@
 import "./App.css";
-import { Canvas } from "./components/Canvas";
+import { Canvas, TextEditor, Toolbar } from "./components";
 
 function App() {
   return (
-    <section className="app-container">
+    <main className="app-container">
+      <Toolbar />
+      <TextEditor />
       <Canvas />
-    </section>
+    </main>
   );
 }
 
