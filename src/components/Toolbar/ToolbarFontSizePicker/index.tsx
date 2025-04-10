@@ -1,6 +1,6 @@
 import { useFontSize, useUpdateFontSize } from "@/store";
 import { useState } from "react";
-import "./styles.css";
+import "../styles.css";
 import { useDebouncedCallback } from "use-debounce";
 
 export const ToolbarFontSizePicker: React.FC = () => {

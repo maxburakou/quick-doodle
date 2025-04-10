@@ -1,7 +1,7 @@
+import { Popover } from "@/components";
 import { useFontSize, useFontSizes, useSetFontSize } from "@/store";
-import { Popover } from "../Popover";
 import { Settings } from "lucide-react";
-import { ToolbarFontSizePicker } from "./ToolbarFontSizePicker";
+import { ToolbarFontSizePicker } from "../ToolbarFontSizePicker";
 
 export const FontSizeOptions = () => {
   const selectedFontSize = useFontSize();
