@@ -1,5 +1,5 @@
 import { HexColorPicker } from "react-colorful";
-import "./styles.css";
+import "../styles.css";
 import { useToolColor, useUpdateToolColor } from "@/store";
 import { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
