@@ -1,4 +1,12 @@
 # 🎨 Quick Doodle
+_A lightweight macOS annotation tool_
+
+📽 **Preview**  
+<p align="center">
+  <img src="demo/quick-doodle-demo-preview.gif" alt="Quick Doodle Demo" width="700"/>
+</p>
+
+---
 
 Quick Doodle is a lightweight macOS application that allows you to draw directly on your screen with ease. Designed for quick annotations, sketches, or presentations, it seamlessly integrates into your workflow.
 
