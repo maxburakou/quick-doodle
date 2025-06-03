@@ -12,9 +12,8 @@
   "app": {
     "windows": [
       {
-        "maximized": true,
         "focus": true,
-        "alwaysOnTop": true,
+        "fullscreen": false,
         "decorations": false,
         "transparent": true,
         "closable": false,
