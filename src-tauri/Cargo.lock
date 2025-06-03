@@ -454,9 +454,9 @@ dependencies = [
 
 [[package]]
 name = "cocoa"
-version = "0.26.0"
+version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f79398230a6e2c08f5c9760610eb6924b52aa9e7950a619602baba59dcbbdbb2"
+checksum = "ad36507aeb7e16159dfe68db81ccc27571c3ccd4b76fb2fb72fc59e7a4b1b64c"
 dependencies = [
  "bitflags 2.8.0",
  "block",
@@ -2131,6 +2131,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "objc-foundation"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1add1b659e36c9607c7aab864a76c7a4c2760cd0cd2e120f3fb8b952c7e22bf9"
+dependencies = [
+ "block",
+ "objc",
+ "objc_id",
+]
+
+[[package]]
 name = "objc-sys"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2346,6 +2357,15 @@ dependencies = [
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",
+]
+
+[[package]]
+name = "objc_id"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c92d4ddb4bd7b50d730c215ff871754d0da6b2178849f8a2a2ab69712d0c073b"
+dependencies = [
+ "objc",
 ]
 
 [[package]]
@@ -2713,11 +2733,14 @@ dependencies = [
 name = "quick-doodle"
 version = "0.1.0"
 dependencies = [
+ "cocoa",
  "log",
+ "objc",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
+ "tauri-nspanel",
  "tauri-plugin-autostart",
  "tauri-plugin-global-shortcut",
  "tauri-plugin-log",
@@ -3764,6 +3787,22 @@ dependencies = [
  "syn 2.0.98",
  "tauri-codegen",
  "tauri-utils",
+]
+
+[[package]]
+name = "tauri-nspanel"
+version = "2.0.1"
+source = "git+https://github.com/ahkohd/tauri-nspanel?branch=v2#d4b9df797959f8fa4701e8a20ff69d9605bb66e9"
+dependencies = [
+ "bitflags 2.8.0",
+ "block",
+ "cocoa",
+ "core-foundation",
+ "core-graphics",
+ "objc",
+ "objc-foundation",
+ "objc_id",
+ "tauri",
 ]
 
 [[package]]

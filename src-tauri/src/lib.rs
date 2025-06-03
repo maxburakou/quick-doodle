@@ -5,14 +5,13 @@ use components::tray::create_tray_menu;
 use helpers::{
 	autostart::toggle_autostart,
 	shortcuts::register_global_shortcuts,
-	utils::{get_icon_path, handle_event, toggle_window},
+	utils::{get_icon_path, handle_event, setup_macos_window_config, toggle_window},
 };
 use state::WindowState;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 use tauri::{
 	image::Image,
 	tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-	ActivationPolicy::Accessory,
 	Manager,
 };
 use tauri_plugin_autostart::MacosLauncher;
@@ -22,9 +21,8 @@ pub fn run() {
 	tauri::Builder::default()
 		.plugin(tauri_plugin_store::Builder::new().build())
 		.setup(|app| {
-			// Hide dock icon on macOS
 			#[cfg(target_os = "macos")]
-			app.set_activation_policy(Accessory);
+			setup_macos_window_config(app.handle());
 
 			// Initialize state
 			let state = WindowState::new();
