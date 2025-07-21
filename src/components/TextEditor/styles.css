@@ -4,7 +4,7 @@
   height: 100%;
   z-index: 9;
   cursor: crosshair;
-  font-family: "LXGW WenKai TC", cursive;
+  font-family: 'JetBrains Mono', monospace;
   font-weight: 400;
   font-style: normal;
 }

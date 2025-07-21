@@ -8,7 +8,7 @@ export const drawText = (
 ) => {
   const { x, y } = points[0];
   const { fontSize, value: textValue } = text;
-  ctx.font = `${fontSize}px 'LXGW WenKai TC', cursive`;
+  ctx.font = `${fontSize}px 'JetBrains Mono', monospace`;
   ctx.fillStyle = color;
   ctx.textBaseline = "top";
 
