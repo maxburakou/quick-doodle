@@ -33,9 +33,9 @@ Don’t worry — the app is fine. macOS adds a quarantine flag to unsigned apps
 1. Open the **Terminal**.
 2. Paste and run the following command:
 
-``bash
+```bash
 xattr -cr /Applications/Quick\ Doodle.app
-``
+```
 >(If you installed it elsewhere, update the path accordingly.)
 
 Now it should open without any issues! 🎉
