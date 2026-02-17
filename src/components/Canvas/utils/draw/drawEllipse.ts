@@ -12,7 +12,8 @@ export const drawEllipse = (
   color: string,
   thickness: number,
   drawableSeed?: number,
-  isShiftPressed?: boolean
+  isShiftPressed?: boolean,
+  rotation: number = 0
 ) => {
   const roughCanvas = rough.canvas(ctx.canvas);
 
@@ -33,5 +34,17 @@ export const drawEllipse = (
     options
   );
 
-  if (ellipse) roughCanvas.draw(ellipse);
+  if (ellipse) {
+    const centerX = (start.x + adjustedEnd.x) / 2;
+    const centerY = (start.y + adjustedEnd.y) / 2;
+
+    ctx.save();
+    if (rotation !== 0) {
+      ctx.translate(centerX, centerY);
+      ctx.rotate(rotation);
+      ctx.translate(-centerX, -centerY);
+    }
+    roughCanvas.draw(ellipse);
+    ctx.restore();
+  }
 };

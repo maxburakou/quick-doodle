@@ -1,7 +1,12 @@
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { useCanvasScaleSetup } from "../hooks";
 import { drawCanvas } from "../helpers";
-import { useCanvasBackground, usePresent } from "@/store";
+import {
+  useCanvasBackground,
+  usePresent,
+  useShapeTransformSession,
+} from "@/store";
+import { buildPreviewStrokes } from "@/store/useShapeEditorStore/helpers";
 import "./styles.css";
 
 const Canvas = () => {
@@ -10,11 +15,16 @@ const Canvas = () => {
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
   const present = usePresent();
+  const session = useShapeTransformSession();
+  const renderStrokes = useMemo(
+    () => buildPreviewStrokes(present, session),
+    [present, session]
+  );
   useCanvasScaleSetup(canvasRef, ctxRef);
 
   useEffect(() => {
-    drawCanvas(present, ctxRef.current);
-  }, [present]);
+    drawCanvas(renderStrokes, ctxRef.current);
+  }, [renderStrokes]);
 
   return (
     <canvas

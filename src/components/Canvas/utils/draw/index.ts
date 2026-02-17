@@ -30,6 +30,7 @@ export const drawStrokes = (
       drawableSeed,
       isShiftPressed,
       text,
+      rotation,
     }) => {
       const hasMinimumPoints = points.length >= 2;
 
@@ -84,7 +85,8 @@ export const drawStrokes = (
           color,
           thickness,
           drawableSeed,
-          isShiftPressed
+          isShiftPressed,
+          rotation
         );
         return;
       }
@@ -97,7 +99,8 @@ export const drawStrokes = (
           color,
           thickness,
           drawableSeed,
-          isShiftPressed
+          isShiftPressed,
+          rotation
         );
         return;
       }
@@ -110,7 +113,8 @@ export const drawStrokes = (
           color,
           thickness,
           drawableSeed,
-          isShiftPressed
+          isShiftPressed,
+          rotation
         );
         return;
       }

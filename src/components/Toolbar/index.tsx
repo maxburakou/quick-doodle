@@ -10,6 +10,7 @@ import {
   Circle,
   GripVertical,
   Type,
+  MousePointer2,
 } from "lucide-react";
 import "./styles.css";
 import { ColorOptions } from "./ColorOptions";
@@ -27,6 +28,7 @@ const toolIcons = {
   Diamond: <Diamond size={14} />,
   Ellipse: <Circle size={14} />,
   Text: <Type size={14} />,
+  Select: <MousePointer2 size={14} />,
 };
 
 export const Toolbar: React.FC = () => {

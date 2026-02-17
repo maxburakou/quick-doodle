@@ -12,7 +12,8 @@ export const drawDiamond = (
   color: string,
   thickness: number,
   drawableSeed?: number,
-  isShiftPressed?: boolean
+  isShiftPressed?: boolean,
+  rotation: number = 0
 ) => {
   const roughCanvas = rough.canvas(ctx.canvas);
 
@@ -33,5 +34,17 @@ export const drawDiamond = (
     options
   );
 
-  if (diamond) roughCanvas.draw(diamond);
+  if (diamond) {
+    const centerX = (start.x + adjustedEnd.x) / 2;
+    const centerY = (start.y + adjustedEnd.y) / 2;
+
+    ctx.save();
+    if (rotation !== 0) {
+      ctx.translate(centerX, centerY);
+      ctx.rotate(rotation);
+      ctx.translate(-centerX, -centerY);
+    }
+    roughCanvas.draw(diamond);
+    ctx.restore();
+  }
 };

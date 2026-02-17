@@ -6,6 +6,7 @@ import {
   useToolStore,
 } from "@/store";
 import { Stroke, TextElement } from "@/types";
+import { createStrokeId } from "@/store/useShapeEditorStore/helpers";
 
 const { addAction } = useHistoryStore.getState();
 
@@ -22,6 +23,7 @@ export const handleInputSubmit = () => {
 
   if (inputText && startPoint) {
     const stroke: Stroke = {
+      id: createStrokeId(),
       points: [startPoint],
       color,
       thickness: fontSize,

@@ -3,6 +3,7 @@ export {
   usePast,
   usePresent,
   useFuture,
+  useCommitPresent,
   useAddRecord,
   useUndo,
   useRedo,
@@ -51,3 +52,14 @@ export {
   useToPrevFontSize,
   useUpdateFontSize,
 } from "./tools/useTextSettingsStore";
+export {
+  useShapeEditorStore,
+  useSelectedStrokeId,
+  useShapeTransformSession,
+  useSelectStroke,
+  useStartShapeTransform,
+  useUpdateShapeTransform,
+  useCommitShapeTransform,
+  useCancelShapeTransform,
+  useClearShapeSelection,
+} from "./useShapeEditorStore";

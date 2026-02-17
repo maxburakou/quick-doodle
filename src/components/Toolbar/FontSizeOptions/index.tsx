@@ -1,8 +1,8 @@
-import { Popover } from "@/components";
+//import { Popover } from "@/components";
 import { useFontSize, useFontSizes, useSetFontSize } from "@/store";
 import { getFontSizeLabel } from "./helpers";
-import { ToolbarFontSizePicker } from "../ToolbarFontSizePicker";
-import { Settings } from "lucide-react";
+//import { ToolbarFontSizePicker } from "../ToolbarFontSizePicker";
+//import { Settings } from "lucide-react";
 
 export const FontSizeOptions = () => {
   const selectedFontSize = useFontSize();
@@ -22,9 +22,10 @@ export const FontSizeOptions = () => {
           {getFontSizeLabel(index)}
         </button>
       ))}
-      <Popover content={<ToolbarFontSizePicker />}>
+      {/* ToDo: Think about size picker for font size, maybe add it to the right of the buttons */}
+      {/* <Popover content={<ToolbarFontSizePicker />}>
         <Settings className="settings-button" size={16} />
-      </Popover>
+      </Popover> */}
     </>
   );
 };
