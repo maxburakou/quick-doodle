@@ -1,0 +1,1 @@
+export { getFontSizeLabel } from "./getFontSizeLabel";

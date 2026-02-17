@@ -1,7 +1,8 @@
 import { Popover } from "@/components";
 import { useFontSize, useFontSizes, useSetFontSize } from "@/store";
-import { Settings } from "lucide-react";
+import { getFontSizeLabel } from "./helpers";
 import { ToolbarFontSizePicker } from "../ToolbarFontSizePicker";
+import { Settings } from "lucide-react";
 
 export const FontSizeOptions = () => {
   const selectedFontSize = useFontSize();
@@ -18,7 +19,7 @@ export const FontSizeOptions = () => {
             fontSize === selectedFontSize ? "--active" : ""
           }`}
         >
-          {fontSize}
+          {getFontSizeLabel(index)}
         </button>
       ))}
       <Popover content={<ToolbarFontSizePicker />}>
