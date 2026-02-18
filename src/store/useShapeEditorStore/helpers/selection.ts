@@ -20,36 +20,11 @@ export interface TransformHandlePoint {
   point: StrokePoint;
 }
 
-const getLineRotateHandleSide = (
-  start: StrokePoint,
-  end: StrokePoint
-): 1 | -1 => {
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const length = Math.hypot(dx, dy) || 1;
-
-  const normalA = {
-    x: -dy / length,
-    y: dx / length,
-  };
-
-  const centerY = (start.y + end.y) / 2;
-  const handleAY = centerY + normalA.y * ROTATE_HANDLE_OFFSET;
-  const handleBY = centerY - normalA.y * ROTATE_HANDLE_OFFSET;
-
-  return handleAY <= handleBY ? 1 : -1;
-};
-
-export const getStrokeLineRotateHandleSide = (stroke: Stroke): 1 | -1 => {
-  const [start, end] = getStrokeEndpoints(stroke);
-  return getLineRotateHandleSide(start, end);
-};
-
 export const getStrokeTransformHandles = (
-  stroke: Stroke,
-  lineRotateHandleSide?: 1 | -1
+  stroke: Stroke
 ): TransformHandlePoint[] => {
   if (!isEditableShapeTool(stroke.tool)) return [];
+  if (stroke.tool === Tool.Pen || stroke.tool === Tool.Highlighter) return [];
 
   const [start, end] = getStrokeEndpoints(stroke);
 
@@ -63,11 +38,10 @@ export const getStrokeTransformHandles = (
     const directionX = end.x - start.x;
     const directionY = end.y - start.y;
     const length = Math.hypot(directionX, directionY) || 1;
-    const side = lineRotateHandleSide ?? getLineRotateHandleSide(start, end);
 
     const normal = {
-      x: (-directionY / length) * side,
-      y: (directionX / length) * side,
+      x: -directionY / length,
+      y: directionX / length,
     };
 
     const rotateHandle = {
@@ -148,10 +122,9 @@ export const getStrokeTransformHandles = (
 export const getHandleAtPointer = (
   stroke: Stroke,
   pointer: StrokePoint,
-  radius: number = HANDLE_RADIUS,
-  lineRotateHandleSide?: 1 | -1
+  radius: number = HANDLE_RADIUS
 ): TransformHandle | null => {
-  const handles = getStrokeTransformHandles(stroke, lineRotateHandleSide);
+  const handles = getStrokeTransformHandles(stroke);
 
   for (const { handle, point } of handles) {
     if (distance(pointer, point) <= radius) return handle;
@@ -168,8 +141,37 @@ const hitTestLineLikeStroke = (stroke: Stroke, pointer: StrokePoint) => {
   );
 };
 
+const hitTestPenStroke = (stroke: Stroke, pointer: StrokePoint) => {
+  const points = stroke.points;
+  if (points.length === 0) return false;
+  if (points.length === 1) return distance(pointer, points[0]) <= HIT_TOLERANCE;
+
+  const threshold = Math.max(HIT_TOLERANCE, stroke.thickness + 2);
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const current = points[index];
+    const next = points[index + 1];
+    if (!current || !next) continue;
+    if (distanceToSegment(pointer, current, next) <= threshold) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 export const hitTestStroke = (stroke: Stroke, pointer: StrokePoint) => {
   if (!isEditableShapeTool(stroke.tool)) return false;
+
+  if (stroke.tool === Tool.Pen) {
+    return hitTestPenStroke(stroke, pointer);
+  }
+
+  if (stroke.tool === Tool.Highlighter) {
+    const threshold = Math.max(HIT_TOLERANCE, stroke.thickness * 2.5);
+    const [start, end] = getStrokeEndpoints(stroke);
+    return distanceToSegment(pointer, start, end) <= threshold;
+  }
 
   if (stroke.tool === Tool.Line || stroke.tool === Tool.Arrow) {
     return hitTestLineLikeStroke(stroke, pointer);

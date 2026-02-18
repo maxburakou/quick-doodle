@@ -9,6 +9,8 @@ import { constrainLineToAxis } from "@/components/Canvas/utils/constrainLineToAx
 import { constrainToSquareBounds } from "@/components/Canvas/utils/constrainToSquareBounds";
 
 const EDITABLE_SHAPE_TOOLS: EditableShapeTool[] = [
+  Tool.Pen,
+  Tool.Highlighter,
   Tool.Arrow,
   Tool.Line,
   Tool.Rectangle,

@@ -23,7 +23,31 @@ export const drawShapeEditorOverlay = (
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 4]);
 
-  if (stroke.tool === Tool.Line || stroke.tool === Tool.Arrow) {
+  if (stroke.tool === Tool.Pen || stroke.tool === Tool.Highlighter) {
+    const points = stroke.points;
+
+    if (points.length > 0) {
+      let minX = points[0].x;
+      let maxX = points[0].x;
+      let minY = points[0].y;
+      let maxY = points[0].y;
+
+      points.forEach((point) => {
+        if (point.x < minX) minX = point.x;
+        if (point.x > maxX) maxX = point.x;
+        if (point.y < minY) minY = point.y;
+        if (point.y > maxY) maxY = point.y;
+      });
+
+      const padding = Math.max(6, stroke.thickness * 2);
+      ctx.strokeRect(
+        minX - padding,
+        minY - padding,
+        maxX - minX + padding * 2,
+        maxY - minY + padding * 2
+      );
+    }
+  } else if (stroke.tool === Tool.Line || stroke.tool === Tool.Arrow) {
     ctx.beginPath();
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);
@@ -50,6 +74,11 @@ export const drawShapeEditorOverlay = (
   }
 
   ctx.setLineDash([]);
+
+  if (stroke.tool === Tool.Pen || stroke.tool === Tool.Highlighter) {
+    ctx.restore();
+    return;
+  }
 
   const handles = getStrokeTransformHandles(stroke);
   handles.forEach(({ point, handle }) => {

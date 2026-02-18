@@ -68,12 +68,14 @@ const rotateLineStroke = (stroke: Stroke, angle: number): Stroke => {
 };
 
 const moveStroke = (stroke: Stroke, dx: number, dy: number): Stroke => {
-  const [start, end] = getStrokeEndpoints(stroke);
-  return withStrokeEndpoints(
-    stroke,
-    { ...start, x: start.x + dx, y: start.y + dy },
-    { ...end, x: end.x + dx, y: end.y + dy }
-  );
+  return {
+    ...stroke,
+    points: stroke.points.map((point) => ({
+      ...point,
+      x: point.x + dx,
+      y: point.y + dy,
+    })),
+  };
 };
 
 const resizeLineStroke = (

@@ -29,6 +29,8 @@ export interface ShapeBounds {
 }
 
 export type EditableShapeTool =
+  | Tool.Pen
+  | Tool.Highlighter
   | Tool.Arrow
   | Tool.Line
   | Tool.Rectangle

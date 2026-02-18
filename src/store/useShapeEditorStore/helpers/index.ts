@@ -14,7 +14,6 @@ export {
 } from "./core";
 
 export {
-  getStrokeLineRotateHandleSide,
   getStrokeTransformHandles,
   getHandleAtPointer,
   hitTestStroke,
