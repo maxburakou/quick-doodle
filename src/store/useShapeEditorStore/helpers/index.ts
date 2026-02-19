@@ -5,6 +5,7 @@ export {
   getStrokeEndpoints,
   normalizeBoundsFromPoints,
   getStrokeBounds,
+  getStrokeAABB,
   getBoundsCenter,
   rotatePoint,
   inverseRotatePoint,
@@ -25,4 +26,5 @@ export {
   replaceStrokeById,
   buildPreviewStrokes,
   hasStrokeTransformChanged,
+  hasGroupMoveChanged,
 } from "./transform";

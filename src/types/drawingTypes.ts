@@ -63,6 +63,20 @@ export interface TransformSession {
   startPointerAngle?: number;
 }
 
+export interface GroupMoveSession {
+  type: "groupMove";
+  strokeIds: string[];
+  startPointer: StrokePoint;
+  initialStrokesById: Record<string, Stroke>;
+  draftStrokesById: Record<string, Stroke>;
+}
+
+export interface SingleTransformSession extends TransformSession {
+  type: "single";
+}
+
+export type ShapeEditorSession = SingleTransformSession | GroupMoveSession;
+
 export interface Stroke {
   id: string;
   points: StrokePoint[];

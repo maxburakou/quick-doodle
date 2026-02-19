@@ -61,12 +61,17 @@ export {
 } from "./tools/useTextSettingsStore";
 export {
   useShapeEditorStore,
-  useSelectedStrokeId,
+  useSelectedStrokeIds,
+  usePrimarySelectedStrokeId,
   useShapeTransformSession,
-  useSelectStroke,
+  useSetShapeSelection,
+  useToggleShapeSelection,
   useStartShapeTransform,
+  useStartShapeGroupMove,
   useUpdateShapeTransform,
+  useUpdateShapeGroupMove,
   useCommitShapeTransform,
+  useCommitShapeGroupMove,
   useCancelShapeTransform,
   useClearShapeSelection,
 } from "./useShapeEditorStore";

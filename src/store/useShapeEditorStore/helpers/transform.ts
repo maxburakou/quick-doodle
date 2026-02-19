@@ -1,4 +1,13 @@
-import { ShapeBounds, Stroke, StrokePoint, Tool, TransformHandle, TransformSession } from "@/types";
+import {
+  GroupMoveSession,
+  ShapeBounds,
+  ShapeEditorSession,
+  Stroke,
+  StrokePoint,
+  Tool,
+  TransformHandle,
+  TransformSession,
+} from "@/types";
 import { constrainLineToAxis } from "@/components/Canvas/utils/constrainLineToAxis";
 import { normalizeTextStroke } from "@/components/Canvas/utils/textGeometry";
 import {
@@ -359,11 +368,26 @@ export const replaceStrokeById = (strokes: Stroke[], nextStroke: Stroke) =>
 
 export const buildPreviewStrokes = (
   strokes: Stroke[],
-  session: TransformSession | null
+  session: ShapeEditorSession | null
 ): Stroke[] => {
   if (!session) return strokes;
-  return replaceStrokeById(strokes, session.draftStroke);
+  if (session.type === "single") {
+    return replaceStrokeById(strokes, session.draftStroke);
+  }
+
+  return strokes.map((stroke) => {
+    const draftStroke = session.draftStrokesById[stroke.id];
+    return draftStroke ? { ...draftStroke } : stroke;
+  });
 };
+
+export const hasGroupMoveChanged = (session: GroupMoveSession) =>
+  session.strokeIds.some((id) => {
+    const initialStroke = session.initialStrokesById[id];
+    const nextStroke = session.draftStrokesById[id];
+    if (!initialStroke || !nextStroke) return false;
+    return hasStrokeTransformChanged(initialStroke, nextStroke);
+  });
 
 export const hasStrokeTransformChanged = (
   initialStroke: Stroke,

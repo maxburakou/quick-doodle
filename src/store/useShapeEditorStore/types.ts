@@ -1,16 +1,29 @@
-import { Stroke, StrokePoint, TransformHandle, TransformSession } from "@/types";
+import {
+  ShapeEditorSession,
+  Stroke,
+  StrokePoint,
+  TransformHandle,
+} from "@/types";
 
 export interface ShapeEditorState {
-  selectedStrokeId: string | null;
-  session: TransformSession | null;
-  selectStroke: (id: string | null) => void;
+  selectedStrokeIds: string[];
+  primarySelectedStrokeId: string | null;
+  session: ShapeEditorSession | null;
+  setSelection: (ids: string[], primaryId?: string | null) => void;
+  toggleSelection: (id: string) => void;
   startTransform: (params: {
     stroke: Stroke;
     handle: TransformHandle;
     pointer: StrokePoint;
   }) => void;
+  startGroupMove: (params: { strokes: Stroke[]; pointer: StrokePoint }) => void;
   updateTransform: (pointer: StrokePoint, options?: { shiftKey?: boolean }) => void;
+  updateGroupMove: (pointer: StrokePoint) => void;
   commitTransform: (
+    present: Stroke[],
+    commitPresent: (nextPresent: Stroke[]) => void
+  ) => void;
+  commitGroupMove: (
     present: Stroke[],
     commitPresent: (nextPresent: Stroke[]) => void
   ) => void;

@@ -1,8 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Stroke, StrokePoint, Tool, TransformHandle, TransformSession } from "@/types";
+import {
+  ShapeBounds,
+  ShapeEditorSession,
+  Stroke,
+  StrokePoint,
+  Tool,
+  TransformHandle,
+} from "@/types";
 import { useTextEditorMode } from "@/store";
 import {
   clearCanvas,
+  drawGroupSelectionOverlay,
+  drawMarqueeOverlay,
   drawShapeEditorOverlay,
   getCursorByHandle,
   resolveSelectCursor,
@@ -10,24 +19,34 @@ import {
 } from "../helpers";
 import { CanvasPointerPayload } from "./types";
 import { normalizeTextStroke } from "../utils/textGeometry";
+import { getStrokeAABB } from "@/store/useShapeEditorStore/helpers";
 
 const TEXT_EDIT_SECOND_CLICK_INTERVAL_MS = 400;
+const MARQUEE_DRAG_THRESHOLD = 3;
 
 interface UseSelectModeParams {
   tool: Tool;
   ctxRef: React.MutableRefObject<CanvasRenderingContext2D | null>;
   present: Stroke[];
-  selectedStrokeId: string | null;
-  session: TransformSession | null;
+  selectedStrokeIds: string[];
+  primarySelectedStrokeId: string | null;
+  session: ShapeEditorSession | null;
   clearSelection: () => void;
-  selectStroke: (id: string | null) => void;
+  setSelection: (ids: string[], primaryId?: string | null) => void;
+  toggleSelection: (id: string) => void;
   startTransform: (params: {
     stroke: Stroke;
     handle: TransformHandle;
     pointer: StrokePoint;
   }) => void;
+  startGroupMove: (params: { strokes: Stroke[]; pointer: StrokePoint }) => void;
   updateTransform: (pointer: StrokePoint, options?: { shiftKey?: boolean }) => void;
+  updateGroupMove: (pointer: StrokePoint) => void;
   commitTransform: (
+    present: Stroke[],
+    commitPresent: (nextPresent: Stroke[]) => void
+  ) => void;
+  commitGroupMove: (
     present: Stroke[],
     commitPresent: (nextPresent: Stroke[]) => void
   ) => void;
@@ -40,50 +59,142 @@ interface UseSelectModeParams {
   }) => void;
 }
 
+const normalizeMarqueeBounds = (
+  start: StrokePoint,
+  current: StrokePoint
+): ShapeBounds => ({
+  x: Math.min(start.x, current.x),
+  y: Math.min(start.y, current.y),
+  width: Math.abs(current.x - start.x),
+  height: Math.abs(current.y - start.y),
+});
+
+const intersects = (a: ShapeBounds, b: ShapeBounds) =>
+  a.x <= b.x + b.width &&
+  a.x + a.width >= b.x &&
+  a.y <= b.y + b.height &&
+  a.y + a.height >= b.y;
+
+const getStrokesInMarquee = (strokes: Stroke[], marqueeBounds: ShapeBounds) =>
+  strokes
+    .filter((stroke) => intersects(getStrokeAABB(stroke), marqueeBounds))
+    .map((stroke) => stroke.id);
+
 export const useSelectMode = ({
   tool,
   ctxRef,
   present,
-  selectedStrokeId,
+  selectedStrokeIds,
+  primarySelectedStrokeId,
   session,
   clearSelection,
-  selectStroke,
+  setSelection,
+  toggleSelection,
   startTransform,
+  startGroupMove,
   updateTransform,
+  updateGroupMove,
   commitTransform,
+  commitGroupMove,
   commitPresent,
   startTextEdit,
 }: UseSelectModeParams) => {
   const prevToolRef = useRef<Tool>(tool);
   const lastTextBodyClickRef = useRef<{ strokeId: string; at: number } | null>(null);
+  const marqueeStartRef = useRef<StrokePoint | null>(null);
+  const marqueeShiftRef = useRef(false);
+  const marqueeActiveRef = useRef(false);
+  const [marqueeBounds, setMarqueeBounds] = useState<ShapeBounds | null>(null);
   const [cursor, setCursor] = useState<React.CSSProperties["cursor"]>("move");
   const textEditorMode = useTextEditorMode();
-  const selectedStroke = useMemo(
-    () => present.find((stroke) => stroke.id === selectedStrokeId) ?? null,
-    [present, selectedStrokeId]
+
+  const selectedStrokes = useMemo(
+    () =>
+      present.filter((stroke) => selectedStrokeIds.includes(stroke.id)),
+    [present, selectedStrokeIds]
+  );
+  const primarySelectedStroke = useMemo(
+    () =>
+      present.find((stroke) => stroke.id === primarySelectedStrokeId) ?? null,
+    [present, primarySelectedStrokeId]
+  );
+
+  const finalizeMarquee = useCallback(
+    (pointer: StrokePoint) => {
+      const start = marqueeStartRef.current;
+      if (!start) return;
+
+      const shouldApplyMarquee = marqueeActiveRef.current;
+      if (!shouldApplyMarquee) {
+        if (!marqueeShiftRef.current) {
+          clearSelection();
+        }
+      } else {
+        const bounds = normalizeMarqueeBounds(start, pointer);
+        const hitIds = getStrokesInMarquee(present, bounds);
+        if (marqueeShiftRef.current) {
+          const nextSelection = Array.from(new Set([...selectedStrokeIds, ...hitIds]));
+          setSelection(nextSelection, nextSelection[nextSelection.length - 1] ?? null);
+        } else {
+          setSelection(hitIds, hitIds[hitIds.length - 1] ?? null);
+        }
+      }
+
+      marqueeStartRef.current = null;
+      marqueeActiveRef.current = false;
+      marqueeShiftRef.current = false;
+      setMarqueeBounds(null);
+    },
+    [clearSelection, present, selectedStrokeIds, setSelection]
   );
 
   const handlePointerDown = useCallback(
-    ({ point }: CanvasPointerPayload) => {
-      const targetResult = resolveSelectTarget(point, present, selectedStroke);
+    ({ point, shiftKey }: CanvasPointerPayload) => {
+      const startMarqueeSelection = () => {
+        marqueeStartRef.current = point;
+        marqueeShiftRef.current = shiftKey;
+        marqueeActiveRef.current = false;
+        setMarqueeBounds(null);
+        setCursor("move");
+      };
 
-      if (!targetResult.selectedStroke || !targetResult.nextHandle) {
+      const targetResult = resolveSelectTarget(
+        point,
+        present,
+        selectedStrokes,
+        primarySelectedStroke
+      );
+
+      if (!targetResult.targetStroke || !targetResult.nextHandle) {
         lastTextBodyClickRef.current = null;
-        clearSelection();
-        clearCanvas(ctxRef.current);
+        startMarqueeSelection();
+        return;
+      }
+
+      const { targetStroke, nextHandle, targetKind, isBodyHit } = targetResult;
+      if (shiftKey) {
+        if (!isBodyHit) {
+          startMarqueeSelection();
+          return;
+        }
+        toggleSelection(targetStroke.id);
         setCursor("move");
         return;
       }
 
-      const { selectedStroke: targetStroke, nextHandle } = targetResult;
-      const isTextBodyClick =
-        targetStroke.tool === Tool.Text && nextHandle === "move" && Boolean(targetStroke.text);
+      const isSingleTextBodyClick =
+        selectedStrokes.length === 1 &&
+        primarySelectedStroke?.id === targetStroke.id &&
+        targetKind === "single-selected" &&
+        isBodyHit &&
+        targetStroke.tool === Tool.Text &&
+        nextHandle === "move" &&
+        Boolean(targetStroke.text);
 
-      if (isTextBodyClick) {
+      if (isSingleTextBodyClick) {
         const now = Date.now();
         const lastClick = lastTextBodyClickRef.current;
         const canEnterTextEdit =
-          selectedStroke?.id === targetStroke.id &&
           lastClick?.strokeId === targetStroke.id &&
           now - lastClick.at <= TEXT_EDIT_SECOND_CLICK_INTERVAL_MS;
 
@@ -97,6 +208,7 @@ export const useSelectMode = ({
             y: 0,
             pressure: 0.5,
           };
+
           startTextEdit({
             strokeId: normalizedTextStroke.id,
             text: normalizedText.value,
@@ -110,24 +222,46 @@ export const useSelectMode = ({
         lastTextBodyClickRef.current = null;
       }
 
-      selectStroke(targetStroke.id);
+      if (selectedStrokes.length > 1 && targetKind === "selected-group-member") {
+        startGroupMove({ strokes: selectedStrokes, pointer: point });
+        setCursor("grabbing");
+        return;
+      }
+
+      setSelection([targetStroke.id], targetStroke.id);
       startTransform({ stroke: targetStroke, handle: nextHandle, pointer: point });
       setCursor(nextHandle === "move" ? "grabbing" : getCursorByHandle(nextHandle));
     },
     [
       present,
-      selectedStroke,
-      clearSelection,
-      ctxRef,
-      selectStroke,
-      startTransform,
+      primarySelectedStroke,
+      selectedStrokes,
+      setSelection,
+      startGroupMove,
       startTextEdit,
+      startTransform,
+      toggleSelection,
     ]
   );
 
   const handlePointerMove = useCallback(
     ({ point, shiftKey }: CanvasPointerPayload) => {
-      if (session) {
+      if (marqueeStartRef.current) {
+        const start = marqueeStartRef.current;
+        const dx = Math.abs(point.x - start.x);
+        const dy = Math.abs(point.y - start.y);
+        if (!marqueeActiveRef.current && (dx > MARQUEE_DRAG_THRESHOLD || dy > MARQUEE_DRAG_THRESHOLD)) {
+          marqueeActiveRef.current = true;
+        }
+
+        if (marqueeActiveRef.current) {
+          setMarqueeBounds(normalizeMarqueeBounds(start, point));
+          setCursor("crosshair");
+        }
+        return;
+      }
+
+      if (session?.type === "single") {
         updateTransform(point, { shiftKey });
         setCursor(
           session.handle === "move" ? "grabbing" : getCursorByHandle(session.handle)
@@ -135,18 +269,51 @@ export const useSelectMode = ({
         return;
       }
 
-      setCursor(resolveSelectCursor(point, present, selectedStroke));
+      if (session?.type === "groupMove") {
+        updateGroupMove(point);
+        setCursor("grabbing");
+        return;
+      }
+
+      setCursor(resolveSelectCursor(point, present, selectedStrokes, primarySelectedStroke));
     },
-    [session, updateTransform, present, selectedStroke]
+    [
+      present,
+      primarySelectedStroke,
+      selectedStrokes,
+      session,
+      updateTransform,
+      updateGroupMove,
+    ]
   );
 
-  const handlePointerUp = useCallback((_payload: CanvasPointerPayload) => {
-    if (!session) return;
-    commitTransform(present, commitPresent);
-  }, [session, commitTransform, present, commitPresent]);
+  const handlePointerUp = useCallback(
+    ({ point }: CanvasPointerPayload) => {
+      if (marqueeStartRef.current) {
+        finalizeMarquee(point);
+        return;
+      }
+
+      if (!session) return;
+      if (session.type === "single") {
+        commitTransform(present, commitPresent);
+        return;
+      }
+
+      commitGroupMove(present, commitPresent);
+    },
+    [
+      commitGroupMove,
+      commitPresent,
+      commitTransform,
+      finalizeMarquee,
+      present,
+      session,
+    ]
+  );
 
   const handlePointerLeave = useCallback(() => {
-    if (!session) {
+    if (!session && !marqueeStartRef.current) {
       setCursor("move");
     }
   }, [session]);
@@ -156,16 +323,32 @@ export const useSelectMode = ({
     const switchedFromSelect = prevTool === Tool.Select && tool !== Tool.Select;
 
     if (switchedFromSelect) {
-      if (session) {
+      if (session?.type === "single") {
         commitTransform(present, commitPresent);
+      } else if (session?.type === "groupMove") {
+        commitGroupMove(present, commitPresent);
       }
+
       clearSelection();
+      marqueeStartRef.current = null;
+      marqueeActiveRef.current = false;
+      marqueeShiftRef.current = false;
+      setMarqueeBounds(null);
       clearCanvas(ctxRef.current);
       setCursor("move");
     }
 
     prevToolRef.current = tool;
-  }, [tool, session, present, commitTransform, commitPresent, clearSelection, ctxRef]);
+  }, [
+    clearSelection,
+    commitGroupMove,
+    commitPresent,
+    commitTransform,
+    ctxRef,
+    present,
+    session,
+    tool,
+  ]);
 
   useEffect(() => {
     if (textEditorMode === "edit") {
@@ -181,23 +364,60 @@ export const useSelectMode = ({
     const ctx = ctxRef.current;
     if (!ctx) return;
 
-    const activeStroke = session?.draftStroke ?? selectedStroke;
-
     clearCanvas(ctx);
-    if (!activeStroke) return;
 
-    drawShapeEditorOverlay(ctx, activeStroke);
-  }, [tool, selectedStroke, session, ctxRef, textEditorMode]);
+    if (session?.type === "single") {
+      drawShapeEditorOverlay(ctx, session.draftStroke);
+    } else if (session?.type === "groupMove") {
+      const draftStrokes = session.strokeIds
+        .map((id) => session.draftStrokesById[id])
+        .filter(Boolean);
+      drawGroupSelectionOverlay(ctx, draftStrokes);
+    } else if (selectedStrokes.length > 1) {
+      drawGroupSelectionOverlay(ctx, selectedStrokes);
+    } else if (primarySelectedStroke) {
+      drawShapeEditorOverlay(ctx, primarySelectedStroke);
+    }
+
+    if (marqueeBounds) {
+      drawMarqueeOverlay(ctx, marqueeBounds);
+    }
+  }, [
+    ctxRef,
+    marqueeBounds,
+    primarySelectedStroke,
+    selectedStrokes,
+    session,
+    textEditorMode,
+    tool,
+  ]);
 
   useEffect(() => {
-    if (!selectedStrokeId) return;
+    if (selectedStrokeIds.length === 0) return;
 
-    const hasSelectedStroke = present.some((stroke) => stroke.id === selectedStrokeId);
-    if (!hasSelectedStroke) {
+    const existingIds = new Set(present.map((stroke) => stroke.id));
+    const nextSelection = selectedStrokeIds.filter((id) => existingIds.has(id));
+
+    if (nextSelection.length === selectedStrokeIds.length) return;
+
+    if (nextSelection.length === 0) {
       clearSelection();
       clearCanvas(ctxRef.current);
+      return;
     }
-  }, [present, selectedStrokeId, clearSelection, ctxRef]);
+
+    const nextPrimary = nextSelection.includes(primarySelectedStrokeId ?? "")
+      ? primarySelectedStrokeId
+      : nextSelection[nextSelection.length - 1];
+    setSelection(nextSelection, nextPrimary);
+  }, [
+    clearSelection,
+    ctxRef,
+    present,
+    primarySelectedStrokeId,
+    selectedStrokeIds,
+    setSelection,
+  ]);
 
   return useMemo(
     () => ({

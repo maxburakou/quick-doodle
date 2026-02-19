@@ -6,6 +6,9 @@ export type {
   EditableShapeTool,
   TransformHandle,
   TransformSession,
+  SingleTransformSession,
+  GroupMoveSession,
+  ShapeEditorSession,
   ShapeBounds,
 } from "./drawingTypes";
 export { RoughShape } from "./roughShapes";

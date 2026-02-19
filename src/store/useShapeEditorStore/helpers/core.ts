@@ -78,6 +78,69 @@ export const getStrokeBounds = (stroke: Stroke): ShapeBounds => {
   return normalizeBoundsFromPoints(start, end);
 };
 
+const getPenStrokeBounds = (stroke: Stroke): ShapeBounds => {
+  const firstPoint = stroke.points[0] ?? { x: 0, y: 0 };
+  let minX = firstPoint.x;
+  let maxX = firstPoint.x;
+  let minY = firstPoint.y;
+  let maxY = firstPoint.y;
+
+  stroke.points.forEach((point) => {
+    if (point.x < minX) minX = point.x;
+    if (point.x > maxX) maxX = point.x;
+    if (point.y < minY) minY = point.y;
+    if (point.y > maxY) maxY = point.y;
+  });
+
+  const padding =
+    stroke.tool === Tool.Highlighter
+      ? Math.max(6, stroke.thickness * 1.25)
+      : Math.max(6, stroke.thickness * 2);
+
+  return {
+    x: minX - padding,
+    y: minY - padding,
+    width: maxX - minX + padding * 2,
+    height: maxY - minY + padding * 2,
+  };
+};
+
+const getRotatedAABB = (bounds: ShapeBounds, rotation: number): ShapeBounds => {
+  if (rotation === 0) return bounds;
+
+  const center = getBoundsCenter(bounds);
+  const corners = [
+    { x: bounds.x, y: bounds.y },
+    { x: bounds.x + bounds.width, y: bounds.y },
+    { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
+    { x: bounds.x, y: bounds.y + bounds.height },
+  ].map((point) => rotatePoint(point, center, rotation));
+
+  const xs = corners.map((point) => point.x);
+  const ys = corners.map((point) => point.y);
+
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+};
+
+export const getStrokeAABB = (stroke: Stroke): ShapeBounds => {
+  if (stroke.tool === Tool.Pen || stroke.tool === Tool.Highlighter) {
+    return getPenStrokeBounds(stroke);
+  }
+
+  const bounds = getStrokeBounds(stroke);
+  return getRotatedAABB(bounds, getStrokeRotation(stroke));
+};
+
 export const getBoundsCenter = (bounds: ShapeBounds) => ({
   x: bounds.x + bounds.width / 2,
   y: bounds.y + bounds.height / 2,
