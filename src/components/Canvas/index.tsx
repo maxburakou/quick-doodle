@@ -3,6 +3,7 @@ import { Tool } from "@/types";
 import {
   useHistoryStore,
   useShapeEditorStore,
+  useStartTextEditorEdit,
   useToolSettingsStore,
   useToolStore,
 } from "@/store";
@@ -55,6 +56,7 @@ export const Canvas: React.FC = () => {
       clearSelection: state.clearSelection,
     }))
   );
+  const startTextEdit = useStartTextEditorEdit();
 
   useShortcuts();
   useCanvasScaleSetup(canvasRef, ctxRef);
@@ -84,6 +86,7 @@ export const Canvas: React.FC = () => {
     updateTransform,
     commitTransform,
     commitPresent,
+    startTextEdit,
   });
   const {
     cursor: selectCursor,

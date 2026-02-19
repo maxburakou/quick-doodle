@@ -1,5 +1,6 @@
 import { ShapeBounds, Stroke, StrokePoint, Tool, TransformHandle, TransformSession } from "@/types";
 import { constrainLineToAxis } from "@/components/Canvas/utils/constrainLineToAxis";
+import { normalizeTextStroke } from "@/components/Canvas/utils/textGeometry";
 import {
   getBoundsCenter,
   getStrokeEndpoints,
@@ -10,6 +11,7 @@ import {
 } from "./core";
 
 const MIN_SIZE = 8;
+const MIN_TEXT_FONT_SIZE = 8;
 const SNAP_ANGLE_STEP_DEG = 15;
 const SNAP_ANGLE_STEP_RAD = (SNAP_ANGLE_STEP_DEG * Math.PI) / 180;
 
@@ -49,6 +51,40 @@ const getOppositeCorner = (
     default:
       return { x: left, y: top };
   }
+};
+
+const getCornerAxisDirection = (handle: TransformHandle) => ({
+  x: includesWest(handle) ? -1 : 1,
+  y: includesNorth(handle) ? -1 : 1,
+});
+
+const clampCornerBoundsToMinSize = (
+  bounds: ShapeBounds,
+  handle: TransformHandle,
+  minWidth: number,
+  minHeight: number
+): ShapeBounds => {
+  if (!isCornerHandle(handle)) return bounds;
+
+  const width = Math.max(bounds.width, minWidth);
+  const height = Math.max(bounds.height, minHeight);
+
+  const right = bounds.x + bounds.width;
+  const bottom = bounds.y + bounds.height;
+
+  if (handle === "nw") {
+    return { x: right - width, y: bottom - height, width, height };
+  }
+
+  if (handle === "ne") {
+    return { x: bounds.x, y: bottom - height, width, height };
+  }
+
+  if (handle === "sw") {
+    return { x: right - width, y: bounds.y, width, height };
+  }
+
+  return { x: bounds.x, y: bounds.y, width, height };
 };
 
 const rotateLineStroke = (stroke: Stroke, angle: number): Stroke => {
@@ -125,16 +161,16 @@ const resizeShapeBounds = (
       x: includesWest(handle) ? left : right,
       y: includesNorth(handle) ? top : bottom,
     };
+    const axisDirection = getCornerAxisDirection(handle);
 
     const ratio = initialBounds.width / initialBounds.height;
-    const dx = moving.x - anchor.x;
-    const dy = moving.y - anchor.y;
+    const projectedDx = (moving.x - anchor.x) * axisDirection.x;
+    const projectedDy = (moving.y - anchor.y) * axisDirection.y;
+    const safeDx = Math.max(projectedDx, MIN_SIZE);
+    const safeDy = Math.max(projectedDy, MIN_SIZE);
 
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy) || 0.0001;
-
-    let nextWidth = absDx;
-    let nextHeight = absDy;
+    let nextWidth = safeDx;
+    let nextHeight = safeDy;
 
     if (nextWidth / nextHeight > ratio) {
       nextWidth = nextHeight * ratio;
@@ -142,8 +178,8 @@ const resizeShapeBounds = (
       nextHeight = nextWidth / ratio;
     }
 
-    const nextX = anchor.x + Math.sign(dx || 1) * nextWidth;
-    const nextY = anchor.y + Math.sign(dy || 1) * nextHeight;
+    const nextX = anchor.x + axisDirection.x * nextWidth;
+    const nextY = anchor.y + axisDirection.y * nextHeight;
 
     if (includesWest(handle)) left = nextX;
     if (includesEast(handle)) right = nextX;
@@ -246,11 +282,59 @@ export const applySessionTransform = (
     return resizeLineStroke(initialStroke, handle, pointer, shiftKey);
   }
 
-  const { bounds, rotation } = resizeShapeBounds(
-    session,
-    pointer,
-    shiftKey && isCornerHandle(handle)
-  );
+  const keepAspect =
+    isCornerHandle(handle) &&
+    (shiftKey || initialStroke.tool === Tool.Text);
+
+  const { bounds, rotation } = resizeShapeBounds(session, pointer, keepAspect);
+
+  if (initialStroke.tool === Tool.Text && initialStroke.text) {
+    const normalized = normalizeTextStroke(initialStroke);
+    const sourceBounds = initialBounds;
+    const baseFontSize = Math.max(1, normalized.text?.fontSize ?? MIN_TEXT_FONT_SIZE);
+    const minScale = MIN_TEXT_FONT_SIZE / baseFontSize;
+    const minWidth = Math.max(1, sourceBounds.width * minScale);
+    const minHeight = Math.max(1, sourceBounds.height * minScale);
+    const clampedBounds = clampCornerBoundsToMinSize(
+      bounds,
+      handle,
+      minWidth,
+      minHeight
+    );
+
+    const widthScale =
+      sourceBounds.width > 0 ? clampedBounds.width / sourceBounds.width : 1;
+    const heightScale =
+      sourceBounds.height > 0 ? clampedBounds.height / sourceBounds.height : 1;
+    const scale = Math.max(0.01, (widthScale + heightScale) / 2);
+    const nextFontSize = Math.max(
+      MIN_TEXT_FONT_SIZE,
+      Math.round(normalized.text!.fontSize * scale)
+    );
+
+    const start: StrokePoint = {
+      x: clampedBounds.x,
+      y: clampedBounds.y,
+      pressure: normalized.points[0]?.pressure ?? 0.5,
+    };
+    const end: StrokePoint = {
+      x: clampedBounds.x + clampedBounds.width,
+      y: clampedBounds.y + clampedBounds.height,
+      pressure: normalized.points[1]?.pressure ?? 0.5,
+    };
+
+    return {
+      ...withStrokeEndpoints(normalized, start, end),
+      rotation,
+      text: {
+        ...normalized.text!,
+        fontSize: nextFontSize,
+        width: Math.max(1, clampedBounds.width),
+        height: Math.max(1, clampedBounds.height),
+      },
+      thickness: nextFontSize,
+    };
+  }
 
   const start: StrokePoint = {
     x: bounds.x,

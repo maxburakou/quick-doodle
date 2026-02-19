@@ -37,10 +37,17 @@ export {
 } from "./useToolbarStore";
 export {
   useTextEditorStore,
+  useTextEditorMode,
+  useTextEditorEditingStrokeId,
+  useStartTextEditorCreate,
+  useStartTextEditorEdit,
   useSetTextEditorInputText,
   useSetTextEditorStartPoint,
   useTextEditorInputText,
+  useTextEditorFontSizeSnapshot,
   useTextEditorStartPoint,
+  useFinishTextEditor,
+  useCancelTextEditor,
   useResetTextEditorState,
 } from "./useTextEditorStore";
 export {

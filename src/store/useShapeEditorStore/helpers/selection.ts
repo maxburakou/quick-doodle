@@ -10,6 +10,7 @@ import {
   isEditableShapeTool,
   rotatePoint,
 } from "./core";
+import { hitTestText } from "@/components/Canvas/utils/textGeometry";
 
 const HANDLE_RADIUS = 8;
 const ROTATE_HANDLE_OFFSET = 28;
@@ -60,6 +61,41 @@ export const getStrokeTransformHandles = (
   const bounds = getStrokeBounds(stroke);
   const center = getBoundsCenter(bounds);
   const rotation = getStrokeRotation(stroke);
+
+  if (stroke.tool === Tool.Text) {
+    const textHandles: TransformHandlePoint[] = [
+      { handle: "nw", point: { x: bounds.x, y: bounds.y, pressure: 0.5 } },
+      {
+        handle: "ne",
+        point: { x: bounds.x + bounds.width, y: bounds.y, pressure: 0.5 },
+      },
+      {
+        handle: "se",
+        point: {
+          x: bounds.x + bounds.width,
+          y: bounds.y + bounds.height,
+          pressure: 0.5,
+        },
+      },
+      {
+        handle: "sw",
+        point: { x: bounds.x, y: bounds.y + bounds.height, pressure: 0.5 },
+      },
+      {
+        handle: "rotate",
+        point: {
+          x: bounds.x + bounds.width / 2,
+          y: bounds.y - ROTATE_HANDLE_OFFSET,
+          pressure: 0.5,
+        },
+      },
+    ];
+
+    return textHandles.map((entry) => ({
+      ...entry,
+      point: rotatePoint(entry.point, center, rotation),
+    }));
+  }
 
   const rawHandles: TransformHandlePoint[] = [
     { handle: "nw", point: { x: bounds.x, y: bounds.y, pressure: 0.5 } },
@@ -175,6 +211,10 @@ export const hitTestStroke = (stroke: Stroke, pointer: StrokePoint) => {
 
   if (stroke.tool === Tool.Line || stroke.tool === Tool.Arrow) {
     return hitTestLineLikeStroke(stroke, pointer);
+  }
+
+  if (stroke.tool === Tool.Text && stroke.text) {
+    return hitTestText(stroke, pointer, HIT_TOLERANCE);
   }
 
   const bounds = getStrokeBounds(stroke);

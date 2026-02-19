@@ -5,8 +5,11 @@ import {
   useCanvasBackground,
   usePresent,
   useShapeTransformSession,
+  useTextEditorEditingStrokeId,
+  useTextEditorMode,
 } from "@/store";
 import { buildPreviewStrokes } from "@/store/useShapeEditorStore/helpers";
+import { Tool } from "@/types";
 import "./styles.css";
 
 const Canvas = () => {
@@ -16,9 +19,22 @@ const Canvas = () => {
 
   const present = usePresent();
   const session = useShapeTransformSession();
+  const textEditorMode = useTextEditorMode();
+  const editingStrokeId = useTextEditorEditingStrokeId();
   const renderStrokes = useMemo(
-    () => buildPreviewStrokes(present, session),
-    [present, session]
+    () => {
+      const previewStrokes = buildPreviewStrokes(present, session);
+
+      if (textEditorMode !== "edit" || !editingStrokeId) {
+        return previewStrokes;
+      }
+
+      return previewStrokes.filter(
+        (stroke) =>
+          !(stroke.id === editingStrokeId && stroke.tool === Tool.Text)
+      );
+    },
+    [present, session, textEditorMode, editingStrokeId]
   );
   useCanvasScaleSetup(canvasRef, ctxRef);
 

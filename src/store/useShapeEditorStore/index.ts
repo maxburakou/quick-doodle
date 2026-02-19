@@ -7,6 +7,7 @@ import {
   hasStrokeTransformChanged,
   replaceStrokeById,
 } from "./helpers";
+import { normalizeTextStroke } from "@/components/Canvas/utils/textGeometry";
 
 export const useShapeEditorStore = create<ShapeEditorState>((set, get) => ({
   selectedStrokeId: null,
@@ -15,10 +16,11 @@ export const useShapeEditorStore = create<ShapeEditorState>((set, get) => ({
   selectStroke: (selectedStrokeId) => set({ selectedStrokeId }),
 
   startTransform: ({ stroke, handle, pointer }) => {
-    const normalizedStroke = {
+    const baseStroke = {
       ...stroke,
       isShiftPressed: undefined,
     };
+    const normalizedStroke = normalizeTextStroke(baseStroke);
     const initialBounds = getStrokeBounds(normalizedStroke);
     const initialRotation = getStrokeRotation(normalizedStroke);
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Stroke, StrokePoint, Tool, TransformHandle, TransformSession } from "@/types";
+import { useTextEditorMode } from "@/store";
 import {
   clearCanvas,
   drawShapeEditorOverlay,
@@ -8,6 +9,9 @@ import {
   resolveSelectTarget,
 } from "../helpers";
 import { CanvasPointerPayload } from "./types";
+import { normalizeTextStroke } from "../utils/textGeometry";
+
+const TEXT_EDIT_SECOND_CLICK_INTERVAL_MS = 400;
 
 interface UseSelectModeParams {
   tool: Tool;
@@ -28,6 +32,12 @@ interface UseSelectModeParams {
     commitPresent: (nextPresent: Stroke[]) => void
   ) => void;
   commitPresent: (nextPresent: Stroke[]) => void;
+  startTextEdit: (params: {
+    strokeId: string;
+    text: string;
+    startPoint: StrokePoint;
+    fontSize: number;
+  }) => void;
 }
 
 export const useSelectMode = ({
@@ -42,9 +52,12 @@ export const useSelectMode = ({
   updateTransform,
   commitTransform,
   commitPresent,
+  startTextEdit,
 }: UseSelectModeParams) => {
   const prevToolRef = useRef<Tool>(tool);
+  const lastTextBodyClickRef = useRef<{ strokeId: string; at: number } | null>(null);
   const [cursor, setCursor] = useState<React.CSSProperties["cursor"]>("move");
+  const textEditorMode = useTextEditorMode();
   const selectedStroke = useMemo(
     () => present.find((stroke) => stroke.id === selectedStrokeId) ?? null,
     [present, selectedStrokeId]
@@ -55,6 +68,7 @@ export const useSelectMode = ({
       const targetResult = resolveSelectTarget(point, present, selectedStroke);
 
       if (!targetResult.selectedStroke || !targetResult.nextHandle) {
+        lastTextBodyClickRef.current = null;
         clearSelection();
         clearCanvas(ctxRef.current);
         setCursor("move");
@@ -62,6 +76,40 @@ export const useSelectMode = ({
       }
 
       const { selectedStroke: targetStroke, nextHandle } = targetResult;
+      const isTextBodyClick =
+        targetStroke.tool === Tool.Text && nextHandle === "move" && Boolean(targetStroke.text);
+
+      if (isTextBodyClick) {
+        const now = Date.now();
+        const lastClick = lastTextBodyClickRef.current;
+        const canEnterTextEdit =
+          selectedStroke?.id === targetStroke.id &&
+          lastClick?.strokeId === targetStroke.id &&
+          now - lastClick.at <= TEXT_EDIT_SECOND_CLICK_INTERVAL_MS;
+
+        lastTextBodyClickRef.current = { strokeId: targetStroke.id, at: now };
+
+        if (canEnterTextEdit) {
+          const normalizedTextStroke = normalizeTextStroke(targetStroke);
+          const normalizedText = normalizedTextStroke.text ?? targetStroke.text!;
+          const startPoint = normalizedTextStroke.points[0] ?? {
+            x: 0,
+            y: 0,
+            pressure: 0.5,
+          };
+          startTextEdit({
+            strokeId: normalizedTextStroke.id,
+            text: normalizedText.value,
+            startPoint,
+            fontSize: normalizedText.fontSize,
+          });
+          setCursor("move");
+          return;
+        }
+      } else {
+        lastTextBodyClickRef.current = null;
+      }
+
       selectStroke(targetStroke.id);
       startTransform({ stroke: targetStroke, handle: nextHandle, pointer: point });
       setCursor(nextHandle === "move" ? "grabbing" : getCursorByHandle(nextHandle));
@@ -73,6 +121,7 @@ export const useSelectMode = ({
       ctxRef,
       selectStroke,
       startTransform,
+      startTextEdit,
     ]
   );
 
@@ -119,6 +168,11 @@ export const useSelectMode = ({
   }, [tool, session, present, commitTransform, commitPresent, clearSelection, ctxRef]);
 
   useEffect(() => {
+    if (textEditorMode === "edit") {
+      clearCanvas(ctxRef.current);
+      return;
+    }
+
     if (tool !== Tool.Select) {
       clearCanvas(ctxRef.current);
       return;
@@ -133,7 +187,7 @@ export const useSelectMode = ({
     if (!activeStroke) return;
 
     drawShapeEditorOverlay(ctx, activeStroke);
-  }, [tool, selectedStroke, session, ctxRef]);
+  }, [tool, selectedStroke, session, ctxRef, textEditorMode]);
 
   useEffect(() => {
     if (!selectedStrokeId) return;

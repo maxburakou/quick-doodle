@@ -120,7 +120,7 @@ export const drawStrokes = (
       }
 
       if (tool === Tool.Text && text) {
-        drawText(ctx, points, color, text);
+        drawText(ctx, points, color, text, rotation);
         return;
       }
     }

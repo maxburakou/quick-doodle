@@ -3,3 +3,10 @@ export { generateRoughShape } from "./generateRoughShape";
 export { getRoughOptions } from "./getRoughOptions";
 export { constrainLineToAxis } from "./constrainLineToAxis";
 export { constrainToSquareBounds } from "./constrainToSquareBounds";
+export {
+  measureTextBox,
+  normalizeTextStroke,
+  getTextBounds,
+  getTextLineHeight,
+  getTextBaselineCorrection,
+} from "./textGeometry";

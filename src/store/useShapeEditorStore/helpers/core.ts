@@ -7,10 +7,12 @@ import {
 } from "@/types";
 import { constrainLineToAxis } from "@/components/Canvas/utils/constrainLineToAxis";
 import { constrainToSquareBounds } from "@/components/Canvas/utils/constrainToSquareBounds";
+import { normalizeTextStroke } from "@/components/Canvas/utils/textGeometry";
 
 const EDITABLE_SHAPE_TOOLS: EditableShapeTool[] = [
   Tool.Pen,
   Tool.Highlighter,
+  Tool.Text,
   Tool.Arrow,
   Tool.Line,
   Tool.Rectangle,
@@ -32,6 +34,13 @@ export const isEditableShapeTool = (tool: Tool): tool is EditableShapeTool =>
 export const getStrokeRotation = (stroke: Stroke) => stroke.rotation ?? 0;
 
 export const getStrokeEndpoints = (stroke: Stroke): [StrokePoint, StrokePoint] => {
+  if (stroke.tool === Tool.Text && stroke.text) {
+    const normalizedStroke = normalizeTextStroke(stroke);
+    const start = normalizedStroke.points[0];
+    const end = normalizedStroke.points[1] ?? start;
+    return [start, end];
+  }
+
   const start = stroke.points[0];
   const rawEnd = stroke.points[stroke.points.length - 1] ?? start;
 

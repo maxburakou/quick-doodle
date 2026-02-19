@@ -19,6 +19,8 @@ export interface StrokePoint {
 export interface TextElement {
   value: string;
   fontSize: number;
+  width: number;
+  height: number;
 }
 
 export interface ShapeBounds {
@@ -31,6 +33,7 @@ export interface ShapeBounds {
 export type EditableShapeTool =
   | Tool.Pen
   | Tool.Highlighter
+  | Tool.Text
   | Tool.Arrow
   | Tool.Line
   | Tool.Rectangle
