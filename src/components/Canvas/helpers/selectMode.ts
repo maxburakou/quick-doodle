@@ -138,7 +138,7 @@ export const resolveSelectCursor = (
   }
 
   const targetStroke = resolveTopStrokeWithPassThrough(pointer, present);
-  if (!targetStroke) return "move";
+  if (!targetStroke) return "default";
 
   const targetHandle =
     selectedStrokes.length <= 1 ? getHandleAtPointer(targetStroke, pointer) : null;

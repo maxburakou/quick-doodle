@@ -105,7 +105,7 @@ export const useSelectMode = ({
   const marqueeShiftRef = useRef(false);
   const marqueeActiveRef = useRef(false);
   const [marqueeBounds, setMarqueeBounds] = useState<ShapeBounds | null>(null);
-  const [cursor, setCursor] = useState<React.CSSProperties["cursor"]>("move");
+  const [cursor, setCursor] = useState<React.CSSProperties["cursor"]>("default");
   const textEditorMode = useTextEditorMode();
 
   const selectedStrokes = useMemo(
@@ -155,7 +155,7 @@ export const useSelectMode = ({
         marqueeShiftRef.current = shiftKey;
         marqueeActiveRef.current = false;
         setMarqueeBounds(null);
-        setCursor("move");
+        setCursor("default");
       };
 
       const targetResult = resolveSelectTarget(
@@ -178,7 +178,7 @@ export const useSelectMode = ({
           return;
         }
         toggleSelection(targetStroke.id);
-        setCursor("move");
+        setCursor("default");
         return;
       }
 
@@ -215,7 +215,7 @@ export const useSelectMode = ({
             startPoint,
             fontSize: normalizedText.fontSize,
           });
-          setCursor("move");
+          setCursor("default");
           return;
         }
       } else {
@@ -314,7 +314,7 @@ export const useSelectMode = ({
 
   const handlePointerLeave = useCallback(() => {
     if (!session && !marqueeStartRef.current) {
-      setCursor("move");
+      setCursor("default");
     }
   }, [session]);
 
@@ -335,7 +335,7 @@ export const useSelectMode = ({
       marqueeShiftRef.current = false;
       setMarqueeBounds(null);
       clearCanvas(ctxRef.current);
-      setCursor("move");
+      setCursor("default");
     }
 
     prevToolRef.current = tool;
