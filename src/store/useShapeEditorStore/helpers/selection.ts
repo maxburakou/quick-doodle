@@ -196,6 +196,196 @@ const hitTestPenStroke = (stroke: Stroke, pointer: StrokePoint) => {
   return false;
 };
 
+export const isUnfilledClosedShape = (stroke: Stroke) =>
+  (stroke.tool === Tool.Rectangle ||
+    stroke.tool === Tool.Ellipse ||
+    stroke.tool === Tool.Diamond) &&
+  !stroke.shapeFill;
+
+const isPointInRectangleArea = (
+  localX: number,
+  localY: number,
+  halfWidth: number,
+  halfHeight: number,
+  tolerance: number
+) =>
+  Math.abs(localX) <= halfWidth + tolerance &&
+  Math.abs(localY) <= halfHeight + tolerance;
+
+const isPointInRectangleBand = (
+  localX: number,
+  localY: number,
+  halfWidth: number,
+  halfHeight: number,
+  contourBand: number
+) => {
+  const outer = isPointInRectangleArea(
+    localX,
+    localY,
+    halfWidth,
+    halfHeight,
+    contourBand
+  );
+  if (!outer) return false;
+
+  const innerHalfWidth = Math.max(0, halfWidth - contourBand);
+  const innerHalfHeight = Math.max(0, halfHeight - contourBand);
+  const insideInner =
+    Math.abs(localX) <= innerHalfWidth && Math.abs(localY) <= innerHalfHeight;
+
+  return !insideInner;
+};
+
+const getEllipseNormalized = (
+  localX: number,
+  localY: number,
+  halfWidth: number,
+  halfHeight: number
+) => {
+  if (halfWidth <= 0 || halfHeight <= 0) return Number.POSITIVE_INFINITY;
+  return (localX * localX) / (halfWidth * halfWidth) + (localY * localY) / (halfHeight * halfHeight);
+};
+
+const isPointInEllipseArea = (
+  localX: number,
+  localY: number,
+  halfWidth: number,
+  halfHeight: number,
+  tolerance: number
+) =>
+  getEllipseNormalized(
+    localX,
+    localY,
+    halfWidth + tolerance,
+    halfHeight + tolerance
+  ) <= 1;
+
+const isPointInEllipseBand = (
+  localX: number,
+  localY: number,
+  halfWidth: number,
+  halfHeight: number,
+  contourBand: number
+) => {
+  const outer = isPointInEllipseArea(
+    localX,
+    localY,
+    halfWidth,
+    halfHeight,
+    contourBand
+  );
+  if (!outer) return false;
+
+  const innerHalfWidth = Math.max(0.0001, halfWidth - contourBand);
+  const innerHalfHeight = Math.max(0.0001, halfHeight - contourBand);
+  const insideInner =
+    getEllipseNormalized(localX, localY, innerHalfWidth, innerHalfHeight) <= 1;
+  return !insideInner;
+};
+
+const getDiamondNormalized = (
+  localX: number,
+  localY: number,
+  halfWidth: number,
+  halfHeight: number
+) => {
+  if (halfWidth <= 0 || halfHeight <= 0) return Number.POSITIVE_INFINITY;
+  return Math.abs(localX) / halfWidth + Math.abs(localY) / halfHeight;
+};
+
+const isPointInDiamondArea = (
+  localX: number,
+  localY: number,
+  halfWidth: number,
+  halfHeight: number,
+  tolerance: number
+) =>
+  getDiamondNormalized(
+    localX,
+    localY,
+    halfWidth + tolerance,
+    halfHeight + tolerance
+  ) <= 1;
+
+const isPointInDiamondBand = (
+  localX: number,
+  localY: number,
+  halfWidth: number,
+  halfHeight: number,
+  contourBand: number
+) => {
+  const outer = isPointInDiamondArea(
+    localX,
+    localY,
+    halfWidth,
+    halfHeight,
+    contourBand
+  );
+  if (!outer) return false;
+
+  const innerHalfWidth = Math.max(0.0001, halfWidth - contourBand);
+  const innerHalfHeight = Math.max(0.0001, halfHeight - contourBand);
+  const insideInner =
+    getDiamondNormalized(localX, localY, innerHalfWidth, innerHalfHeight) <= 1;
+  return !insideInner;
+};
+
+const getLocalShapeCoordinates = (stroke: Stroke, pointer: StrokePoint) => {
+  const bounds = getStrokeBounds(stroke);
+  const center = getBoundsCenter(bounds);
+  const local = inverseRotatePoint(pointer, center, getStrokeRotation(stroke));
+
+  const localX = local.x - center.x;
+  const localY = local.y - center.y;
+  const halfWidth = bounds.width / 2;
+  const halfHeight = bounds.height / 2;
+
+  if (halfWidth < 1 || halfHeight < 1) return null;
+
+  return {
+    localX,
+    localY,
+    halfWidth,
+    halfHeight,
+    contourBand: Math.max(HIT_TOLERANCE, stroke.thickness + 2),
+  };
+};
+
+export const isInteriorHitForClosedShape = (
+  stroke: Stroke,
+  pointer: StrokePoint
+) => {
+  if (!isUnfilledClosedShape(stroke)) return false;
+
+  const localShape = getLocalShapeCoordinates(stroke, pointer);
+  if (!localShape) return false;
+
+  const { localX, localY, halfWidth, halfHeight, contourBand } = localShape;
+
+  if (stroke.tool === Tool.Rectangle) {
+    return (
+      isPointInRectangleArea(localX, localY, halfWidth, halfHeight, HIT_TOLERANCE) &&
+      !isPointInRectangleBand(localX, localY, halfWidth, halfHeight, contourBand)
+    );
+  }
+
+  if (stroke.tool === Tool.Ellipse) {
+    return (
+      isPointInEllipseArea(localX, localY, halfWidth, halfHeight, HIT_TOLERANCE) &&
+      !isPointInEllipseBand(localX, localY, halfWidth, halfHeight, contourBand)
+    );
+  }
+
+  if (stroke.tool === Tool.Diamond) {
+    return (
+      isPointInDiamondArea(localX, localY, halfWidth, halfHeight, HIT_TOLERANCE) &&
+      !isPointInDiamondBand(localX, localY, halfWidth, halfHeight, contourBand)
+    );
+  }
+
+  return false;
+};
+
 export const hitTestStroke = (stroke: Stroke, pointer: StrokePoint) => {
   if (!isEditableShapeTool(stroke.tool)) return false;
 
@@ -217,39 +407,26 @@ export const hitTestStroke = (stroke: Stroke, pointer: StrokePoint) => {
     return hitTestText(stroke, pointer, HIT_TOLERANCE);
   }
 
-  const bounds = getStrokeBounds(stroke);
-  const center = getBoundsCenter(bounds);
-  const local = inverseRotatePoint(pointer, center, getStrokeRotation(stroke));
-
-  const localX = local.x - center.x;
-  const localY = local.y - center.y;
-
-  const halfWidth = bounds.width / 2;
-  const halfHeight = bounds.height / 2;
-
-  if (halfWidth < 1 || halfHeight < 1) return false;
+  const localShape = getLocalShapeCoordinates(stroke, pointer);
+  if (!localShape) return false;
+  const { localX, localY, halfWidth, halfHeight } = localShape;
 
   if (stroke.tool === Tool.Rectangle) {
-    return (
-      Math.abs(localX) <= halfWidth + HIT_TOLERANCE &&
-      Math.abs(localY) <= halfHeight + HIT_TOLERANCE
+    return isPointInRectangleArea(
+      localX,
+      localY,
+      halfWidth,
+      halfHeight,
+      HIT_TOLERANCE
     );
   }
 
   if (stroke.tool === Tool.Ellipse) {
-    const normalized =
-      (localX * localX) /
-        ((halfWidth + HIT_TOLERANCE) * (halfWidth + HIT_TOLERANCE)) +
-      (localY * localY) /
-        ((halfHeight + HIT_TOLERANCE) * (halfHeight + HIT_TOLERANCE));
-    return normalized <= 1;
+    return isPointInEllipseArea(localX, localY, halfWidth, halfHeight, HIT_TOLERANCE);
   }
 
   if (stroke.tool === Tool.Diamond) {
-    const normalized =
-      Math.abs(localX) / (halfWidth + HIT_TOLERANCE) +
-      Math.abs(localY) / (halfHeight + HIT_TOLERANCE);
-    return normalized <= 1;
+    return isPointInDiamondArea(localX, localY, halfWidth, halfHeight, HIT_TOLERANCE);
   }
 
   return false;

@@ -366,6 +366,20 @@ export const applySessionTransform = (
 export const replaceStrokeById = (strokes: Stroke[], nextStroke: Stroke) =>
   strokes.map((stroke) => (stroke.id === nextStroke.id ? { ...nextStroke } : stroke));
 
+export const moveStrokeIdsToEnd = (strokes: Stroke[], ids: string[]) => {
+  if (ids.length === 0) return strokes;
+  const uniqueIds = Array.from(new Set(ids));
+  const idSet = new Set(uniqueIds);
+
+  const kept = strokes.filter((stroke) => !idSet.has(stroke.id));
+  const moved = uniqueIds
+    .map((id) => strokes.find((stroke) => stroke.id === id))
+    .filter((stroke): stroke is Stroke => Boolean(stroke))
+    .map((stroke) => ({ ...stroke }));
+
+  return [...kept, ...moved];
+};
+
 export const buildPreviewStrokes = (
   strokes: Stroke[],
   session: ShapeEditorSession | null

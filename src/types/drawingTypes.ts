@@ -23,6 +23,11 @@ export interface TextElement {
   height: number;
 }
 
+export interface ShapeFill {
+  color: string;
+  style?: "solid" | "hachure" | "cross-hatch";
+}
+
 export interface ShapeBounds {
   x: number;
   y: number;
@@ -87,4 +92,5 @@ export interface Stroke {
   isShiftPressed?: boolean;
   rotation?: number;
   text?: TextElement;
+  shapeFill?: ShapeFill;
 }

@@ -7,6 +7,7 @@ import {
 } from "@/store";
 import { Stroke, TextElement, Tool } from "@/types";
 import { createStrokeId } from "@/store/useShapeEditorStore/helpers";
+import { moveStrokeIdsToEnd } from "@/store/useShapeEditorStore/helpers";
 import {
   measureTextBox,
   normalizeTextStroke,
@@ -114,9 +115,10 @@ export const handleInputSubmit = () => {
       ],
     };
 
-    const nextPresent = present.map((stroke) =>
+    const replacedPresent = present.map((stroke) =>
       stroke.id === editingStrokeId ? updatedStroke : stroke
     );
+    const nextPresent = moveStrokeIdsToEnd(replacedPresent, [editingStrokeId]);
     commitPresent(nextPresent);
     finishEdit();
     return;

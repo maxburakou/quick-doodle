@@ -18,12 +18,15 @@ export {
   getStrokeTransformHandles,
   getHandleAtPointer,
   hitTestStroke,
+  isUnfilledClosedShape,
+  isInteriorHitForClosedShape,
   getTopMostStrokeAtPointer,
 } from "./selection";
 
 export {
   applySessionTransform,
   replaceStrokeById,
+  moveStrokeIdsToEnd,
   buildPreviewStrokes,
   hasStrokeTransformChanged,
   hasGroupMoveChanged,

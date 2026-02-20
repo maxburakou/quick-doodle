@@ -3,6 +3,7 @@ export type {
   StrokePoint,
   Stroke,
   TextElement,
+  ShapeFill,
   EditableShapeTool,
   TransformHandle,
   TransformSession,

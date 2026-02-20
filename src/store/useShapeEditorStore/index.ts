@@ -5,6 +5,7 @@ import {
   getStrokeBounds,
   getStrokeRotation,
   hasStrokeTransformChanged,
+  moveStrokeIdsToEnd,
   replaceStrokeById,
 } from "./helpers";
 import { normalizeTextStroke } from "@/components/Canvas/utils/textGeometry";
@@ -164,7 +165,8 @@ export const useShapeEditorStore = create<ShapeEditorState>((set, get) => ({
     if (!session || session.type !== "single") return;
 
     if (hasStrokeTransformChanged(session.initialStroke, session.draftStroke)) {
-      const nextPresent = replaceStrokeById(present, session.draftStroke);
+      const replacedPresent = replaceStrokeById(present, session.draftStroke);
+      const nextPresent = moveStrokeIdsToEnd(replacedPresent, [session.draftStroke.id]);
       commitPresent(nextPresent);
     }
 
@@ -187,10 +189,11 @@ export const useShapeEditorStore = create<ShapeEditorState>((set, get) => ({
     });
 
     if (hasChanges) {
-      const nextPresent = present.map((stroke) => {
+      const replacedPresent = present.map((stroke) => {
         const draftStroke = session.draftStrokesById[stroke.id];
         return draftStroke ? { ...draftStroke } : stroke;
       });
+      const nextPresent = moveStrokeIdsToEnd(replacedPresent, session.strokeIds);
       commitPresent(nextPresent);
     }
 
