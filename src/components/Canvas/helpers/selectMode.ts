@@ -51,6 +51,9 @@ const isPointInsideGroupBounds = (point: StrokePoint, strokes: Stroke[]) => {
   return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY;
 };
 
+const canUseBoundsFallbackForSelectedStroke = (stroke: Stroke) =>
+  stroke.tool !== Tool.Line && stroke.tool !== Tool.Arrow;
+
 const resolveTopStrokeWithPassThrough = (
   pointer: StrokePoint,
   strokes: Stroke[],
@@ -117,7 +120,12 @@ export const resolveSelectCursor = (
     }
 
     if (hitTestStroke(primarySelectedStroke, pointer)) return "grab";
-    if (isPointInsideBounds(pointer, primarySelectedStroke)) return "grab";
+    if (
+      canUseBoundsFallbackForSelectedStroke(primarySelectedStroke) &&
+      isPointInsideBounds(pointer, primarySelectedStroke)
+    ) {
+      return "grab";
+    }
   }
 
   if (selectedStrokes.length > 1) {
@@ -184,7 +192,10 @@ export const resolveSelectTarget = (
       };
     }
 
-    if (isPointInsideBounds(pointer, primarySelectedStroke)) {
+    if (
+      canUseBoundsFallbackForSelectedStroke(primarySelectedStroke) &&
+      isPointInsideBounds(pointer, primarySelectedStroke)
+    ) {
       return {
         targetStroke: primarySelectedStroke,
         nextHandle: "move",
