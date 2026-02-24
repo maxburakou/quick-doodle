@@ -4,7 +4,6 @@ const SNAP_GUIDE_COLOR = "#0f62fe";
 const SNAP_GUIDE_WIDTH = 1;
 const SNAP_GUIDE_DASH = [6, 4];
 const SNAP_GUIDE_ALPHA = 0.82;
-const SNAP_GUIDE_INSET = 6;
 const SNAP_CENTER_RADIUS = 2;
 
 export const drawSnapGuides = (
@@ -12,10 +11,10 @@ export const drawSnapGuides = (
   point: Pick<StrokePoint, "x" | "y">
 ) => {
   const { width, height } = ctx.canvas;
-  const minX = SNAP_GUIDE_INSET;
-  const minY = SNAP_GUIDE_INSET;
-  const maxX = Math.max(minX, width - SNAP_GUIDE_INSET);
-  const maxY = Math.max(minY, height - SNAP_GUIDE_INSET);
+  const minX = 0;
+  const minY = 0;
+  const maxX = width;
+  const maxY = height;
 
   ctx.save();
 
