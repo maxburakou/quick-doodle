@@ -1,7 +1,9 @@
 import {
   useCanvasStore,
   useHistoryStore,
+  useShapeEditorStore,
   useTextSettingsStore,
+  useTextEditorStore,
   useToolSettingsStore,
   useToolStore,
 } from "@/store";
@@ -16,10 +18,39 @@ const { toggleBackground: toggleCanvas } = useCanvasStore.getState();
 const { toggleVisibility: toggleToolbar } = useToolbarStore.getState();
 const { toNextFontSize, toPrevFontSize } = useTextSettingsStore.getState();
 
+const isTypingTarget = (target: EventTarget | null) => {
+  if (!(target instanceof HTMLElement)) return false;
+
+  const tagName = target.tagName.toLowerCase();
+  return (
+    target.isContentEditable || tagName === "input" || tagName === "textarea"
+  );
+};
+
 export const handleKeyDownEvent = (event: KeyboardEvent) => {
-  event.preventDefault();
+  if (isTypingTarget(event.target)) return;
 
   const { metaKey, shiftKey, code } = event;
+  const isDeleteShortcut = code === "Delete" || code === "Backspace";
+  const textEditorMode = useTextEditorStore.getState().mode;
+
+  if (isDeleteShortcut && textEditorMode !== "edit" && textEditorMode !== "create") {
+    event.preventDefault();
+
+    const { selectedStrokeIds, clearSelection } = useShapeEditorStore.getState();
+    if (selectedStrokeIds.length === 0) return;
+
+    const { present, commitPresent } = useHistoryStore.getState();
+    const selectedIds = new Set(selectedStrokeIds);
+    const nextPresent = present.filter((stroke) => !selectedIds.has(stroke.id));
+    if (nextPresent.length === present.length) return;
+
+    commitPresent(nextPresent);
+    clearSelection();
+    return;
+  }
+
+  event.preventDefault();
 
   const { tool } = useToolStore.getState();
 
