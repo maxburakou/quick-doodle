@@ -7,7 +7,7 @@ import {
   Tool,
   TransformHandle,
 } from "@/types";
-import { useTextEditorMode } from "@/store";
+import { useSetFontSize, useSetToolColor, useTextEditorMode } from "@/store";
 import {
   clearCanvas,
   drawGroupSelectionOverlay,
@@ -57,6 +57,7 @@ interface UseSelectModeParams {
     text: string;
     startPoint: StrokePoint;
     fontSize: number;
+    color: string;
   }) => void;
 }
 
@@ -108,6 +109,8 @@ export const useSelectMode = ({
   const [marqueeBounds, setMarqueeBounds] = useState<ShapeBounds | null>(null);
   const [cursor, setCursor] = useState<React.CSSProperties["cursor"]>("default");
   const textEditorMode = useTextEditorMode();
+  const setToolColor = useSetToolColor();
+  const setFontSize = useSetFontSize();
 
   const selectedStrokes = useMemo(
     () =>
@@ -223,7 +226,10 @@ export const useSelectMode = ({
             text: normalizedText.value,
             startPoint,
             fontSize: normalizedText.fontSize,
+            color: normalizedTextStroke.color,
           });
+          setToolColor(normalizedTextStroke.color);
+          setFontSize(normalizedText.fontSize);
           setCursor("default");
           return;
         }
@@ -247,8 +253,10 @@ export const useSelectMode = ({
       selectedStrokes,
       setSelection,
       startGroupMove,
+      setFontSize,
       startTextEdit,
       startTransform,
+      setToolColor,
       toggleSelection,
     ]
   );

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { TextEditorActions, TextEditorState } from "./types";
+import { useToolStore } from "../useToolStore";
 
 const initialState: TextEditorState = {
   mode: "idle",
@@ -7,10 +8,12 @@ const initialState: TextEditorState = {
   startPoint: null,
   inputText: "",
   fontSizeSnapshot: null,
+  colorSnapshot: null,
+  returnToolOnFinish: null,
 };
 
 export const useTextEditorStore = create<TextEditorState & TextEditorActions>(
-  (set) => ({
+  (set, get) => ({
     ...initialState,
     startCreate: (startPoint) =>
       set({
@@ -19,19 +22,42 @@ export const useTextEditorStore = create<TextEditorState & TextEditorActions>(
         startPoint,
         inputText: "",
         fontSizeSnapshot: null,
+        colorSnapshot: null,
+        returnToolOnFinish: null,
       }),
-    startEdit: ({ strokeId, text, startPoint, fontSize }) =>
+    startEdit: ({
+      strokeId,
+      text,
+      startPoint,
+      fontSize,
+      color,
+      returnToolOnFinish,
+    }) =>
       set({
         mode: "edit",
         editingStrokeId: strokeId,
         startPoint,
         inputText: text,
         fontSizeSnapshot: fontSize,
+        colorSnapshot: color,
+        returnToolOnFinish: returnToolOnFinish ?? null,
       }),
     setStartPoint: (startPoint) => set({ startPoint }),
     setInputText: (inputText) => set({ inputText }),
-    finish: () => set(initialState),
-    cancel: () => set(initialState),
+    finish: () => {
+      const returnTool = get().returnToolOnFinish;
+      if (returnTool !== null) {
+        useToolStore.getState().setTool(returnTool);
+      }
+      set(initialState);
+    },
+    cancel: () => {
+      const returnTool = get().returnToolOnFinish;
+      if (returnTool !== null) {
+        useToolStore.getState().setTool(returnTool);
+      }
+      set(initialState);
+    },
     reset: () => set(initialState),
   })
 );

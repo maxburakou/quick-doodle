@@ -90,7 +90,7 @@ export const handleInputSubmit = () => {
     const normalizedStroke = normalizeTextStroke(currentStroke);
     const start = normalizedStroke.points[0];
     const end = normalizedStroke.points[1] ?? start;
-    const nextFontSize = normalizedStroke.text?.fontSize ?? fontSize;
+    const nextFontSize = fontSize;
     const metrics = measureTextBox(inputText, nextFontSize);
     const rotation = normalizedStroke.rotation ?? 0;
     const shouldPreserveCenter = rotation !== 0;
@@ -105,6 +105,8 @@ export const handleInputSubmit = () => {
 
     const updatedStroke: Stroke = {
       ...normalizedStroke,
+      color,
+      thickness: nextFontSize,
       text: {
         ...normalizedStroke.text,
         value: inputText,

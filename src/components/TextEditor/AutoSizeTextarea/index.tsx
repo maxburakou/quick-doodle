@@ -79,7 +79,7 @@ export const AutoSizeTextarea = forwardRef<HTMLTextAreaElement>(
 
     const color = useToolColor();
     const activeFontSize = useFontSize();
-    const fontSize = fontSizeSnapshot ?? activeFontSize;
+    const fontSize = mode === "edit" ? activeFontSize : fontSizeSnapshot ?? activeFontSize;
     const layout = getTextLayout(fontSize, text);
     const { lineHeight } = layout.metrics;
     const editingStroke = editingStrokeId
@@ -162,11 +162,6 @@ export const AutoSizeTextarea = forwardRef<HTMLTextAreaElement>(
             }
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
-              handleInputSubmit();
-            }
-          }}
-          onBlur={() => {
-            if (mode === "create" || mode === "edit") {
               handleInputSubmit();
             }
           }}
