@@ -1,3 +1,4 @@
+import { Fragment, ReactNode } from "react";
 import { useSetTool, useTool } from "@/store";
 import { Tool } from "@/types";
 import {
@@ -8,7 +9,6 @@ import {
   Square,
   Diamond,
   Circle,
-  GripVertical,
   Type,
   MousePointer2,
 } from "lucide-react";
@@ -18,59 +18,72 @@ import { ThicknessOptions } from "./ThicknessOptions";
 import Draggable from "react-draggable";
 import { useToolbarVisibility } from "@/store/useToolbarStore";
 import { FontSizeOptions } from "./FontSizeOptions";
+import { TOOL_META, TOOL_CONFIG } from "./config";
+import { ToolbarSettingControl } from "./types";
 
-const toolIcons = {
-  Pen: <Pen size={14} />,
-  Highlighter: <Highlighter size={14} />,
-  Arrow: <ArrowUpRight size={14} />,
-  Line: <Minus size={14} />,
-  Rectangle: <Square size={14} />,
-  Diamond: <Diamond size={14} />,
-  Ellipse: <Circle size={14} />,
-  Text: <Type size={14} />,
-  Select: <MousePointer2 size={14} />,
+const TOOL_ICONS: Record<Tool, ReactNode> = {
+  [Tool.Pen]: <Pen size={14} />,
+  [Tool.Highlighter]: <Highlighter size={14} />,
+  [Tool.Arrow]: <ArrowUpRight size={14} />,
+  [Tool.Line]: <Minus size={14} />,
+  [Tool.Rectangle]: <Square size={14} />,
+  [Tool.Diamond]: <Diamond size={14} />,
+  [Tool.Ellipse]: <Circle size={14} />,
+  [Tool.Text]: <Type size={14} />,
+  [Tool.Select]: <MousePointer2 size={14} />,
+};
+
+const CONTROL_COMPONENTS: Record<ToolbarSettingControl, ReactNode> = {
+  color: <ColorOptions />,
+  stroke: <ThicknessOptions />,
+  textSize: <FontSizeOptions />,
 };
 
 export const Toolbar: React.FC = () => {
   const tool = useTool();
   const setTool = useSetTool();
   const isVisible = useToolbarVisibility();
+  const settings = TOOL_CONFIG[tool]?.settings ?? null;
+  const shouldShowSettings = Array.isArray(settings) && settings.length > 0;
 
   return (
     <Draggable bounds="parent" handle=".grip-container" scale={1}>
       <div className={`toolbar-container ${!isVisible ? "--hidden" : ""}`}>
         <div className="toolbar-content">
           <menu className="toolbar">
-            {Object.entries(Tool).map(([key, value], index) => {
-              const isActive = value === tool;
+            {TOOL_META.map(({ tool: toolValue, hotkey }) => {
+              const isActive = toolValue === tool;
               return (
-                <li key={value}>
+                <li className="toolbar-item" key={toolValue}>
                   <button
-                    onClick={() => setTool(value as Tool)}
-                    className={isActive ? "--active" : undefined}
-                    aria-pressed={value === tool}
+                    onClick={() => setTool(toolValue)}
+                    className={`toolbar-tool-button ${isActive ? "--active" : ""}`}
+                    aria-pressed={isActive}
                   >
-                    {toolIcons[key as keyof typeof toolIcons]}
-                    <span className={isActive ? "--active" : undefined}>
-                      {index + 1}
+                    {TOOL_ICONS[toolValue]}
+                    <span className={`toolbar-hotkey ${isActive ? "--active" : ""}`}>
+                      {hotkey}
                     </span>
                   </button>
                 </li>
               );
             })}
           </menu>
-          <hr />
-          <div className="toolbar-settings">
-            <ColorOptions />
-            <hr className="--vertical" />
-            {tool === Tool.Text ? <FontSizeOptions /> : <ThicknessOptions />}
-          </div>
+          {shouldShowSettings ? (
+            <>
+              <hr className="toolbar-divider" />
+              <div className="toolbar-settings">
+                {settings?.map((control, index) => (
+                  <Fragment key={control}>
+                    {index > 0 ? <hr className="toolbar-divider --vertical" /> : null}
+                    {CONTROL_COMPONENTS[control]}
+                  </Fragment>
+                ))}
+              </div>
+            </>
+          ) : null}
         </div>
-        <div className="grip-container">
-          <GripVertical size={14} className="toolbar-grip" />
-          <GripVertical size={14} className="toolbar-grip" />
-          <GripVertical size={14} className="toolbar-grip" />
-        </div>
+        <div className="grip-container" aria-hidden />
       </div>
     </Draggable>
   );

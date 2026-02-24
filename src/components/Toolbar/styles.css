@@ -4,8 +4,6 @@
   position: fixed;
   top: 0px;
   right: 0px;
-  padding: 3px;
-  padding-right: 0px;
   background: #ffffff;
   border: 1px solid #dcdcdc;
   border-radius: 10px;
@@ -40,6 +38,7 @@
   display: flex;
   justify-content: center;
   flex-direction: column;
+  padding: 3px;
 }
 
 .toolbar {
@@ -187,15 +186,28 @@ hr.--vertical {
 }
 
 .grip-container {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
+  margin: 3px 0;
+  width: 14px;
+  min-width: 14px;
+  align-self: stretch;
+  position: relative;
   cursor: move;
+  border-radius: 10px;
+  overflow: hidden;
 }
 
-.toolbar-grip {
-  color: #dcdcdc;
+.grip-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background-image: radial-gradient(circle, #dcdcdc 1px, transparent 1px);
+  background-size: 4px 4px;
+  background-repeat: repeat;
+  background-position: center;
+  pointer-events: none;
 }
 
 .color-picker .react-colorful {
