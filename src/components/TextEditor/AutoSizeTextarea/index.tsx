@@ -13,8 +13,55 @@ import {
   useToolColor,
 } from "@/store";
 import { getTextBounds } from "@/components/Canvas/utils/textGeometry";
-import { Tool } from "@/types";
+import {
+  getBoxStartFromCaret,
+  getCaretFromBoxStart,
+  getTextLayout,
+} from "@/components/Canvas/utils/textLayout";
+import { StrokePoint, Tool } from "@/types";
 import { handleInputSubmit } from "../helpers";
+
+type TextBounds = { x: number; y: number; width: number; height: number };
+type EditorPlacement = {
+  left: number;
+  top: number;
+  transform: string | undefined;
+  transformOrigin: "top left" | "center center";
+};
+
+const resolveEditorPlacement = ({
+  mode,
+  rotation,
+  editingTextBounds,
+  boxStart,
+}: {
+  mode: "idle" | "create" | "edit";
+  rotation: number;
+  editingTextBounds: TextBounds | null;
+  boxStart: Pick<StrokePoint, "x" | "y">;
+}): EditorPlacement => {
+  const basePlacement: EditorPlacement = {
+    left: boxStart.x,
+    top: boxStart.y,
+    transform: undefined,
+    transformOrigin: "top left",
+  };
+
+  if (mode !== "edit" || !rotation) return basePlacement;
+  if (!editingTextBounds) {
+    return {
+      ...basePlacement,
+      transform: `rotate(${rotation}rad)`,
+    };
+  }
+
+  return {
+    left: editingTextBounds.x + editingTextBounds.width / 2,
+    top: editingTextBounds.y + editingTextBounds.height / 2,
+    transform: `translate(-50%, -50%) rotate(${rotation}rad)`,
+    transformOrigin: "center center",
+  };
+};
 
 export const AutoSizeTextarea = forwardRef<HTMLTextAreaElement>(
   (_props, ref) => {
@@ -33,6 +80,8 @@ export const AutoSizeTextarea = forwardRef<HTMLTextAreaElement>(
     const color = useToolColor();
     const activeFontSize = useFontSize();
     const fontSize = fontSizeSnapshot ?? activeFontSize;
+    const layout = getTextLayout(fontSize, text);
+    const { lineHeight } = layout.metrics;
     const editingStroke = editingStrokeId
       ? present.find((stroke) => stroke.id === editingStrokeId)
       : null;
@@ -43,20 +92,21 @@ export const AutoSizeTextarea = forwardRef<HTMLTextAreaElement>(
       editingStroke.text
         ? getTextBounds(editingStroke)
         : null;
-    const useCenteredRotationAnchor =
-      mode === "edit" && Boolean(rotation) && Boolean(editingTextBounds);
-    const editorLeft = useCenteredRotationAnchor
-      ? (editingTextBounds?.x ?? 0) + (editingTextBounds?.width ?? 0) / 2
-      : editingTextBounds?.x ?? point?.x;
-    const editorTop = useCenteredRotationAnchor
-      ? (editingTextBounds?.y ?? 0) + (editingTextBounds?.height ?? 0) / 2
-      : editingTextBounds?.y ?? point?.y;
-    const rotationTransform =
-      mode === "edit" && rotation
-        ? useCenteredRotationAnchor
-          ? `translate(-50%, -50%) rotate(${rotation}rad)`
-          : `rotate(${rotation}rad)`
-        : undefined;
+    const caretX = editingTextBounds?.x ?? point?.x ?? 0;
+    const caretY =
+      mode === "edit" && editingTextBounds
+        ? getCaretFromBoxStart(
+            { x: editingTextBounds.x, y: editingTextBounds.y },
+            fontSize
+          ).y
+        : point?.y ?? 0;
+    const boxStart = getBoxStartFromCaret({ x: caretX, y: caretY }, fontSize);
+    const placement = resolveEditorPlacement({
+      mode,
+      rotation,
+      editingTextBounds,
+      boxStart,
+    });
     const sizerValue =
       text.length === 0 ? "." : text.endsWith("\n") ? `${text} ` : text;
 
@@ -89,17 +139,18 @@ export const AutoSizeTextarea = forwardRef<HTMLTextAreaElement>(
         className="input-sizer stacked"
         data-value={sizerValue}
         style={{
-          top: editorTop,
-          left: editorLeft,
+          top: placement.top,
+          left: placement.left,
           color,
           fontSize,
-          transform: rotationTransform,
-          transformOrigin: useCenteredRotationAnchor ? "center center" : "top left",
+          lineHeight: `${lineHeight}px`,
+          transform: placement.transform,
+          transformOrigin: placement.transformOrigin,
         }}
       >
         <textarea
           ref={textareaRef}
-          className={`canvas-textarea`}
+          className="canvas-textarea"
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={1}

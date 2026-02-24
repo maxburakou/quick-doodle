@@ -19,6 +19,7 @@ import {
 } from "../helpers";
 import { CanvasPointerPayload } from "./types";
 import { normalizeTextStroke } from "../utils/textGeometry";
+import { getCaretFromBoxStart } from "../utils/textLayout";
 import { getStrokeAABB } from "@/store/useShapeEditorStore/helpers";
 
 const TEXT_EDIT_SECOND_CLICK_INTERVAL_MS = 400;
@@ -203,10 +204,18 @@ export const useSelectMode = ({
         if (canEnterTextEdit) {
           const normalizedTextStroke = normalizeTextStroke(targetStroke);
           const normalizedText = normalizedTextStroke.text ?? targetStroke.text!;
-          const startPoint = normalizedTextStroke.points[0] ?? {
+          const boundsStart = normalizedTextStroke.points[0] ?? {
             x: 0,
             y: 0,
             pressure: 0.5,
+          };
+          const caretPoint = getCaretFromBoxStart(
+            boundsStart,
+            normalizedText.fontSize
+          );
+          const startPoint = {
+            ...boundsStart,
+            ...caretPoint,
           };
 
           startTextEdit({

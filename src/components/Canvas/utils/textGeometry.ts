@@ -1,45 +1,5 @@
 import { Stroke, StrokePoint, Tool } from "@/types";
-
-const FONT_FAMILY = "'JetBrains Mono', monospace";
-const LINE_HEIGHT_RATIO = 1.1;
-
-const measureCanvas = document.createElement("canvas");
-const measureCtx = measureCanvas.getContext("2d");
-
-export interface TextMetricsSize {
-  width: number;
-  height: number;
-  lineHeight: number;
-}
-
-export const getTextLineHeight = (fontSize: number) => fontSize * LINE_HEIGHT_RATIO;
-
-export const getTextBaselineCorrection = (fontSize: number) =>
-  Math.round(fontSize * 0.08333 + 1.6667);
-
-export const measureTextBox = (value: string, fontSize: number): TextMetricsSize => {
-  const safeText = value.length > 0 ? value : ".";
-  const lines = safeText.split("\n");
-  const lineHeight = getTextLineHeight(fontSize);
-
-  if (measureCtx) {
-    measureCtx.font = `${fontSize}px ${FONT_FAMILY}`;
-  }
-
-  let width = 0;
-  lines.forEach((line) => {
-    const nextWidth = measureCtx ? measureCtx.measureText(line || " ").width : 0;
-    width = Math.max(width, nextWidth);
-  });
-
-  const height = Math.max(lineHeight, lines.length * lineHeight);
-
-  return {
-    width: Math.max(1, Math.ceil(width)),
-    height: Math.max(1, Math.ceil(height)),
-    lineHeight,
-  };
-};
+import { measureTextBox } from "./textLayout";
 
 export const getStrokeBoundsFromPoints = (
   start: StrokePoint,

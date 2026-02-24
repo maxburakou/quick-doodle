@@ -1,9 +1,6 @@
 import { StrokePoint, TextElement } from "@/types";
-import {
-  getTextBaselineCorrection,
-  getTextLineHeight,
-  normalizeTextPoints,
-} from "../textGeometry";
+import { getTextLayout } from "../textLayout";
+import { normalizeTextPoints } from "../textGeometry";
 
 export const drawText = (
   ctx: CanvasRenderingContext2D,
@@ -23,11 +20,9 @@ export const drawText = (
   const { fontSize, value: textValue } = text;
   ctx.font = `${fontSize}px 'JetBrains Mono', monospace`;
   ctx.fillStyle = color;
-  ctx.textBaseline = "top";
+  ctx.textBaseline = "alphabetic";
 
-  const lines = textValue.split("\n");
-  const lineHeight = getTextLineHeight(fontSize);
-  const correction = getTextBaselineCorrection(fontSize);
+  const layout = getTextLayout(fontSize, textValue);
 
   const centerX = bounds.x + bounds.width / 2;
   const centerY = bounds.y + bounds.height / 2;
@@ -39,8 +34,8 @@ export const drawText = (
     ctx.translate(-centerX, -centerY);
   }
 
-  lines.forEach((line, index) => {
-    ctx.fillText(line, x, y + index * lineHeight - correction);
+  layout.lines.forEach((line, index) => {
+    ctx.fillText(line, x, layout.getLineBaselineY(y, index));
   });
   ctx.restore();
 };

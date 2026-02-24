@@ -4,9 +4,14 @@ export { getRoughOptions } from "./getRoughOptions";
 export { constrainLineToAxis } from "./constrainLineToAxis";
 export { constrainToSquareBounds } from "./constrainToSquareBounds";
 export {
+  getFontMetrics,
+  getTextLayout,
+  getBoxStartFromCaret,
+  getCaretFromBoxStart,
   measureTextBox,
+} from "./textLayout";
+export {
+  normalizeTextPoints,
   normalizeTextStroke,
   getTextBounds,
-  getTextLineHeight,
-  getTextBaselineCorrection,
 } from "./textGeometry";

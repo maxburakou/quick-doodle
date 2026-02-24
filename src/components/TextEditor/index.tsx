@@ -19,13 +19,14 @@ export const TextEditor: React.FC = () => {
   const startCreate = useStartTextEditorCreate();
   const isEditable = (mode === "create" || mode === "edit") && !!point;
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLElement>) => {
     e.stopPropagation();
 
     if (tool === Tool.Text && mode === "idle") {
+      const rect = e.currentTarget.getBoundingClientRect();
       const newPoint = {
-        x: e.nativeEvent.offsetX,
-        y: e.nativeEvent.offsetY,
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
         pressure: e.pressure,
       };
       startCreate(newPoint);
@@ -41,10 +42,7 @@ export const TextEditor: React.FC = () => {
 
   if (!isVisible) return null;
   return (
-    <section
-      className={"text-editor-container"}
-      onPointerDown={handlePointerDown}
-    >
+    <section className="text-editor-container" onPointerDown={handlePointerDown}>
       {isEditable ? (
         <AutoSizeTextarea />
       ) : null}

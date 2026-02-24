@@ -9,9 +9,12 @@ import { Stroke, TextElement, Tool } from "@/types";
 import { createStrokeId } from "@/store/useShapeEditorStore/helpers";
 import { moveStrokeIdsToEnd } from "@/store/useShapeEditorStore/helpers";
 import {
-  measureTextBox,
   normalizeTextStroke,
 } from "@/components/Canvas/utils/textGeometry";
+import {
+  getBoxStartFromCaret,
+  measureTextBox,
+} from "@/components/Canvas/utils/textLayout";
 
 export const handleInputSubmit = () => {
   const {
@@ -32,6 +35,7 @@ export const handleInputSubmit = () => {
   if (mode === "create") {
     if (hasText && startPoint) {
       const metrics = measureTextBox(inputText, fontSize);
+      const boxStart = getBoxStartFromCaret(startPoint, fontSize);
       const text: TextElement = {
         value: inputText,
         fontSize,
@@ -42,10 +46,13 @@ export const handleInputSubmit = () => {
       const stroke: Stroke = {
         id: createStrokeId(),
         points: [
-          startPoint,
+          {
+            ...startPoint,
+            y: boxStart.y,
+          },
           {
             x: startPoint.x + metrics.width,
-            y: startPoint.y + metrics.height,
+            y: boxStart.y + metrics.height,
             pressure: startPoint.pressure,
           },
         ],
