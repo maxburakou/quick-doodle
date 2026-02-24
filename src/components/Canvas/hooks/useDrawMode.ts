@@ -44,17 +44,20 @@ export const useDrawMode = ({
   const drawableSeedRef = useRef<number>(Date.now());
   const strokeIdRef = useRef<string>("");
   const getSceneAnchors = () => getSceneSnapAnchors(present, new Set());
+  const getAxisConstrainState = (shiftKey: boolean) =>
+    tool === Tool.Highlighter ? !shiftKey : shiftKey;
 
   const resolveCreateSnap = (
     point: StrokePoint,
     shiftKey: boolean,
     altKey: boolean
   ): SnapPreview => {
+    const isAxisConstrained = getAxisConstrainState(shiftKey);
     if (altKey) {
       return { point, target: null };
     }
 
-    if (isLineLikeSnapTool(tool) && !shiftKey) {
+    if (isLineLikeSnapTool(tool) && !isAxisConstrained) {
       return resolveLineEndpointSnap(point, getSceneAnchors(), SNAP_DISTANCE_PX);
     }
 
@@ -81,6 +84,7 @@ export const useDrawMode = ({
     shiftKey: boolean,
     altKey: boolean
   ) => {
+    const isAxisConstrained = getAxisConstrainState(shiftKey);
     if (finalizedPoints.length < 2) return finalizedPoints;
     if (!isLineLikeSnapTool(tool) && !isShapeBoxSnapTool(tool)) {
       return finalizedPoints;
@@ -99,7 +103,7 @@ export const useDrawMode = ({
             anchors: getSceneAnchors(),
             snapDistance: SNAP_DISTANCE_PX,
           })
-      : isLineLikeSnapTool(tool) && !shiftKey && !altKey
+      : isLineLikeSnapTool(tool) && !isAxisConstrained && !altKey
         ? resolveLineEndpointSnap(
             endpointCandidate,
             getSceneAnchors(),
@@ -149,6 +153,7 @@ export const useDrawMode = ({
   const handlePointerMove = useCallback(
     ({ point, shiftKey, altKey }: CanvasPointerPayload) => {
       if (!isDrawingRef.current) return;
+      const isAxisConstrained = getAxisConstrainState(shiftKey);
 
       const snap = resolveCreateSnap(point, shiftKey, altKey);
       pointsRef.current.push(snap.point);
@@ -160,7 +165,7 @@ export const useDrawMode = ({
         thickness,
         tool,
         drawableSeed: drawableSeedRef.current,
-        isShiftPressed: shiftKey,
+        isShiftPressed: isAxisConstrained,
       };
 
       const ctx = ctxRef.current;
@@ -175,13 +180,14 @@ export const useDrawMode = ({
   const handlePointerUp = useCallback(
     ({ shiftKey, altKey }: CanvasPointerPayload) => {
       if (!isDrawingRef.current) return;
+      const isAxisConstrained = getAxisConstrainState(shiftKey);
 
       stopDrawing();
 
       let finalizedPoints = finalizeStrokePoints(
         pointsRef.current,
         tool,
-        shiftKey
+        isAxisConstrained
       );
       finalizedPoints = withSnappedEndpoint(finalizedPoints, shiftKey, altKey);
 
