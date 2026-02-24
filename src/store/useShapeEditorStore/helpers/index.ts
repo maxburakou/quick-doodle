@@ -31,3 +31,14 @@ export {
   hasStrokeTransformChanged,
   hasGroupMoveChanged,
 } from "./transform";
+
+export {
+  isLineLikeSnapTool,
+  isShapeBoxSnapTool,
+  getStrokeSnapAnchors,
+  getSceneSnapAnchors,
+  resolveNearestSnap,
+  resolveMoveSnapPointer,
+  resolveLineEndpointSnap,
+  resolveShapeCreateEndpointSnap,
+} from "./snap";

@@ -73,6 +73,7 @@ export const Canvas: React.FC = () => {
 
   const drawMode = useDrawMode({
     ctxRef,
+    present,
     color,
     thickness,
     tool,
@@ -120,6 +121,7 @@ export const Canvas: React.FC = () => {
       pressure: e?.pressure ?? 0.5,
     },
     shiftKey: e?.shiftKey ?? false,
+    altKey: e?.altKey ?? false,
   });
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
