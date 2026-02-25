@@ -7,7 +7,12 @@ import {
   Tool,
   TransformHandle,
 } from "@/types";
-import { useSetFontSize, useSetToolColor, useTextEditorMode } from "@/store";
+import {
+  useSetFontSize,
+  useSetToolColor,
+  useSnapStore,
+  useTextEditorMode,
+} from "@/store";
 import {
   clearCanvas,
   drawSnapGuides,
@@ -131,10 +136,9 @@ const getGroupBoundsAnchors = (
 const canSnapSingleResize = (
   stroke: Stroke,
   handle: TransformHandle,
-  shiftKey: boolean,
-  altKey: boolean
+  shiftKey: boolean
 ) => {
-  if (altKey || handle === "rotate") return false;
+  if (handle === "rotate") return false;
   if (isShapeBoxSnapTool(stroke.tool)) return true;
   if (!isLineLikeSnapTool(stroke.tool)) return false;
   return (handle === "nw" || handle === "se") && !shiftKey;
@@ -171,6 +175,7 @@ export const useSelectMode = ({
   const textEditorMode = useTextEditorMode();
   const setToolColor = useSetToolColor();
   const setFontSize = useSetFontSize();
+  const isSnapEnabled = useSnapStore((state) => state.enabled);
 
   const selectedStrokes = useMemo(
     () =>
@@ -328,7 +333,7 @@ export const useSelectMode = ({
   );
 
   const handlePointerMove = useCallback(
-    ({ point, shiftKey, altKey }: CanvasPointerPayload) => {
+    ({ point, shiftKey }: CanvasPointerPayload) => {
       if (marqueeStartRef.current) {
         const start = marqueeStartRef.current;
         const dx = Math.abs(point.x - start.x);
@@ -347,7 +352,7 @@ export const useSelectMode = ({
 
       if (session?.type === "single") {
         if (session.handle === "move") {
-          if (altKey) {
+          if (!isSnapEnabled) {
             updateTransform(point, { shiftKey });
             setActiveSnapGuides(null);
           } else {
@@ -384,11 +389,11 @@ export const useSelectMode = ({
             });
           }
         } else if (
+          isSnapEnabled &&
           canSnapSingleResize(
             session.initialStroke,
             session.handle,
-            shiftKey,
-            altKey
+            shiftKey
           )
         ) {
           const anchors = getSceneSnapAnchors(
@@ -421,7 +426,7 @@ export const useSelectMode = ({
       }
 
       if (session?.type === "groupMove") {
-        if (altKey) {
+        if (!isSnapEnabled) {
           updateGroupMove(point);
           setActiveSnapGuides(null);
         } else {
@@ -464,6 +469,7 @@ export const useSelectMode = ({
       setCursor(resolveSelectCursor(point, present, selectedStrokes, primarySelectedStroke));
     },
     [
+      isSnapEnabled,
       present,
       primarySelectedStroke,
       selectedStrokeIds,
@@ -551,7 +557,6 @@ export const useSelectMode = ({
     }
 
     if (tool !== Tool.Select) {
-      clearCanvas(ctxRef.current);
       return;
     }
 
@@ -577,12 +582,13 @@ export const useSelectMode = ({
       drawMarqueeOverlay(ctx, marqueeBounds);
     }
 
-    if (activeSnapGuides) {
+    if (isSnapEnabled && activeSnapGuides) {
       drawSnapGuides(ctx, activeSnapGuides);
     }
   }, [
     activeSnapGuides,
     ctxRef,
+    isSnapEnabled,
     marqueeBounds,
     primarySelectedStroke,
     selectedStrokes,

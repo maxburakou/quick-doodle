@@ -75,3 +75,4 @@ export {
   useCancelShapeTransform,
   useClearShapeSelection,
 } from "./useShapeEditorStore";
+export { useSnapStore, useSnapEnabled, useToggleSnapEnabled } from "./useSnapStore";

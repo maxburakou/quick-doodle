@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef } from "react";
 import { Stroke, StrokePoint, Tool } from "@/types";
+import { useSnapStore } from "@/store";
 import { createStrokeId } from "@/store/useShapeEditorStore/helpers";
 import {
   type SnapComputation,
@@ -51,6 +52,7 @@ export const useDrawMode = ({
     getSceneAxisSnapCandidates(present, new Set());
   const getAxisConstrainState = (shiftKey: boolean) =>
     tool === Tool.Highlighter ? !shiftKey : shiftKey;
+  const isSnapEnabled = useSnapStore((state) => state.enabled);
 
   const toGuidesRenderData = (snap: SnapPreview) => ({
     pointGuide: snap.pointTarget,
@@ -59,13 +61,12 @@ export const useDrawMode = ({
 
   const resolveCreateSnap = (
     point: StrokePoint,
-    shiftKey: boolean,
-    altKey: boolean
+    shiftKey: boolean
   ): SnapPreview => {
-    const isAxisConstrained = getAxisConstrainState(shiftKey);
-    if (altKey) {
+    if (!isSnapEnabled) {
       return { point, pointTarget: null, axisSnap: null };
     }
+    const isAxisConstrained = getAxisConstrainState(shiftKey);
 
     if (isLineLikeSnapTool(tool) && !isAxisConstrained) {
       return resolveLineEndpointSnap(
@@ -97,11 +98,11 @@ export const useDrawMode = ({
 
   const withSnappedEndpoint = (
     finalizedPoints: StrokePoint[],
-    shiftKey: boolean,
-    altKey: boolean
+    shiftKey: boolean
   ) => {
     const isAxisConstrained = getAxisConstrainState(shiftKey);
     if (finalizedPoints.length < 2) return finalizedPoints;
+    if (!isSnapEnabled) return finalizedPoints;
     if (!isLineLikeSnapTool(tool) && !isShapeBoxSnapTool(tool)) {
       return finalizedPoints;
     }
@@ -109,18 +110,16 @@ export const useDrawMode = ({
     const endpointCandidate = finalizedPoints[finalizedPoints.length - 1];
     const startPoint = finalizedPoints[0];
     const snap: SnapPreview = isShapeBoxSnapTool(tool)
-      ? altKey
-        ? { point: endpointCandidate, pointTarget: null, axisSnap: null }
-        : resolveShapeCreateEndpointSnap({
-            startPoint,
-            point: endpointCandidate,
-            tool,
-            shiftKey,
-            anchors: getSceneAnchors(),
-            axisCandidates: getSceneAxisCandidates(),
-            snapDistance: SNAP_DISTANCE_PX,
-          })
-      : isLineLikeSnapTool(tool) && !isAxisConstrained && !altKey
+      ? resolveShapeCreateEndpointSnap({
+          startPoint,
+          point: endpointCandidate,
+          tool,
+          shiftKey,
+          anchors: getSceneAnchors(),
+          axisCandidates: getSceneAxisCandidates(),
+          snapDistance: SNAP_DISTANCE_PX,
+        })
+      : isLineLikeSnapTool(tool) && !isAxisConstrained
         ? resolveLineEndpointSnap(
             endpointCandidate,
             getSceneAnchors(),
@@ -169,11 +168,11 @@ export const useDrawMode = ({
   );
 
   const handlePointerMove = useCallback(
-    ({ point, shiftKey, altKey }: CanvasPointerPayload) => {
+    ({ point, shiftKey }: CanvasPointerPayload) => {
       if (!isDrawingRef.current) return;
       const isAxisConstrained = getAxisConstrainState(shiftKey);
 
-      const snap = resolveCreateSnap(point, shiftKey, altKey);
+      const snap = resolveCreateSnap(point, shiftKey);
       pointsRef.current.push(snap.point);
 
       const stroke: Stroke = {
@@ -192,11 +191,11 @@ export const useDrawMode = ({
         drawSnapGuides(ctx, toGuidesRenderData(snap));
       }
     },
-    [color, thickness, tool, present, ctxRef]
+    [color, thickness, tool, isSnapEnabled, present, ctxRef]
   );
 
   const handlePointerUp = useCallback(
-    ({ shiftKey, altKey }: CanvasPointerPayload) => {
+    ({ shiftKey }: CanvasPointerPayload) => {
       if (!isDrawingRef.current) return;
       const isAxisConstrained = getAxisConstrainState(shiftKey);
 
@@ -207,7 +206,7 @@ export const useDrawMode = ({
         tool,
         isAxisConstrained
       );
-      finalizedPoints = withSnappedEndpoint(finalizedPoints, shiftKey, altKey);
+      finalizedPoints = withSnappedEndpoint(finalizedPoints, shiftKey);
 
       const stroke: Stroke = {
         id: strokeIdRef.current || createStrokeId(),
@@ -223,7 +222,7 @@ export const useDrawMode = ({
       strokeIdRef.current = "";
       clearCanvas(ctxRef.current);
     },
-    [addAction, color, thickness, tool, present, ctxRef]
+    [addAction, color, thickness, tool, isSnapEnabled, present, ctxRef]
   );
 
   return useMemo(

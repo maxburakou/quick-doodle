@@ -63,6 +63,13 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<Menu<Wry>> 
 		visibility,
 		Some("CmdOrCtrl+Q"),
 	)?;
+	let menu_item_snap = MenuItem::with_id(
+		app,
+		"snap",
+		"Toggle Snap Hints",
+		visibility,
+		Some("CmdOrCtrl+E"),
+	)?;
 
 	return Menu::with_items(
 		app,
@@ -74,6 +81,7 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<Menu<Wry>> 
 			&menu_item_separator,
 			&menu_item_toolbar,
 			&menu_item_background,
+			&menu_item_snap,
 			&menu_item_separator,
 			&menu_item_hide_canvas,
 			&menu_item_quit_canvas,

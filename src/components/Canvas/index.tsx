@@ -112,6 +112,13 @@ export const Canvas: React.FC = () => {
     handlePointerLeave: handleSelectPointerLeave,
   } = selectMode;
 
+  const canvasCursor: React.CSSProperties["cursor"] =
+    tool === Tool.Select
+      ? selectCursor
+      : tool === Tool.Text
+        ? "text"
+        : "crosshair";
+
   const getPointerPayloadFromEvent = (
     e?: React.PointerEvent<HTMLCanvasElement>
   ): CanvasPointerPayload => ({
@@ -121,7 +128,6 @@ export const Canvas: React.FC = () => {
       pressure: e?.pressure ?? 0.5,
     },
     shiftKey: e?.shiftKey ?? false,
-    altKey: e?.altKey ?? false,
   });
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -165,7 +171,7 @@ export const Canvas: React.FC = () => {
       <canvas
         ref={canvasRef}
         className={`drawing-canvas ${tool === Tool.Select ? "--select" : ""}`}
-        style={tool === Tool.Select ? { cursor: selectCursor } : undefined}
+        style={{ cursor: canvasCursor }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

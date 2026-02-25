@@ -1,6 +1,7 @@
 import {
   useCanvasStore,
   useHistoryStore,
+  useSnapStore,
   useShapeEditorStore,
   useTextSettingsStore,
   useTextEditorStore,
@@ -16,6 +17,7 @@ const { toNextColor, toPrevColor, toNextThickness, toPrevThickness } =
   useToolSettingsStore.getState();
 const { toggleBackground: toggleCanvas } = useCanvasStore.getState();
 const { toggleVisibility: toggleToolbar } = useToolbarStore.getState();
+const { toggleEnabled: toggleSnap } = useSnapStore.getState();
 const { toNextFontSize, toPrevFontSize } = useTextSettingsStore.getState();
 
 const isTypingTarget = (target: EventTarget | null) => {
@@ -81,6 +83,11 @@ export const handleKeyDownEvent = (event: KeyboardEvent) => {
 
   if (metaKey && code === "KeyQ") {
     toggleToolbar();
+    return;
+  }
+
+  if (metaKey && code === "KeyE") {
+    toggleSnap();
     return;
   }
 
