@@ -33,11 +33,17 @@ export {
 } from "./transform";
 
 export {
+  type AxisSnapLine,
+  type AxisSnapResult,
+  type SnapComputation,
   isLineLikeSnapTool,
   isShapeBoxSnapTool,
   getStrokeSnapAnchors,
   getSceneSnapAnchors,
+  getStrokeAxisSnapCandidates,
+  getSceneAxisSnapCandidates,
   resolveNearestSnap,
+  resolveNearestAxisSnap,
   resolveMoveSnapPointer,
   resolveLineEndpointSnap,
   resolveShapeCreateEndpointSnap,

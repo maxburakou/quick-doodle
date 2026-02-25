@@ -18,10 +18,12 @@ import {
   resolveSelectCursor,
   resolveSelectTarget,
 } from "../helpers";
+import type { SnapGuidesRenderData } from "../helpers/drawSnapMarker";
 import { CanvasPointerPayload } from "./types";
 import { normalizeTextStroke } from "../utils/textGeometry";
 import { getCaretFromBoxStart } from "../utils/textLayout";
 import {
+  getSceneAxisSnapCandidates,
   getSceneSnapAnchors,
   getStrokeAABB,
   isLineLikeSnapTool,
@@ -163,7 +165,8 @@ export const useSelectMode = ({
   const marqueeShiftRef = useRef(false);
   const marqueeActiveRef = useRef(false);
   const [marqueeBounds, setMarqueeBounds] = useState<ShapeBounds | null>(null);
-  const [activeSnapTarget, setActiveSnapTarget] = useState<StrokePoint | null>(null);
+  const [activeSnapGuides, setActiveSnapGuides] =
+    useState<SnapGuidesRenderData | null>(null);
   const [cursor, setCursor] = useState<React.CSSProperties["cursor"]>("default");
   const textEditorMode = useTextEditorMode();
   const setToolColor = useSetToolColor();
@@ -205,7 +208,7 @@ export const useSelectMode = ({
       marqueeActiveRef.current = false;
       marqueeShiftRef.current = false;
       setMarqueeBounds(null);
-      setActiveSnapTarget(null);
+      setActiveSnapGuides(null);
     },
     [clearSelection, present, selectedStrokeIds, setSelection]
   );
@@ -217,7 +220,7 @@ export const useSelectMode = ({
         marqueeShiftRef.current = shiftKey;
         marqueeActiveRef.current = false;
         setMarqueeBounds(null);
-        setActiveSnapTarget(null);
+        setActiveSnapGuides(null);
         setCursor("default");
       };
 
@@ -241,7 +244,7 @@ export const useSelectMode = ({
           return;
         }
         toggleSelection(targetStroke.id);
-        setActiveSnapTarget(null);
+        setActiveSnapGuides(null);
         setCursor("default");
         return;
       }
@@ -290,7 +293,7 @@ export const useSelectMode = ({
           });
           setToolColor(normalizedTextStroke.color);
           setFontSize(normalizedText.fontSize);
-          setActiveSnapTarget(null);
+          setActiveSnapGuides(null);
           setCursor("default");
           return;
         }
@@ -300,14 +303,14 @@ export const useSelectMode = ({
 
       if (selectedStrokes.length > 1 && targetKind === "selected-group-member") {
         startGroupMove({ strokes: selectedStrokes, pointer: point });
-        setActiveSnapTarget(null);
+        setActiveSnapGuides(null);
         setCursor("grabbing");
         return;
       }
 
       setSelection([targetStroke.id], targetStroke.id);
       startTransform({ stroke: targetStroke, handle: nextHandle, pointer: point });
-      setActiveSnapTarget(null);
+      setActiveSnapGuides(null);
       setCursor(nextHandle === "move" ? "grabbing" : getCursorByHandle(nextHandle));
     },
     [
@@ -338,7 +341,7 @@ export const useSelectMode = ({
           setMarqueeBounds(normalizeMarqueeBounds(start, point));
           setCursor("crosshair");
         }
-        setActiveSnapTarget(null);
+        setActiveSnapGuides(null);
         return;
       }
 
@@ -346,7 +349,7 @@ export const useSelectMode = ({
         if (session.handle === "move") {
           if (altKey) {
             updateTransform(point, { shiftKey });
-            setActiveSnapTarget(null);
+            setActiveSnapGuides(null);
           } else {
             const movingAnchors = getStrokeSnapAnchors(session.initialStroke);
             const initialCenter =
@@ -360,17 +363,25 @@ export const useSelectMode = ({
               present,
               new Set(selectedStrokeIds)
             );
+            const axisCandidates = getSceneAxisSnapCandidates(
+              present,
+              new Set(selectedStrokeIds)
+            );
             const snap = resolveMoveSnapPointer({
               pointer: point,
               startPointer: session.startPointer,
               initialCenter,
               movingAnchors,
               anchors,
+              axisCandidates,
               snapDistance: SNAP_DISTANCE_PX,
             });
 
-            updateTransform(snap.pointer, { shiftKey });
-            setActiveSnapTarget(snap.target);
+            updateTransform(snap.point, { shiftKey });
+            setActiveSnapGuides({
+              pointGuide: snap.pointTarget,
+              axisGuides: snap.axisSnap,
+            });
           }
         } else if (
           canSnapSingleResize(
@@ -384,12 +395,24 @@ export const useSelectMode = ({
             present,
             new Set(selectedStrokeIds)
           );
-          const snap = resolveLineEndpointSnap(point, anchors, SNAP_DISTANCE_PX);
+          const axisCandidates = getSceneAxisSnapCandidates(
+            present,
+            new Set(selectedStrokeIds)
+          );
+          const snap = resolveLineEndpointSnap(
+            point,
+            anchors,
+            axisCandidates,
+            SNAP_DISTANCE_PX
+          );
           updateTransform(snap.point, { shiftKey });
-          setActiveSnapTarget(snap.target);
+          setActiveSnapGuides({
+            pointGuide: snap.pointTarget,
+            axisGuides: snap.axisSnap,
+          });
         } else {
           updateTransform(point, { shiftKey });
-          setActiveSnapTarget(null);
+          setActiveSnapGuides(null);
         }
         setCursor(
           session.handle === "move" ? "grabbing" : getCursorByHandle(session.handle)
@@ -400,7 +423,7 @@ export const useSelectMode = ({
       if (session?.type === "groupMove") {
         if (altKey) {
           updateGroupMove(point);
-          setActiveSnapTarget(null);
+          setActiveSnapGuides(null);
         } else {
           const sessionStrokes = session.strokeIds
             .map((id) => session.initialStrokesById[id])
@@ -408,9 +431,13 @@ export const useSelectMode = ({
           const movingAnchors = getGroupBoundsAnchors(sessionStrokes);
           if (movingAnchors.length === 0) {
             updateGroupMove(point);
-            setActiveSnapTarget(null);
+            setActiveSnapGuides(null);
           } else {
             const anchors = getSceneSnapAnchors(
+              present,
+              new Set(session.strokeIds)
+            );
+            const axisCandidates = getSceneAxisSnapCandidates(
               present,
               new Set(session.strokeIds)
             );
@@ -419,17 +446,21 @@ export const useSelectMode = ({
               startPointer: session.startPointer,
               movingAnchors,
               anchors,
+              axisCandidates,
               snapDistance: SNAP_DISTANCE_PX,
             });
-            updateGroupMove(snap.pointer);
-            setActiveSnapTarget(snap.target);
+            updateGroupMove(snap.point);
+            setActiveSnapGuides({
+              pointGuide: snap.pointTarget,
+              axisGuides: snap.axisSnap,
+            });
           }
         }
         setCursor("grabbing");
         return;
       }
 
-      setActiveSnapTarget(null);
+      setActiveSnapGuides(null);
       setCursor(resolveSelectCursor(point, present, selectedStrokes, primarySelectedStroke));
     },
     [
@@ -451,17 +482,17 @@ export const useSelectMode = ({
       }
 
       if (!session) {
-        setActiveSnapTarget(null);
+        setActiveSnapGuides(null);
         return;
       }
       if (session.type === "single") {
         commitTransform(present, commitPresent);
-        setActiveSnapTarget(null);
+        setActiveSnapGuides(null);
         return;
       }
 
       commitGroupMove(present, commitPresent);
-      setActiveSnapTarget(null);
+      setActiveSnapGuides(null);
     },
     [
       commitGroupMove,
@@ -475,7 +506,7 @@ export const useSelectMode = ({
 
   const handlePointerLeave = useCallback(() => {
     if (!session && !marqueeStartRef.current) {
-      setActiveSnapTarget(null);
+      setActiveSnapGuides(null);
       setCursor("default");
     }
   }, [session]);
@@ -496,7 +527,7 @@ export const useSelectMode = ({
       marqueeActiveRef.current = false;
       marqueeShiftRef.current = false;
       setMarqueeBounds(null);
-      setActiveSnapTarget(null);
+      setActiveSnapGuides(null);
       clearCanvas(ctxRef.current);
       setCursor("default");
     }
@@ -546,11 +577,11 @@ export const useSelectMode = ({
       drawMarqueeOverlay(ctx, marqueeBounds);
     }
 
-    if (activeSnapTarget) {
-      drawSnapGuides(ctx, activeSnapTarget);
+    if (activeSnapGuides) {
+      drawSnapGuides(ctx, activeSnapGuides);
     }
   }, [
-    activeSnapTarget,
+    activeSnapGuides,
     ctxRef,
     marqueeBounds,
     primarySelectedStroke,

@@ -1,4 +1,5 @@
 export const SNAP_DISTANCE_PX = 10;
+export const AXIS_SNAP_DISTANCE_PX = SNAP_DISTANCE_PX;
 
 export const ELLIPSE_ANCHOR_ANGLES = [
   0,

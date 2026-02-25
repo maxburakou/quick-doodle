@@ -2,6 +2,8 @@ import { useCallback, useMemo, useRef } from "react";
 import { Stroke, StrokePoint, Tool } from "@/types";
 import { createStrokeId } from "@/store/useShapeEditorStore/helpers";
 import {
+  type SnapComputation,
+  getSceneAxisSnapCandidates,
   getSceneSnapAnchors,
   isLineLikeSnapTool,
   isShapeBoxSnapTool,
@@ -28,7 +30,8 @@ interface UseDrawModeParams {
 
 interface SnapPreview {
   point: StrokePoint;
-  target: StrokePoint | null;
+  pointTarget: StrokePoint | null;
+  axisSnap: SnapComputation["axisSnap"];
 }
 
 export const useDrawMode = ({
@@ -44,8 +47,15 @@ export const useDrawMode = ({
   const drawableSeedRef = useRef<number>(Date.now());
   const strokeIdRef = useRef<string>("");
   const getSceneAnchors = () => getSceneSnapAnchors(present, new Set());
+  const getSceneAxisCandidates = () =>
+    getSceneAxisSnapCandidates(present, new Set());
   const getAxisConstrainState = (shiftKey: boolean) =>
     tool === Tool.Highlighter ? !shiftKey : shiftKey;
+
+  const toGuidesRenderData = (snap: SnapPreview) => ({
+    pointGuide: snap.pointTarget,
+    axisGuides: snap.axisSnap,
+  });
 
   const resolveCreateSnap = (
     point: StrokePoint,
@@ -54,17 +64,22 @@ export const useDrawMode = ({
   ): SnapPreview => {
     const isAxisConstrained = getAxisConstrainState(shiftKey);
     if (altKey) {
-      return { point, target: null };
+      return { point, pointTarget: null, axisSnap: null };
     }
 
     if (isLineLikeSnapTool(tool) && !isAxisConstrained) {
-      return resolveLineEndpointSnap(point, getSceneAnchors(), SNAP_DISTANCE_PX);
+      return resolveLineEndpointSnap(
+        point,
+        getSceneAnchors(),
+        getSceneAxisCandidates(),
+        SNAP_DISTANCE_PX
+      );
     }
 
     if (isShapeBoxSnapTool(tool)) {
       const startPoint = pointsRef.current[0];
       if (!startPoint) {
-        return { point, target: null };
+        return { point, pointTarget: null, axisSnap: null };
       }
       return resolveShapeCreateEndpointSnap({
         startPoint,
@@ -72,11 +87,12 @@ export const useDrawMode = ({
         tool,
         shiftKey,
         anchors: getSceneAnchors(),
+        axisCandidates: getSceneAxisCandidates(),
         snapDistance: SNAP_DISTANCE_PX,
       });
     }
 
-    return { point, target: null };
+    return { point, pointTarget: null, axisSnap: null };
   };
 
   const withSnappedEndpoint = (
@@ -94,22 +110,24 @@ export const useDrawMode = ({
     const startPoint = finalizedPoints[0];
     const snap: SnapPreview = isShapeBoxSnapTool(tool)
       ? altKey
-        ? { point: endpointCandidate, target: null }
+        ? { point: endpointCandidate, pointTarget: null, axisSnap: null }
         : resolveShapeCreateEndpointSnap({
             startPoint,
             point: endpointCandidate,
             tool,
             shiftKey,
             anchors: getSceneAnchors(),
+            axisCandidates: getSceneAxisCandidates(),
             snapDistance: SNAP_DISTANCE_PX,
           })
       : isLineLikeSnapTool(tool) && !isAxisConstrained && !altKey
         ? resolveLineEndpointSnap(
             endpointCandidate,
             getSceneAnchors(),
+            getSceneAxisCandidates(),
             SNAP_DISTANCE_PX
           )
-        : { point: endpointCandidate, target: null };
+        : { point: endpointCandidate, pointTarget: null, axisSnap: null };
 
     return [
       finalizedPoints[0],
@@ -170,8 +188,8 @@ export const useDrawMode = ({
 
       const ctx = ctxRef.current;
       drawCanvas([stroke], ctx);
-      if (ctx && snap.target) {
-        drawSnapGuides(ctx, snap.target);
+      if (ctx && (snap.pointTarget || snap.axisSnap)) {
+        drawSnapGuides(ctx, toGuidesRenderData(snap));
       }
     },
     [color, thickness, tool, present, ctxRef]
