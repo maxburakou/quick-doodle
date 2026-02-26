@@ -37,7 +37,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, "index.html"),
-        shortcutSettings: path.resolve(__dirname, "shortcut-settings.html"),
+        settings: path.resolve(__dirname, "settings.html"),
       },
     },
   },

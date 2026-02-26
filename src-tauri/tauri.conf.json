@@ -26,9 +26,9 @@
         "shadow": false
       },
       {
-        "label": "shortcut-settings",
-        "title": "Shortcut Settings",
-        "url": "shortcut-settings.html",
+        "label": "settings",
+        "title": "Settings",
+        "url": "settings.html",
         "visible": false,
         "resizable": false,
         "minimizable": false,

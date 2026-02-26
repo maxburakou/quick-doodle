@@ -47,10 +47,10 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<Menu<Wry>> 
 		is_autostart_enabled,
 		None::<&str>,
 	)?;
-	let menu_item_shortcuts_settings = MenuItem::with_id(
+	let menu_item_settings = MenuItem::with_id(
 		app,
-		"shortcut_settings",
-		"Shortcut Settings",
+		"settings",
+		"Settings",
 		true,
 		None::<&str>,
 	)?;
@@ -92,7 +92,7 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<Menu<Wry>> 
 			&menu_item_quit_canvas,
 			&menu_item_separator,
 			&menu_item_autostart,
-			&menu_item_shortcuts_settings,
+			&menu_item_settings,
 			&menu_item_quit,
 		],
 	);
