@@ -53,6 +53,9 @@ pub fn setup_macos_window_config(app: &AppHandle) {
 	if let Err(err) = app.set_activation_policy(Accessory) {
 		warn!("Failed to set accessory activation policy: {:?}", err);
 	}
+	if let Err(err) = app.show() {
+		warn!("Failed to show app for startup activation on macOS: {:?}", err);
+	}
 
 	let Some(window): Option<WebviewWindow> = app.get_webview_window(window_labels::MAIN) else {
 		warn!(
