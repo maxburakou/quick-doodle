@@ -47,8 +47,13 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<Menu<Wry>> 
 		is_autostart_enabled,
 		None::<&str>,
 	)?;
-	// todo: implement shortcuts configuration
-	// let menu_item_shortcuts_config = MenuItem::with_id(app, "shortcuts", "Edit Shortcuts", false, None::<&str>)?;
+	let menu_item_shortcuts_settings = MenuItem::with_id(
+		app,
+		"shortcut_settings",
+		"Shortcut Settings",
+		true,
+		None::<&str>,
+	)?;
 	let menu_item_background = MenuItem::with_id(
 		app,
 		"background",
@@ -87,8 +92,7 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<Menu<Wry>> 
 			&menu_item_quit_canvas,
 			&menu_item_separator,
 			&menu_item_autostart,
-			// todo: implement shortcuts configuration
-			// &menu_item_shortcuts_config,
+			&menu_item_shortcuts_settings,
 			&menu_item_quit,
 		],
 	);

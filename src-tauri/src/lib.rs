@@ -4,6 +4,9 @@ mod state;
 use components::tray::create_tray_menu;
 use helpers::{
 	autostart::toggle_autostart,
+	shortcut_settings::{
+		open_shortcut_settings_window, register_shortcut_settings_close_handler,
+	},
 	shortcuts::register_global_shortcuts,
 	utils::{get_icon_path, handle_event, setup_macos_window_config, toggle_window},
 };
@@ -25,8 +28,10 @@ pub fn run() {
 			setup_macos_window_config(app.handle());
 
 			// Initialize state
-			let state = WindowState::new();
+			let state = state::WindowState::new();
 			app.manage(state);
+
+			register_shortcut_settings_close_handler(app.app_handle());
 
 			if cfg!(debug_assertions) {
 				app.handle().plugin(
@@ -61,6 +66,7 @@ pub fn run() {
 						handle_event(app, "reset-canvas");
 					}
 					"autostart" => toggle_autostart(app),
+					"shortcut_settings" => open_shortcut_settings_window(app),
 					"background" => handle_event(app, "toggle-background-canvas"),
 					"toolbar" => handle_event(app, "toggle-toolbar-canvas"),
 					"snap" => handle_event(app, "toggle-snap-canvas"),

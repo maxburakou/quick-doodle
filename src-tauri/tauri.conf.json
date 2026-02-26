@@ -12,6 +12,8 @@
   "app": {
     "windows": [
       {
+        "label": "main",
+        "url": "index.html",
         "focus": true,
         "fullscreen": false,
         "decorations": false,
@@ -22,6 +24,15 @@
         "hiddenTitle": true,
         "visible": false,
         "shadow": false
+      },
+      {
+        "label": "shortcut-settings",
+        "title": "Shortcut Settings",
+        "url": "shortcut-settings.html",
+        "visible": false,
+        "resizable": false,
+        "minimizable": false,
+        "maximizable": false
       }
     ],
     "security": {

@@ -34,6 +34,12 @@ export default defineConfig({
     minify: !process.env.TAURI_ENV_DEBUG ? "esbuild" : false,
     // produce sourcemaps for debug builds
     sourcemap: !!process.env.TAURI_ENV_DEBUG,
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+        shortcutSettings: path.resolve(__dirname, "shortcut-settings.html"),
+      },
+    },
   },
   plugins: [react()],
   resolve: {
