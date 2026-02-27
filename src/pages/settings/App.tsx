@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSettingsStore } from "@/store";
-import {
-  buildRowKey,
-  isModifierOnlyKey,
-  keyboardEventToBinding,
-  mapShortcutSections,
-  parseRowKey,
-  updateActionPrimaryBinding,
-} from "./helpers/shortcuts";
+import { mapShortcutSections } from "./helpers/shortcuts";
 import { useSettingsSnapshotSync } from "./hooks/useSettingsSnapshotSync";
 import { SettingsContent, SettingsFooter } from "./components";
 import { ShortcutScopeKey } from "./types";
+import {
+  cancelChanges,
+  closeSettingsWindow,
+  captureRecordedShortcut,
+  resetShortcut,
+  revalidateShortcuts,
+  revertSettingsDefaults,
+  saveSettings,
+  toggleRecording,
+} from "./services/settingsService";
 import "./styles.css";
 
 const SettingsApp = () => {
@@ -41,37 +44,21 @@ const SettingsApp = () => {
     onLoadError: handleLoadError,
   });
 
+  const runRevalidateShortcuts = useCallback(() => {
+    void revalidateShortcuts(validate, setError);
+  }, [validate]);
+
   useEffect(() => {
     if (!recordingRowKey) return;
 
     const handler = (event: KeyboardEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-
-      if (event.code === "Escape") {
-        setRecordingRowKey(null);
-        return;
-      }
-
-      if (isModifierOnlyKey(event.code)) {
-        return;
-      }
-
-      const row = parseRowKey(recordingRowKey);
-      if (!row) {
-        setRecordingRowKey(null);
-        return;
-      }
-
-      setDraft((nextDraft) =>
-        updateActionPrimaryBinding(
-          nextDraft,
-          row.scope,
-          row.actionId,
-          keyboardEventToBinding(event)
-        )
-      );
-      setRecordingRowKey(null);
+      captureRecordedShortcut({
+        event,
+        recordingRowKey,
+        setRecordingRowKey,
+        setDraft,
+        onRevalidate: runRevalidateShortcuts,
+      });
     };
 
     window.addEventListener("keydown", handler, { capture: true });
@@ -79,7 +66,7 @@ const SettingsApp = () => {
     return () => {
       window.removeEventListener("keydown", handler, { capture: true });
     };
-  }, [recordingRowKey, setDraft]);
+  }, [recordingRowKey, runRevalidateShortcuts, setDraft]);
 
   const sections = useMemo(() => {
     if (!draft) return [];
@@ -87,55 +74,53 @@ const SettingsApp = () => {
   }, [draft, validationIssues]);
 
   const handleSave = async () => {
-    setError(null);
-    setSaving(true);
+    const saved = await saveSettings({
+      validate,
+      save,
+      setError,
+      setSaving,
+      setRecordingRowKey,
+    });
 
-    try {
-      const issues = await validate();
-      if (issues.length > 0) {
-        setError(`${issues.length} validation issue(s).`);
-        return;
-      }
-
-      await save();
-      setRecordingRowKey(null);
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setSaving(false);
+    if (saved) {
+      await closeSettingsWindow(setError);
     }
   };
 
   const handleRevertDefaults = async () => {
-    setError(null);
-    setRecordingRowKey(null);
-
-    try {
-      await revertDefaults();
-    } catch (err) {
-      setError(String(err));
-    }
+    await revertSettingsDefaults({
+      revertDefaults,
+      setError,
+      setRecordingRowKey,
+    });
   };
 
   const handleCancel = () => {
-    setError(null);
-    setRecordingRowKey(null);
-    cancel();
+    cancelChanges({
+      cancel,
+      setError,
+      setRecordingRowKey,
+    });
   };
 
   const handleRecordStart = (scope: ShortcutScopeKey, actionId: string) => {
-    setError(null);
-
-    const rowKey = buildRowKey(scope, actionId);
-    setRecordingRowKey((current) => (current === rowKey ? null : rowKey));
+    toggleRecording({
+      scope,
+      actionId,
+      setError,
+      setRecordingRowKey,
+    });
   };
 
   const handleReset = (scope: ShortcutScopeKey, actionId: string) => {
-    setError(null);
-    setDraft((nextDraft) => updateActionPrimaryBinding(nextDraft, scope, actionId, null));
-
-    const rowKey = buildRowKey(scope, actionId);
-    setRecordingRowKey((current) => (current === rowKey ? null : current));
+    resetShortcut({
+      scope,
+      actionId,
+      setError,
+      setDraft,
+      setRecordingRowKey,
+      onRevalidate: runRevalidateShortcuts,
+    });
   };
 
   return (

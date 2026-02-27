@@ -9,7 +9,7 @@ use helpers::{
 	macos_panel::setup_macos_window_config,
 	settings::{
 		emit_settings_updated, open_settings_window, register_settings_close_handler,
-		settings_get_snapshot, settings_restore_defaults, settings_save,
+		settings_get_snapshot, settings_hide_window, settings_restore_defaults, settings_save,
 		settings_validate_shortcuts,
 	},
 	settings_store::load_settings,
@@ -36,7 +36,8 @@ pub fn run() {
 			settings_get_snapshot,
 			settings_validate_shortcuts,
 			settings_save,
-			settings_restore_defaults
+			settings_restore_defaults,
+			settings_hide_window
 		])
 		.setup(|app| {
 			#[cfg(target_os = "macos")]

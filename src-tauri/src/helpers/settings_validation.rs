@@ -9,7 +9,7 @@ use super::{
 pub fn validate_shortcuts(snapshot: &SettingsSnapshot) -> Vec<ValidationIssue> {
 	let mut issues: Vec<ValidationIssue> = Vec::new();
 	let compiled = compile_shortcuts(snapshot);
-	let mut combo_to_path: HashMap<String, String> = HashMap::new();
+	let mut combo_to_paths: HashMap<String, Vec<String>> = HashMap::new();
 	let reserved_combo = canonical_combo_key(&Binding {
 		code: "KeyQ".to_string(),
 		modifiers: vec!["Primary".to_string()],
@@ -97,17 +97,28 @@ pub fn validate_shortcuts(snapshot: &SettingsSnapshot) -> Vec<ValidationIssue> {
 				});
 			}
 
-			if let Some(existing_path) = combo_to_path.get(&canonical) {
-				if existing_path != &path {
-					issues.push(ValidationIssue {
-						path: path.clone(),
-						kind: "conflict".to_string(),
-						message: format!("Conflicts with {}", existing_path),
-					});
-				}
-			} else {
-				combo_to_path.insert(canonical, path);
-			}
+			combo_to_paths.entry(canonical).or_default().push(path);
+		}
+	}
+
+	for paths in combo_to_paths.values_mut() {
+		paths.sort();
+		if paths.len() < 2 {
+			continue;
+		}
+
+		for path in paths.iter() {
+			let conflicting_paths = paths
+				.iter()
+				.filter(|other| *other != path)
+				.cloned()
+				.collect::<Vec<_>>()
+				.join(", ");
+			issues.push(ValidationIssue {
+				path: path.clone(),
+				kind: "conflict".to_string(),
+				message: format!("Duplicate shortcut. Conflicts with {}", conflicting_paths),
+			});
 		}
 	}
 

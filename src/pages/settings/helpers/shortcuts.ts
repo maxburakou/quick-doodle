@@ -154,6 +154,12 @@ export const resolveIssueForPath = (
   return issues.find((issue) => issue.path === path || issue.path.startsWith(`${path}[`)) ?? null;
 };
 
+export const getIssueMessage = (issue: ValidationIssue | null): string => {
+  if (!issue) return "";
+  if (issue.kind === "conflict") return "Duplicate shortcut. Choose a unique key combination.";
+  return issue.message;
+};
+
 export const buildRowKey = (scope: ShortcutScopeKey, actionId: string) => {
   return `${scope}::${actionId}`;
 };

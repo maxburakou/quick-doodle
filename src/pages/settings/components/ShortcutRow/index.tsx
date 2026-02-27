@@ -1,4 +1,4 @@
-import { formatBinding } from "../../helpers/shortcuts";
+import { formatBinding, getIssueMessage } from "../../helpers/shortcuts";
 import { ShortcutRowModel, ShortcutScopeKey } from "../../types";
 import "./styles.css";
 
@@ -13,6 +13,7 @@ const IS_MAC_OS = navigator.platform.toLowerCase().includes("mac");
 
 export const ShortcutRow = ({ row, recording, onRecordStart, onReset }: ShortcutRowProps) => {
   const bindingLabel = recording ? "..." : formatBinding(row.binding, IS_MAC_OS);
+  const issueMessage = getIssueMessage(row.issue);
 
   return (
     <tr className={row.issue ? "shortcut-row shortcut-row--error" : "shortcut-row"}>
@@ -24,11 +25,11 @@ export const ShortcutRow = ({ row, recording, onRecordStart, onReset }: Shortcut
               ? "shortcut-row__binding shortcut-row__binding--recording"
               : "shortcut-row__binding"
           }
-          title={row.issue?.message ?? ""}
+          title={issueMessage}
         >
           {bindingLabel}
         </div>
-        {row.issue ? <div className="shortcut-row__issue">{row.issue.message}</div> : null}
+        {row.issue ? <div className="shortcut-row__issue">{issueMessage}</div> : null}
       </td>
       <td>
         <button

@@ -42,27 +42,38 @@ pub fn register_settings_close_handler(app: &AppHandle) {
 	settings_window.on_window_event(move |event| {
 		if let WindowEvent::CloseRequested { api, .. } = event {
 			api.prevent_close();
-			if !window_service::hide_settings_window(&app_handle) {
-				warn!("Failed to hide settings window on close request.");
-			}
-
-			let state = app_handle.state::<WindowState>();
-			let should_restore_main = state.take_restore_main_on_settings_close();
-
-			if should_restore_main {
-				let main_is_visible = state.is_main_visible();
-
-				if !main_is_visible {
-					let handle = app_handle.clone();
-					if let Err(err) = app_handle.run_on_main_thread(move || {
-						toggle_window(&handle);
-					}) {
-						warn!("Failed to restore main window on main thread: {:?}", err);
-					}
-				}
+			if let Err(err) = hide_settings_window_with_restore(&app_handle) {
+				warn!("Failed to hide settings window on close request: {}", err);
 			}
 		}
 	});
+}
+
+fn hide_settings_window_with_restore(app: &AppHandle) -> Result<(), String> {
+	if !window_service::hide_settings_window(app) {
+		return Err("Failed to hide settings window.".to_string());
+	}
+
+	let state = app.state::<WindowState>();
+	let should_restore_main = state.take_restore_main_on_settings_close();
+
+	if should_restore_main {
+		let main_is_visible = state.is_main_visible();
+
+		if !main_is_visible {
+			let handle = app.clone();
+			if let Err(err) = app.run_on_main_thread(move || {
+				toggle_window(&handle);
+			}) {
+				return Err(format!(
+					"Failed to restore main window on main thread: {:?}",
+					err
+				));
+			}
+		}
+	}
+
+	Ok(())
 }
 
 #[tauri::command]
@@ -123,6 +134,11 @@ pub fn settings_save(app: AppHandle, snapshot: SettingsSnapshot) -> Result<Setti
 	emit_settings_updated(&app, &snapshot);
 
 	Ok(snapshot)
+}
+
+#[tauri::command]
+pub fn settings_hide_window(app: AppHandle) -> Result<(), String> {
+	hide_settings_window_with_restore(&app)
 }
 
 pub fn emit_settings_updated(app: &AppHandle, snapshot: &SettingsSnapshot) {
