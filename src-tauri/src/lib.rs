@@ -2,17 +2,24 @@ mod components;
 mod helpers;
 mod ids;
 mod state;
-use components::tray::create_tray_menu;
+
+use components::tray::{apply_tray_accelerators_from_settings, create_tray_menu};
 use helpers::{
-	autostart::toggle_autostart,
+	autostart::{get_autostart_enabled, set_autostart_enabled, toggle_autostart},
 	macos_panel::setup_macos_window_config,
-	settings::{open_settings_window, register_settings_close_handler},
-	shortcuts::register_global_shortcuts,
+	settings::{
+		emit_settings_updated, open_settings_window, register_settings_close_handler,
+		settings_get_snapshot, settings_restore_defaults, settings_save,
+		settings_validate_shortcuts,
+	},
+	settings_store::load_settings,
+	shortcuts::{init_global_shortcuts, reapply_global_shortcuts_with_rollback},
+	shortcuts_runtime::{compile_shortcuts, CompiledShortcuts},
 	utils::{get_icon_path, handle_event, toggle_window, warm_tray_icon_cache},
 };
 use ids::{events, menu_ids};
 use log::warn;
-use state::WindowState;
+use state::{AppSettingsState, WindowState};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 use tauri::{
 	image::Image,
@@ -25,15 +32,19 @@ use tauri_plugin_store;
 pub fn run() {
 	tauri::Builder::default()
 		.plugin(tauri_plugin_store::Builder::new().build())
+		.invoke_handler(tauri::generate_handler![
+			settings_get_snapshot,
+			settings_validate_shortcuts,
+			settings_save,
+			settings_restore_defaults
+		])
 		.setup(|app| {
 			#[cfg(target_os = "macos")]
 			setup_macos_window_config(app.handle());
 
-			// Initialize state
-			let state = state::WindowState::new();
-			app.manage(state);
+			let window_state = WindowState::new();
+			app.manage(window_state);
 			warm_tray_icon_cache(app.app_handle());
-
 			register_settings_close_handler(app.app_handle());
 
 			if cfg!(debug_assertions) {
@@ -52,11 +63,25 @@ pub fn run() {
 				warn!("Failed to initialize autostart plugin: {:?}", err);
 			}
 
-			// Tray menu items
+			let snapshot = load_settings(app.app_handle())?;
+			if let Ok(enabled) = get_autostart_enabled(app.app_handle()) {
+				if enabled != snapshot.autostart.enabled {
+					warn!(
+						"Autostart state differs from settings (os={}, settings={}), syncing.",
+						enabled, snapshot.autostart.enabled
+					);
+				}
+			}
+			if let Err(err) = set_autostart_enabled(app.app_handle(), snapshot.autostart.enabled) {
+				warn!("Failed to sync autostart status on setup: {}", err);
+			}
+
+			let compiled = compile_shortcuts(&snapshot);
+			app.manage(AppSettingsState::new(snapshot.clone(), compiled.clone()));
+
 			let (tray_menu, tray_menu_items) = create_tray_menu(app.app_handle(), false)?;
 
-			// Create tray icon
-				let tray_icon = TrayIconBuilder::new()
+			let tray_icon = TrayIconBuilder::new()
 				.menu(&tray_menu)
 				.show_menu_on_left_click(false)
 				.on_menu_event(|app, event| match event.id.as_ref() {
@@ -88,21 +113,34 @@ pub fn run() {
 						button_state: MouseButtonState::Up,
 						..
 					} = event
-						{
-							toggle_window(&tray.app_handle());
-							handle_event(&tray.app_handle(), events::RESET_CANVAS);
-						}
-					})
+					{
+						toggle_window(&tray.app_handle());
+						handle_event(&tray.app_handle(), events::RESET_CANVAS);
+					}
+				})
 				.build(app)?;
 
-			// Store tray icon in state
 			{
 				let state = app.state::<WindowState>();
 				state.set_tray_icon(tray_icon);
 				state.set_tray_menu_items(tray_menu_items);
 			}
 
-			register_global_shortcuts(app.app_handle());
+			if let Some(menu_items) = app.state::<WindowState>().tray_menu_items() {
+				if let Err(err) = apply_tray_accelerators_from_settings(&menu_items, &snapshot) {
+					warn!("Failed to apply initial tray accelerators: {}", err);
+				}
+			}
+
+			init_global_shortcuts(app.app_handle());
+			let empty_compiled = CompiledShortcuts::default();
+			if let Err(err) =
+				reapply_global_shortcuts_with_rollback(app.app_handle(), &empty_compiled, &compiled)
+			{
+				warn!("Failed to apply initial global shortcuts: {}", err);
+			}
+
+			emit_settings_updated(app.app_handle(), &snapshot);
 
 			Ok(())
 		})

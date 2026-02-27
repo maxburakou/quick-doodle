@@ -2,15 +2,15 @@ import { Tool } from "@/types";
 import { ToolbarToolConfig, ToolbarToolMeta } from "./types";
 
 export const TOOL_META: ToolbarToolMeta[] = [
-  { tool: Tool.Pen, hotkey: "1" },
-  { tool: Tool.Highlighter, hotkey: "2" },
-  { tool: Tool.Arrow, hotkey: "3" },
-  { tool: Tool.Line, hotkey: "4" },
-  { tool: Tool.Rectangle, hotkey: "5" },
-  { tool: Tool.Diamond, hotkey: "6" },
-  { tool: Tool.Ellipse, hotkey: "7" },
-  { tool: Tool.Text, hotkey: "8" },
-  { tool: Tool.Select, hotkey: "9" },
+  { tool: Tool.Pen, hotkeySlot: 1 },
+  { tool: Tool.Highlighter, hotkeySlot: 2 },
+  { tool: Tool.Arrow, hotkeySlot: 3 },
+  { tool: Tool.Line, hotkeySlot: 4 },
+  { tool: Tool.Rectangle, hotkeySlot: 5 },
+  { tool: Tool.Diamond, hotkeySlot: 6 },
+  { tool: Tool.Ellipse, hotkeySlot: 7 },
+  { tool: Tool.Text, hotkeySlot: 8 },
+  { tool: Tool.Select, hotkeySlot: 9 },
 ];
 
 export const TOOL_CONFIG: Record<Tool, ToolbarToolConfig> = {

@@ -6,6 +6,8 @@ use tauri_plugin_autostart::ManagerExt;
 use log::warn;
 
 use crate::ids::menu_ids;
+use crate::helpers::shortcuts_runtime::{action_primary_binding, binding_to_accelerator};
+use crate::helpers::settings_types::SettingsSnapshot;
 
 #[derive(Clone)]
 pub struct TrayMenuItems {
@@ -171,4 +173,47 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<(Menu<Wry>,
 	};
 
 	Ok((menu, items))
+}
+
+pub fn apply_tray_accelerators_from_settings(
+	items: &TrayMenuItems,
+	settings: &SettingsSnapshot,
+) -> std::result::Result<(), String> {
+	let global_actions = &settings.shortcuts.global.actions;
+	let history_actions = &settings.shortcuts.canvas.history.actions;
+	let toggle_actions = &settings.shortcuts.canvas.toggles.actions;
+
+	let updates = [
+		(&items.hide_canvas, action_primary_binding(global_actions, "toggle_canvas")),
+		(&items.quit_canvas, action_primary_binding(global_actions, "new_canvas")),
+		(&items.undo, action_primary_binding(history_actions, "undo")),
+		(&items.redo, action_primary_binding(history_actions, "redo")),
+		(&items.clear, action_primary_binding(history_actions, "clear")),
+		(&items.reset, action_primary_binding(history_actions, "reset")),
+		(&items.toolbar, action_primary_binding(toggle_actions, "toolbar")),
+		(&items.background, action_primary_binding(toggle_actions, "background")),
+		(&items.snap, action_primary_binding(toggle_actions, "snap")),
+	];
+
+	let mut errors: Vec<String> = Vec::new();
+
+	for (item, binding) in updates {
+		let result = if let Some(binding) = binding {
+			let accelerator = binding_to_accelerator(&binding);
+			item.set_accelerator(Some(&accelerator))
+		} else {
+			item.set_accelerator(None::<&str>)
+		};
+
+		if let Err(err) = result {
+			warn!("Failed to update tray accelerator: {:?}", err);
+			errors.push(err.to_string());
+		}
+	}
+
+	if errors.is_empty() {
+		Ok(())
+	} else {
+		Err(errors.join("; "))
+	}
 }

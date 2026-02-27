@@ -8,5 +8,5 @@ export interface ToolbarToolConfig {
 
 export interface ToolbarToolMeta {
   tool: Tool;
-  hotkey: string;
+  hotkeySlot: number;
 }

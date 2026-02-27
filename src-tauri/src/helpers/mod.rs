@@ -1,6 +1,10 @@
 pub mod autostart;
 pub mod macos_panel;
 pub mod settings;
+pub mod settings_store;
+pub mod settings_types;
+pub mod settings_validation;
 pub mod shortcuts;
+pub mod shortcuts_runtime;
 pub mod utils;
 pub mod window_service;

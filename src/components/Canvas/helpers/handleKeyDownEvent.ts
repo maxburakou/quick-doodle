@@ -10,6 +10,7 @@ import {
 } from "@/store";
 import { useToolbarStore } from "@/store/useToolbarStore";
 import { Tool } from "@/types";
+import { resolveCanvasShortcutAction } from "./shortcutMatcher";
 
 const { undo, redo, clear, reset } = useHistoryStore.getState();
 const { setTool } = useToolStore.getState();
@@ -19,6 +20,18 @@ const { toggleBackground: toggleCanvas } = useCanvasStore.getState();
 const { toggleVisibility: toggleToolbar } = useToolbarStore.getState();
 const { toggleEnabled: toggleSnap } = useSnapStore.getState();
 const { toNextFontSize, toPrevFontSize } = useTextSettingsStore.getState();
+const TOOL_VALUES = new Set(Object.values(Tool));
+const TOOL_ACTION_PREFIX = "canvas.tools.tool_";
+
+const ACTION_HANDLERS: Record<string, () => void> = {
+  "canvas.history.undo": undo,
+  "canvas.history.redo": redo,
+  "canvas.history.clear": clear,
+  "canvas.history.reset": reset,
+  "canvas.toggles.background": toggleCanvas,
+  "canvas.toggles.toolbar": toggleToolbar,
+  "canvas.toggles.snap": toggleSnap,
+};
 
 const isTypingTarget = (target: EventTarget | null) => {
   if (!(target instanceof HTMLElement)) return false;
@@ -29,10 +42,28 @@ const isTypingTarget = (target: EventTarget | null) => {
   );
 };
 
+const applyShortcutAction = (actionId: string) => {
+  const actionHandler = ACTION_HANDLERS[actionId];
+  if (actionHandler) {
+    actionHandler();
+    return true;
+  }
+
+  if (actionId.startsWith(TOOL_ACTION_PREFIX)) {
+    const slot = actionId.replace(TOOL_ACTION_PREFIX, "");
+    if (TOOL_VALUES.has(slot as Tool)) {
+      setTool(slot as Tool);
+      return true;
+    }
+  }
+
+  return false;
+};
+
 export const handleKeyDownEvent = (event: KeyboardEvent) => {
   if (isTypingTarget(event.target)) return;
 
-  const { metaKey, shiftKey, code } = event;
+  const { code, shiftKey } = event;
   const isDeleteShortcut = code === "Delete" || code === "Backspace";
   const textEditorMode = useTextEditorStore.getState().mode;
 
@@ -52,63 +83,30 @@ export const handleKeyDownEvent = (event: KeyboardEvent) => {
     return;
   }
 
-  event.preventDefault();
+  const actionId = resolveCanvasShortcutAction(event);
+  if (actionId) {
+    event.preventDefault();
+    if (applyShortcutAction(actionId)) {
+      return;
+    }
+  }
 
   const { tool } = useToolStore.getState();
 
-  if (shiftKey && metaKey && code === "KeyZ") {
-    redo();
-    return;
-  }
-
-  if (metaKey && code === "KeyZ") {
-    undo();
-    return;
-  }
-
-  if (metaKey && code === "KeyC") {
-    clear();
-    return;
-  }
-
-  if (metaKey && code === "KeyR") {
-    reset();
-    return;
-  }
-
-  if (metaKey && code === "KeyA") {
-    toggleCanvas();
-    return;
-  }
-
-  if (metaKey && code === "KeyQ") {
-    toggleToolbar();
-    return;
-  }
-
-  if (metaKey && code === "KeyE") {
-    toggleSnap();
-    return;
-  }
-
-  Object.values(Tool).forEach((toolItemKey) => {
-    if (code === `Digit${toolItemKey}` || code === `Numpad${toolItemKey}`) {
-      setTool(toolItemKey);
-      return;
-    }
-  });
-
   if (shiftKey && code === "BracketLeft") {
+    event.preventDefault();
     toPrevColor();
     return;
   }
 
   if (shiftKey && code === "BracketRight") {
+    event.preventDefault();
     toNextColor();
     return;
   }
 
   if (code === "BracketLeft") {
+    event.preventDefault();
     if (tool === Tool.Text) {
       toPrevFontSize();
       return;
@@ -118,11 +116,11 @@ export const handleKeyDownEvent = (event: KeyboardEvent) => {
   }
 
   if (code === "BracketRight") {
+    event.preventDefault();
     if (tool === Tool.Text) {
       toNextFontSize();
       return;
     }
     toNextThickness();
-    return;
   }
 };

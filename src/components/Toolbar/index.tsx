@@ -20,6 +20,8 @@ import { useToolbarVisibility } from "@/store/useToolbarStore";
 import { FontSizeOptions } from "./FontSizeOptions";
 import { TOOL_META, TOOL_CONFIG } from "./config";
 import { ToolbarSettingControl } from "./types";
+import { resolveToolHotkeyLabel } from "@/components/Canvas/helpers/shortcutMatcher";
+import { useSettingsStore } from "@/store";
 
 const TOOL_ICONS: Record<Tool, ReactNode> = {
   [Tool.Pen]: <Pen size={14} />,
@@ -43,6 +45,7 @@ export const Toolbar: React.FC = () => {
   const tool = useTool();
   const setTool = useSetTool();
   const isVisible = useToolbarVisibility();
+  const settingsSnapshot = useSettingsStore((state) => state.snapshot);
   const settings = TOOL_CONFIG[tool]?.settings ?? null;
   const shouldShowSettings = Array.isArray(settings) && settings.length > 0;
 
@@ -51,8 +54,9 @@ export const Toolbar: React.FC = () => {
       <div className={`toolbar-container ${!isVisible ? "--hidden" : ""}`}>
         <div className="toolbar-content">
           <menu className="toolbar">
-            {TOOL_META.map(({ tool: toolValue, hotkey }) => {
+            {TOOL_META.map(({ tool: toolValue, hotkeySlot }) => {
               const isActive = toolValue === tool;
+              const hotkey = resolveToolHotkeyLabel(settingsSnapshot, hotkeySlot);
               return (
                 <li className="toolbar-item" key={toolValue}>
                   <button

@@ -76,3 +76,4 @@ export {
   useClearShapeSelection,
 } from "./useShapeEditorStore";
 export { useSnapStore, useSnapEnabled, useToggleSnapEnabled } from "./useSnapStore";
+export { useSettingsStore } from "./useSettingsStore";

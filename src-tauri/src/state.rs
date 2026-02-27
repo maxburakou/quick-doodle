@@ -1,8 +1,9 @@
 use std::sync::{Arc, Mutex};
+
 use log::warn;
 use tauri::{image::Image, tray::TrayIcon};
 
-use crate::components::tray::TrayMenuItems;
+use crate::{components::tray::TrayMenuItems, helpers::{settings_types::SettingsSnapshot, shortcuts_runtime::CompiledShortcuts}};
 
 pub struct WindowState {
 	is_visible: Mutex<bool>,
@@ -25,11 +26,7 @@ impl WindowState {
 		}
 	}
 
-	fn with_lock<T, R>(
-		mutex: &Mutex<T>,
-		name: &'static str,
-		f: impl FnOnce(&mut T) -> R,
-	) -> R {
+	fn with_lock<T, R>(mutex: &Mutex<T>, name: &'static str, f: impl FnOnce(&mut T) -> R) -> R {
 		match mutex.lock() {
 			Ok(mut guard) => f(&mut guard),
 			Err(poisoned) => {
@@ -109,11 +106,9 @@ impl WindowState {
 				current.clone()
 			})
 		} else {
-			Self::with_lock(
-				&self.tray_inactive_icon,
-				"tray_inactive_icon",
-				|current| current.clone(),
-			)
+			Self::with_lock(&self.tray_inactive_icon, "tray_inactive_icon", |current| {
+				current.clone()
+			})
 		}
 	}
 
@@ -126,6 +121,50 @@ impl WindowState {
 			Self::with_lock(&self.tray_inactive_icon, "tray_inactive_icon", |current| {
 				*current = Some(icon);
 			});
+		}
+	}
+}
+
+pub struct AppSettingsState {
+	snapshot: Mutex<SettingsSnapshot>,
+	compiled_shortcuts: Mutex<CompiledShortcuts>,
+}
+
+impl AppSettingsState {
+	pub fn new(snapshot: SettingsSnapshot, compiled_shortcuts: CompiledShortcuts) -> Self {
+		Self {
+			snapshot: Mutex::new(snapshot),
+			compiled_shortcuts: Mutex::new(compiled_shortcuts),
+		}
+	}
+
+	pub fn snapshot(&self) -> SettingsSnapshot {
+		match self.snapshot.lock() {
+			Ok(guard) => guard.clone(),
+			Err(poisoned) => {
+				warn!("Mutex 'settings_snapshot' was poisoned, recovering.");
+				poisoned.into_inner().clone()
+			}
+		}
+	}
+
+	pub fn set_snapshot(&self, snapshot: SettingsSnapshot) {
+		match self.snapshot.lock() {
+			Ok(mut guard) => *guard = snapshot,
+			Err(poisoned) => {
+				warn!("Mutex 'settings_snapshot' was poisoned, recovering.");
+				*poisoned.into_inner() = snapshot;
+			}
+		}
+	}
+
+	pub fn set_compiled_shortcuts(&self, compiled_shortcuts: CompiledShortcuts) {
+		match self.compiled_shortcuts.lock() {
+			Ok(mut guard) => *guard = compiled_shortcuts,
+			Err(poisoned) => {
+				warn!("Mutex 'compiled_shortcuts' was poisoned, recovering.");
+				*poisoned.into_inner() = compiled_shortcuts;
+			}
 		}
 	}
 }
