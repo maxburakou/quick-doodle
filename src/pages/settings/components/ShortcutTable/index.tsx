@@ -1,20 +1,13 @@
-import { ShortcutRowModel, ShortcutScopeKey } from "../../types";
+import { ShortcutActionDefinition, ShortcutScopeKey } from "../../types";
 import { ShortcutRow } from "../ShortcutRow";
 import "./styles.css";
 
 interface ShortcutTableProps {
-  rows: ShortcutRowModel[];
-  recordingRowKey: string | null;
-  onRecordStart: (scope: ShortcutScopeKey, actionId: string) => void;
-  onReset: (scope: ShortcutScopeKey, actionId: string) => void;
+  scope: ShortcutScopeKey;
+  actions: ShortcutActionDefinition[];
 }
 
-export const ShortcutTable = ({
-  rows,
-  recordingRowKey,
-  onRecordStart,
-  onReset,
-}: ShortcutTableProps) => {
+export const ShortcutTable = ({ scope, actions }: ShortcutTableProps) => {
   return (
     <div className="shortcut-table__wrap">
       <table className="shortcut-table">
@@ -27,13 +20,12 @@ export const ShortcutTable = ({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {actions.map((action) => (
             <ShortcutRow
-              key={row.key}
-              row={row}
-              recording={recordingRowKey === row.key}
-              onRecordStart={onRecordStart}
-              onReset={onReset}
+              key={`${scope}::${action.actionId}`}
+              scope={scope}
+              actionId={action.actionId}
+              label={action.label}
             />
           ))}
         </tbody>

@@ -1,25 +1,25 @@
+import { useSettingsStore } from "@/store";
+import { selectSaveDisabled, useSettingsPageStore } from "../../store";
 import "./styles.css";
 
-interface SettingsFooterProps {
-  dirty: boolean;
-  saving: boolean;
-  saveDisabled?: boolean;
-  onRevertDefaults: () => void;
-  onCancel: () => void;
-  onSave: () => void;
-}
+export const SettingsFooter = () => {
+  const dirty = useSettingsStore((state) => state.dirty);
+  const validationIssueCount = useSettingsStore((state) => state.validationIssues.length);
+  const saving = useSettingsPageStore((state) => state.saving);
+  const onRevertDefaults = useSettingsPageStore((state) => state.revertDefaults);
+  const onCancel = useSettingsPageStore((state) => state.cancelChanges);
+  const onSave = useSettingsPageStore((state) => state.saveAndClose);
+  const saveDisabled = selectSaveDisabled(validationIssueCount);
 
-export const SettingsFooter = ({
-  dirty,
-  saving,
-  saveDisabled = false,
-  onRevertDefaults,
-  onCancel,
-  onSave,
-}: SettingsFooterProps) => {
   return (
     <footer className="settings-footer">
-      <button type="button" className="settings-footer__button" onClick={onRevertDefaults}>
+      <button
+        type="button"
+        className="settings-footer__button"
+        onClick={() => {
+          void onRevertDefaults();
+        }}
+      >
         Revert to default
       </button>
 
@@ -35,7 +35,9 @@ export const SettingsFooter = ({
         <button
           type="button"
           className="settings-footer__button settings-footer__button--primary"
-          onClick={onSave}
+          onClick={() => {
+            void onSave();
+          }}
           disabled={!dirty || saving || saveDisabled}
         >
           {saving ? "Saving..." : "Save"}

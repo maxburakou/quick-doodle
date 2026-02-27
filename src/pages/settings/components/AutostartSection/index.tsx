@@ -1,11 +1,22 @@
+import { type ChangeEvent } from "react";
+import { useSettingsStore } from "@/store";
 import "./styles.css";
 
-interface AutostartSectionProps {
-  enabled: boolean;
-  onChange: (enabled: boolean) => void;
-}
+export const AutostartSection = () => {
+  const enabled = useSettingsStore((state) => state.draft?.autostart.enabled ?? false);
+  const setDraft = useSettingsStore((state) => state.setDraft);
+  const handleAutostartChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const nextEnabled = event.target.checked;
 
-export const AutostartSection = ({ enabled, onChange }: AutostartSectionProps) => {
+    setDraft((nextDraft) => ({
+      ...nextDraft,
+      autostart: {
+        ...nextDraft.autostart,
+        enabled: nextEnabled,
+      },
+    }));
+  };
+
   return (
     <section className="autostart-section" aria-label="Startup settings">
       <h2 className="autostart-section__title">Startup</h2>
@@ -20,7 +31,7 @@ export const AutostartSection = ({ enabled, onChange }: AutostartSectionProps) =
           type="checkbox"
           className="autostart-section__toggle"
           checked={enabled}
-          onChange={(event) => onChange(event.target.checked)}
+          onChange={handleAutostartChange}
         />
       </label>
     </section>
