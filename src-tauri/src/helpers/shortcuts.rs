@@ -12,7 +12,7 @@ use crate::{
 use super::{
 	settings_types::Binding,
 	shortcuts_runtime::CompiledShortcuts,
-	utils::{handle_event, toggle_window},
+	utils::{handle_event, is_main_open_blocked_by_settings, toggle_window},
 };
 
 pub fn init_global_shortcuts(app: &AppHandle) {
@@ -113,10 +113,15 @@ pub fn is_supported_global_code(code: &str) -> bool {
 
 fn handle_global_action(app: &AppHandle, action_id: &str) {
 	match action_id {
-		"global.toggle_canvas" => toggle_window(app),
+		"global.toggle_canvas" => {
+			let _ = toggle_window(app);
+		}
 		"global.new_canvas" => {
+			if is_main_open_blocked_by_settings(app) {
+				return;
+			}
 			handle_event(app, events::RESET_CANVAS);
-			toggle_window(app);
+			let _ = toggle_window(app);
 		}
 		_ => warn!("Unknown global shortcut action '{}'.", action_id),
 	}

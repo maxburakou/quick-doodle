@@ -17,6 +17,24 @@ pub fn get_icon_path(app: &AppHandle, icon_name: &str) -> PathBuf {
 		.join(format!("icons/tray/{}", icon_name))
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToggleOutcome {
+	Toggled(bool),
+	BlockedBySettings,
+	Noop,
+}
+
+pub fn is_main_open_blocked_by_settings(app: &AppHandle) -> bool {
+	let state = app.state::<WindowState>();
+	if state.is_main_visible() || !state.is_settings_visible() {
+		return false;
+	}
+
+	warn!("Main window open blocked while settings is visible");
+	let _ = window_service::focus_settings_window(app);
+	true
+}
+
 pub fn handle_event(app: &AppHandle, event_name: &str) {
 	if let Some(window) = window_service::main_window(app) {
 		#[cfg(debug_assertions)]
@@ -73,23 +91,27 @@ fn get_cached_or_load_tray_icon(app: &AppHandle, use_active: bool) -> Option<Ima
 	}
 }
 
-pub fn toggle_window(app: &AppHandle) {
+pub fn toggle_window(app: &AppHandle) -> ToggleOutcome {
 	#[cfg(debug_assertions)]
 	let total_start = std::time::Instant::now();
 
 	let state = app.state::<WindowState>();
 	let was_visible = state.is_main_visible();
 
+	if !was_visible && is_main_open_blocked_by_settings(app) {
+		return ToggleOutcome::BlockedBySettings;
+	}
+
 	#[cfg(debug_assertions)]
 	let window_start = std::time::Instant::now();
 
 	if was_visible {
 		if !window_service::hide_main_window(app) {
-			return;
+			return ToggleOutcome::Noop;
 		}
 	} else {
 		if !window_service::show_main_window(app) {
-			return;
+			return ToggleOutcome::Noop;
 		}
 	}
 
@@ -132,4 +154,6 @@ pub fn toggle_window(app: &AppHandle) {
 			window_duration, tray_duration, total_duration
 		);
 	}
+
+	ToggleOutcome::Toggled(new_visibility)
 }

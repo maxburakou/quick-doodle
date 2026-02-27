@@ -15,7 +15,7 @@ use helpers::{
 	settings_store::load_settings,
 	shortcuts::{init_global_shortcuts, reapply_global_shortcuts_with_rollback},
 	shortcuts_runtime::{compile_shortcuts, CompiledShortcuts},
-	utils::{get_icon_path, handle_event, toggle_window, warm_tray_icon_cache},
+	utils::{get_icon_path, handle_event, toggle_window, warm_tray_icon_cache, ToggleOutcome},
 };
 use ids::{events, menu_ids};
 use log::warn;
@@ -91,10 +91,13 @@ pub fn run() {
 					menu_ids::CLEAR => handle_event(app, events::CLEAR_CANVAS),
 					menu_ids::UNDO => handle_event(app, events::UNDO_CANVAS),
 					menu_ids::REDO => handle_event(app, events::REDO_CANVAS),
-					menu_ids::HIDE_CANVAS => toggle_window(app),
+					menu_ids::HIDE_CANVAS => {
+						let _ = toggle_window(app);
+					}
 					menu_ids::QUIT_CANVAS => {
-						toggle_window(app);
-						handle_event(app, events::RESET_CANVAS);
+						if let ToggleOutcome::Toggled(_) = toggle_window(app) {
+							handle_event(app, events::RESET_CANVAS);
+						}
 					}
 					menu_ids::AUTOSTART => toggle_autostart(app),
 					menu_ids::SETTINGS => open_settings_window(app),
@@ -115,8 +118,9 @@ pub fn run() {
 						..
 					} = event
 					{
-						toggle_window(&tray.app_handle());
-						handle_event(&tray.app_handle(), events::RESET_CANVAS);
+						if let ToggleOutcome::Toggled(_) = toggle_window(&tray.app_handle()) {
+							handle_event(&tray.app_handle(), events::RESET_CANVAS);
+						}
 					}
 				})
 				.build(app)?;

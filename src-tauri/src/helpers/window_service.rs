@@ -74,3 +74,14 @@ pub fn hide_settings_window(app: &AppHandle) -> bool {
 	}
 	true
 }
+
+pub fn focus_settings_window(app: &AppHandle) -> bool {
+	let Some(window) = settings_window(app) else {
+		return false;
+	};
+	if let Err(err) = window.set_focus() {
+		warn!("Failed to focus settings window: {:?}", err);
+		return false;
+	}
+	true
+}

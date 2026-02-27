@@ -22,14 +22,16 @@ pub fn open_settings_window(app: &AppHandle) {
 	let main_was_visible = state.is_main_visible();
 
 	if main_was_visible {
-		toggle_window(app);
+		let _ = toggle_window(app);
 	}
 
 	state.set_restore_main_on_settings_close(main_was_visible);
 
 	if !window_service::show_settings_window(app) {
 		warn!("Failed to open settings window.");
+		return;
 	}
+	state.set_settings_visible(true);
 }
 
 pub fn register_settings_close_handler(app: &AppHandle) {
@@ -55,6 +57,7 @@ fn hide_settings_window_with_restore(app: &AppHandle) -> Result<(), String> {
 	}
 
 	let state = app.state::<WindowState>();
+	state.set_settings_visible(false);
 	let should_restore_main = state.take_restore_main_on_settings_close();
 
 	if should_restore_main {
@@ -63,7 +66,7 @@ fn hide_settings_window_with_restore(app: &AppHandle) -> Result<(), String> {
 		if !main_is_visible {
 			let handle = app.clone();
 			if let Err(err) = app.run_on_main_thread(move || {
-				toggle_window(&handle);
+				let _ = toggle_window(&handle);
 			}) {
 				return Err(format!(
 					"Failed to restore main window on main thread: {:?}",

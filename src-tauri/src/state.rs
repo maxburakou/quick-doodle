@@ -7,6 +7,7 @@ use crate::{components::tray::TrayMenuItems, helpers::{settings_types::SettingsS
 
 pub struct WindowState {
 	is_visible: Mutex<bool>,
+	is_settings_visible: Mutex<bool>,
 	tray_icon: Arc<Mutex<Option<TrayIcon>>>,
 	tray_menu_items: Mutex<Option<TrayMenuItems>>,
 	restore_main_on_settings_close: Mutex<bool>,
@@ -18,6 +19,7 @@ impl WindowState {
 	pub fn new() -> Self {
 		Self {
 			is_visible: Mutex::new(false),
+			is_settings_visible: Mutex::new(false),
 			tray_icon: Arc::new(Mutex::new(None)),
 			tray_menu_items: Mutex::new(None),
 			restore_main_on_settings_close: Mutex::new(false),
@@ -43,6 +45,16 @@ impl WindowState {
 
 	pub fn set_main_visible(&self, visible: bool) {
 		Self::with_lock(&self.is_visible, "is_visible", |current| *current = visible);
+	}
+
+	pub fn is_settings_visible(&self) -> bool {
+		Self::with_lock(&self.is_settings_visible, "is_settings_visible", |visible| *visible)
+	}
+
+	pub fn set_settings_visible(&self, visible: bool) {
+		Self::with_lock(&self.is_settings_visible, "is_settings_visible", |current| {
+			*current = visible
+		});
 	}
 
 	pub fn set_restore_main_on_settings_close(&self, restore: bool) {
