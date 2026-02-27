@@ -1,0 +1,21 @@
+.settings-page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  color: #444444;
+  font-family: "JetBrains Mono", monospace;
+}
+
+.settings-page__content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.settings-page__error {
+  margin: 0 0 12px;
+  color: #c1121f;
+  font-size: 13px;
+}

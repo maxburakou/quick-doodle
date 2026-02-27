@@ -1,0 +1,46 @@
+.settings-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid #dcdcdc;
+  background: #ffffff;
+}
+
+.settings-footer__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-footer__button {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 7px;
+  border: 1px solid #dcdcdc;
+  background: #ffffff;
+  color: #444444;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.settings-footer__button:hover:not(:disabled) {
+  background: #f2f2f2;
+}
+
+.settings-footer__button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.settings-footer__button--primary {
+  background: #007aff;
+  color: #ffffff;
+  border-color: #007aff;
+}
+
+.settings-footer__button--primary:hover:not(:disabled) {
+  background: #0064d1;
+}

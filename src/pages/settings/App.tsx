@@ -1,30 +1,90 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSettingsStore } from "@/store";
-import { listen } from "@tauri-apps/api/event";
-import { SettingsSnapshot } from "@/types/settings";
+import {
+  buildRowKey,
+  isModifierOnlyKey,
+  keyboardEventToBinding,
+  mapShortcutSections,
+  parseRowKey,
+  updateActionPrimaryBinding,
+} from "./helpers/shortcuts";
+import { useSettingsSnapshotSync } from "./hooks/useSettingsSnapshotSync";
+import { SettingsContent, SettingsFooter } from "./components";
+import { ShortcutScopeKey } from "./types";
+import "./styles.css";
 
 const SettingsApp = () => {
-  const { load, draft, dirty, save, cancel, revertDefaults, validate, applySnapshot } =
-    useSettingsStore();
+  const {
+    load,
+    draft,
+    dirty,
+    validationIssues,
+    save,
+    cancel,
+    setDraft,
+    revertDefaults,
+    validate,
+    applySnapshot,
+  } = useSettingsStore();
+
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [recordingRowKey, setRecordingRowKey] = useState<string | null>(null);
+
+  const handleLoadError = useCallback((err: unknown) => {
+    setError(String(err));
+  }, []);
+
+  useSettingsSnapshotSync({
+    load,
+    applySnapshot,
+    onLoadError: handleLoadError,
+  });
 
   useEffect(() => {
-    load().catch((err) => setError(String(err)));
+    if (!recordingRowKey) return;
 
-    const unlisten = listen<SettingsSnapshot>("settings-updated", (event) => {
-      applySnapshot(event.payload);
-    });
+    const handler = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (event.code === "Escape") {
+        setRecordingRowKey(null);
+        return;
+      }
+
+      if (isModifierOnlyKey(event.code)) {
+        return;
+      }
+
+      const row = parseRowKey(recordingRowKey);
+      if (!row) {
+        setRecordingRowKey(null);
+        return;
+      }
+
+      setDraft((nextDraft) =>
+        updateActionPrimaryBinding(
+          nextDraft,
+          row.scope,
+          row.actionId,
+          keyboardEventToBinding(event)
+        )
+      );
+      setRecordingRowKey(null);
+    };
+
+    window.addEventListener("keydown", handler, { capture: true });
 
     return () => {
-      unlisten.then((fn) => fn());
+      window.removeEventListener("keydown", handler, { capture: true });
     };
-  }, [load, applySnapshot]);
+  }, [recordingRowKey, setDraft]);
 
-  const draftJson = useMemo(() => {
-    if (!draft) return "Loading...";
-    return JSON.stringify(draft, null, 2);
-  }, [draft]);
+  const sections = useMemo(() => {
+    if (!draft) return [];
+    return mapShortcutSections(draft, validationIssues);
+  }, [draft, validationIssues]);
 
   const handleSave = async () => {
     setError(null);
@@ -36,7 +96,9 @@ const SettingsApp = () => {
         setError(`${issues.length} validation issue(s).`);
         return;
       }
+
       await save();
+      setRecordingRowKey(null);
     } catch (err) {
       setError(String(err));
     } finally {
@@ -44,36 +106,66 @@ const SettingsApp = () => {
     }
   };
 
-  return (
-    <main style={{ padding: 16, fontFamily: "JetBrains Mono, monospace" }}>
-      <h2>Settings</h2>
-      <p>Draft state wired. Final UI will be implemented separately.</p>
+  const handleRevertDefaults = async () => {
+    setError(null);
+    setRecordingRowKey(null);
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-        <button type="button" onClick={revertDefaults}>
-          Revert to default
-        </button>
-        <button type="button" onClick={cancel} disabled={!dirty}>
-          Cancel
-        </button>
-        <button type="button" onClick={handleSave} disabled={!dirty || saving}>
-          {saving ? "Saving..." : "Save"}
-        </button>
+    try {
+      await revertDefaults();
+    } catch (err) {
+      setError(String(err));
+    }
+  };
+
+  const handleCancel = () => {
+    setError(null);
+    setRecordingRowKey(null);
+    cancel();
+  };
+
+  const handleRecordStart = (scope: ShortcutScopeKey, actionId: string) => {
+    setError(null);
+
+    const rowKey = buildRowKey(scope, actionId);
+    setRecordingRowKey((current) => (current === rowKey ? null : rowKey));
+  };
+
+  const handleReset = (scope: ShortcutScopeKey, actionId: string) => {
+    setError(null);
+    setDraft((nextDraft) => updateActionPrimaryBinding(nextDraft, scope, actionId, null));
+
+    const rowKey = buildRowKey(scope, actionId);
+    setRecordingRowKey((current) => (current === rowKey ? null : current));
+  };
+
+  return (
+    <main className="settings-page">
+      <div className="settings-page__content">
+        {error ? <p className="settings-page__error">{error}</p> : null}
+
+        {draft ? (
+          <SettingsContent
+            sections={sections}
+            recordingRowKey={recordingRowKey}
+            onRecordStart={handleRecordStart}
+            onReset={handleReset}
+          />
+        ) : (
+          <p>Loading settings...</p>
+        )}
       </div>
 
-      {error ? <p style={{ color: "#c1121f" }}>{error}</p> : null}
-
-      <pre
-        style={{
-          maxHeight: "65vh",
-          overflow: "auto",
-          background: "#f5f5f5",
-          padding: 12,
-          borderRadius: 8,
+      <SettingsFooter
+        dirty={dirty}
+        saving={saving}
+        onRevertDefaults={() => {
+          void handleRevertDefaults();
         }}
-      >
-        {draftJson}
-      </pre>
+        onCancel={handleCancel}
+        onSave={() => {
+          void handleSave();
+        }}
+      />
     </main>
   );
 };

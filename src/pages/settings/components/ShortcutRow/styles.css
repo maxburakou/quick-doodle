@@ -1,0 +1,52 @@
+.shortcut-row:hover {
+  background: #f8f8f8;
+}
+
+.shortcut-row--error {
+  background: #fff8f8;
+}
+
+.shortcut-row__binding {
+  font-weight: 500;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px solid #dcdcdc;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.shortcut-row__binding--recording {
+  border-color: #007aff;
+  color: #007aff;
+}
+
+.shortcut-row__issue {
+  margin-top: 4px;
+  color: #c1121f;
+  font-size: 12px;
+}
+
+.shortcut-row__record-button,
+.shortcut-row__reset-button {
+  min-width: 88px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid #dcdcdc;
+  background: #ffffff;
+  color: #444444;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.shortcut-row__record-button:hover,
+.shortcut-row__reset-button:hover {
+  background: #f2f2f2;
+}
+
+.shortcut-row__record-button--active {
+  border-color: #007aff;
+  color: #007aff;
+}
