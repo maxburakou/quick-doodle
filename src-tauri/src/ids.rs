@@ -16,7 +16,6 @@ pub mod menu_ids {
 	pub const QUIT: &str = "quit";
 	pub const QUIT_CANVAS: &str = "quit_canvas";
 	pub const HIDE_CANVAS: &str = "hide_canvas";
-	pub const AUTOSTART: &str = "autostart";
 	pub const SETTINGS: &str = "settings";
 	pub const BACKGROUND: &str = "background";
 	pub const TOOLBAR: &str = "toolbar";

@@ -1,8 +1,7 @@
 use tauri::{
-	menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem},
+	menu::{Menu, MenuItem, PredefinedMenuItem},
 	AppHandle, Result, Wry,
 };
-use tauri_plugin_autostart::ManagerExt;
 use log::warn;
 
 use crate::ids::menu_ids;
@@ -61,15 +60,6 @@ pub fn apply_visibility_to_tray_menu(items: &TrayMenuItems, visibility: bool) {
 }
 
 pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<(Menu<Wry>, TrayMenuItems)> {
-	let autostart_manager = app.autolaunch();
-	let is_autostart_enabled = match autostart_manager.is_enabled() {
-		Ok(enabled) => enabled,
-		Err(err) => {
-			warn!("Failed to read autostart status: {:?}", err);
-			false
-		}
-	};
-
 	let menu_item_undo =
 		MenuItem::with_id(app, menu_ids::UNDO, "Undo", visibility, Some("CmdOrCtrl+Z"))?;
 	let menu_item_redo =
@@ -102,14 +92,6 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<(Menu<Wry>,
 		Some("Shift+CmdOrCtrl+S"),
 	)?;
 	let menu_item_separator = PredefinedMenuItem::separator(app)?;
-	let menu_item_autostart = CheckMenuItem::with_id(
-		app,
-		menu_ids::AUTOSTART,
-		"Autostart",
-		true,
-		is_autostart_enabled,
-		None::<&str>,
-	)?;
 	let menu_item_settings = MenuItem::with_id(
 		app,
 		menu_ids::SETTINGS,
@@ -154,7 +136,6 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<(Menu<Wry>,
 			&menu_item_hide_canvas,
 			&menu_item_quit_canvas,
 			&menu_item_separator,
-			&menu_item_autostart,
 			&menu_item_settings,
 			&menu_item_quit,
 		],

@@ -123,6 +123,17 @@ const SettingsApp = () => {
     });
   };
 
+  const handleAutostartChange = (enabled: boolean) => {
+    setError(null);
+    setDraft((nextDraft) => ({
+      ...nextDraft,
+      autostart: {
+        ...nextDraft.autostart,
+        enabled,
+      },
+    }));
+  };
+
   return (
     <main className="settings-page">
       <div className="settings-page__content">
@@ -131,9 +142,11 @@ const SettingsApp = () => {
         {draft ? (
           <SettingsContent
             sections={sections}
+            autostartEnabled={draft.autostart.enabled}
             recordingRowKey={recordingRowKey}
             onRecordStart={handleRecordStart}
             onReset={handleReset}
+            onAutostartChange={handleAutostartChange}
           />
         ) : (
           <p>Loading settings...</p>

@@ -5,7 +5,7 @@ mod state;
 
 use components::tray::{apply_tray_accelerators_from_settings, create_tray_menu};
 use helpers::{
-	autostart::{get_autostart_enabled, set_autostart_enabled, toggle_autostart},
+	autostart::{get_autostart_enabled, set_autostart_enabled},
 	macos_panel::setup_macos_window_config,
 	settings::{
 		emit_settings_updated, open_settings_window, register_settings_close_handler,
@@ -99,7 +99,6 @@ pub fn run() {
 							handle_event(app, events::RESET_CANVAS);
 						}
 					}
-					menu_ids::AUTOSTART => toggle_autostart(app),
 					menu_ids::SETTINGS => open_settings_window(app),
 					menu_ids::BACKGROUND => handle_event(app, events::TOGGLE_BACKGROUND_CANVAS),
 					menu_ids::TOOLBAR => handle_event(app, events::TOGGLE_TOOLBAR_CANVAS),

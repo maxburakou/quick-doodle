@@ -1,19 +1,24 @@
 import { ShortcutSectionModel, ShortcutScopeKey } from "../../types";
 import { ShortcutSection } from "../ShortcutSection";
+import { AutostartSection } from "../AutostartSection";
 import "./styles.css";
 
 interface SettingsContentProps {
   sections: ShortcutSectionModel[];
+  autostartEnabled: boolean;
   recordingRowKey: string | null;
   onRecordStart: (scope: ShortcutScopeKey, actionId: string) => void;
   onReset: (scope: ShortcutScopeKey, actionId: string) => void;
+  onAutostartChange: (enabled: boolean) => void;
 }
 
 export const SettingsContent = ({
   sections,
+  autostartEnabled,
   recordingRowKey,
   onRecordStart,
   onReset,
+  onAutostartChange,
 }: SettingsContentProps) => {
   return (
     <section className="settings-content" aria-label="Shortcuts settings content">
@@ -32,6 +37,10 @@ export const SettingsContent = ({
           />
         ))}
       </div>
+
+      <div className="settings-content__divider" />
+
+      <AutostartSection enabled={autostartEnabled} onChange={onAutostartChange} />
     </section>
   );
 };

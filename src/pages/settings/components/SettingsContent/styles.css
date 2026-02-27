@@ -22,3 +22,10 @@
   flex-direction: column;
   gap: 12px;
 }
+
+.settings-content__divider {
+  height: 1px;
+  width: 100%;
+  background: #dcdcdc;
+  margin: 4px 0;
+}
