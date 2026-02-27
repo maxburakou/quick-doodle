@@ -6,6 +6,10 @@
   background: #fff8f8;
 }
 
+.shortcut-row--error:hover {
+  background: #ffeaea;
+}
+
 .shortcut-row__binding {
   font-weight: 500;
   min-height: 24px;
@@ -23,7 +27,7 @@
 }
 
 .shortcut-row__issue {
-  margin-top: 4px;
+  margin-top: 8px;
   color: #c1121f;
   font-size: 12px;
 }

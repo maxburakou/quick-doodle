@@ -3,6 +3,7 @@ import "./styles.css";
 interface SettingsFooterProps {
   dirty: boolean;
   saving: boolean;
+  saveDisabled?: boolean;
   onRevertDefaults: () => void;
   onCancel: () => void;
   onSave: () => void;
@@ -11,6 +12,7 @@ interface SettingsFooterProps {
 export const SettingsFooter = ({
   dirty,
   saving,
+  saveDisabled = false,
   onRevertDefaults,
   onCancel,
   onSave,
@@ -34,7 +36,7 @@ export const SettingsFooter = ({
           type="button"
           className="settings-footer__button settings-footer__button--primary"
           onClick={onSave}
-          disabled={!dirty || saving}
+          disabled={!dirty || saving || saveDisabled}
         >
           {saving ? "Saving..." : "Save"}
         </button>

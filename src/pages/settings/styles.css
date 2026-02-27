@@ -13,9 +13,3 @@
   overflow: auto;
   padding: 16px;
 }
-
-.settings-page__error {
-  margin: 0 0 12px;
-  color: #c1121f;
-  font-size: 13px;
-}

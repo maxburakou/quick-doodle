@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSettingsStore } from "@/store";
 import { mapShortcutSections } from "./helpers/shortcuts";
 import { useSettingsSnapshotSync } from "./hooks/useSettingsSnapshotSync";
-import { SettingsContent, SettingsFooter } from "./components";
+import { ErrorSection, SettingsContent, SettingsFooter } from "./components";
 import { ShortcutScopeKey } from "./types";
 import {
   cancelChanges,
@@ -30,12 +30,12 @@ const SettingsApp = () => {
     applySnapshot,
   } = useSettingsStore();
 
-  const [error, setError] = useState<string | null>(null);
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [recordingRowKey, setRecordingRowKey] = useState<string | null>(null);
 
   const handleLoadError = useCallback((err: unknown) => {
-    setError(String(err));
+    setRuntimeError(String(err));
   }, []);
 
   useSettingsSnapshotSync({
@@ -45,7 +45,7 @@ const SettingsApp = () => {
   });
 
   const runRevalidateShortcuts = useCallback(() => {
-    void revalidateShortcuts(validate, setError);
+    void revalidateShortcuts(validate, setRuntimeError);
   }, [validate]);
 
   useEffect(() => {
@@ -74,31 +74,42 @@ const SettingsApp = () => {
   }, [draft, validationIssues]);
 
   const handleSave = async () => {
-    const saved = await saveSettings({
+    setRuntimeError(null);
+
+    const result = await saveSettings({
       validate,
       save,
-      setError,
       setSaving,
       setRecordingRowKey,
     });
 
-    if (saved) {
-      await closeSettingsWindow(setError);
+    if (!result.ok) {
+      if (result.runtimeError) {
+        setRuntimeError(result.runtimeError);
+      }
+
+      return;
     }
+
+    setRuntimeError(null);
+    await closeSettingsWindow(setRuntimeError);
   };
 
   const handleRevertDefaults = async () => {
+    setRuntimeError(null);
+
     await revertSettingsDefaults({
       revertDefaults,
-      setError,
       setRecordingRowKey,
+      setRuntimeError,
     });
   };
 
   const handleCancel = () => {
+    setRuntimeError(null);
+
     cancelChanges({
       cancel,
-      setError,
       setRecordingRowKey,
     });
   };
@@ -107,7 +118,6 @@ const SettingsApp = () => {
     toggleRecording({
       scope,
       actionId,
-      setError,
       setRecordingRowKey,
     });
   };
@@ -116,7 +126,6 @@ const SettingsApp = () => {
     resetShortcut({
       scope,
       actionId,
-      setError,
       setDraft,
       setRecordingRowKey,
       onRevalidate: runRevalidateShortcuts,
@@ -124,7 +133,6 @@ const SettingsApp = () => {
   };
 
   const handleAutostartChange = (enabled: boolean) => {
-    setError(null);
     setDraft((nextDraft) => ({
       ...nextDraft,
       autostart: {
@@ -134,11 +142,13 @@ const SettingsApp = () => {
     }));
   };
 
+  const validationSummary =
+    validationIssues.length > 0 ? `${validationIssues.length} validation issue(s).` : null;
+  const errorStripMessage = validationSummary ?? runtimeError;
+
   return (
     <main className="settings-page">
       <div className="settings-page__content">
-        {error ? <p className="settings-page__error">{error}</p> : null}
-
         {draft ? (
           <SettingsContent
             sections={sections}
@@ -153,9 +163,12 @@ const SettingsApp = () => {
         )}
       </div>
 
+      {errorStripMessage ? <ErrorSection message={errorStripMessage} /> : null}
+
       <SettingsFooter
         dirty={dirty}
         saving={saving}
+        saveDisabled={validationIssues.length > 0}
         onRevertDefaults={() => {
           void handleRevertDefaults();
         }}

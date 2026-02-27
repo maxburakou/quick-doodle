@@ -9,9 +9,11 @@ import {
 } from "../helpers/shortcuts";
 import { ShortcutScopeKey } from "../types";
 
-type SetError = (value: string | null) => void;
+type SetRuntimeError = (value: string | null) => void;
 type SetSaving = (value: boolean) => void;
-type SetRecordingRowKey = (value: string | null | ((current: string | null) => string | null)) => void;
+type SetRecordingRowKey = (
+  value: string | null | ((current: string | null) => string | null)
+) => void;
 type SetDraft = (updater: (draft: SettingsSnapshot) => SettingsSnapshot) => void;
 
 type Validate = () => Promise<ValidationIssue[]>;
@@ -19,85 +21,88 @@ type Save = () => Promise<void>;
 type RevertDefaults = () => Promise<void>;
 type Cancel = () => void;
 
-export const revalidateShortcuts = async (validate: Validate, setError: SetError) => {
+export interface SaveSettingsResult {
+  ok: boolean;
+  validationCount?: number;
+  runtimeError?: string;
+}
+
+export const revalidateShortcuts = async (validate: Validate, setRuntimeError: SetRuntimeError) => {
   try {
     await validate();
   } catch (err) {
-    setError(String(err));
+    setRuntimeError(String(err));
   }
 };
 
 export const saveSettings = async ({
   validate,
   save,
-  setError,
   setSaving,
   setRecordingRowKey,
 }: {
   validate: Validate;
   save: Save;
-  setError: SetError;
   setSaving: SetSaving;
   setRecordingRowKey: SetRecordingRowKey;
-}) => {
-  setError(null);
+}): Promise<SaveSettingsResult> => {
   setSaving(true);
 
   try {
     const issues = await validate();
     if (issues.length > 0) {
-      setError(`${issues.length} validation issue(s).`);
-      return false;
+      return {
+        ok: false,
+        validationCount: issues.length,
+      };
     }
 
     await save();
     setRecordingRowKey(null);
-    return true;
+    return { ok: true };
   } catch (err) {
-    setError(String(err));
-    return false;
+    return {
+      ok: false,
+      runtimeError: String(err),
+    };
   } finally {
     setSaving(false);
   }
 };
 
-export const closeSettingsWindow = async (setError: SetError) => {
+export const closeSettingsWindow = async (setRuntimeError: SetRuntimeError) => {
   try {
     await invoke("settings_hide_window");
   } catch (err) {
-    setError(String(err));
+    setRuntimeError(String(err));
   }
 };
 
 export const revertSettingsDefaults = async ({
   revertDefaults,
-  setError,
   setRecordingRowKey,
+  setRuntimeError,
 }: {
   revertDefaults: RevertDefaults;
-  setError: SetError;
   setRecordingRowKey: SetRecordingRowKey;
+  setRuntimeError: SetRuntimeError;
 }) => {
-  setError(null);
   setRecordingRowKey(null);
 
   try {
     await revertDefaults();
   } catch (err) {
-    setError(String(err));
+    setRuntimeError(String(err));
   }
 };
 
 export const cancelChanges = ({
   cancel,
-  setError,
   setRecordingRowKey,
 }: {
   cancel: Cancel;
-  setError: SetError;
   setRecordingRowKey: SetRecordingRowKey;
 }) => {
-  setError(null);
   setRecordingRowKey(null);
   cancel();
 };
@@ -105,16 +110,12 @@ export const cancelChanges = ({
 export const toggleRecording = ({
   scope,
   actionId,
-  setError,
   setRecordingRowKey,
 }: {
   scope: ShortcutScopeKey;
   actionId: string;
-  setError: SetError;
   setRecordingRowKey: SetRecordingRowKey;
 }) => {
-  setError(null);
-
   const rowKey = buildRowKey(scope, actionId);
   setRecordingRowKey((current) => (current === rowKey ? null : rowKey));
 };
@@ -122,19 +123,16 @@ export const toggleRecording = ({
 export const resetShortcut = ({
   scope,
   actionId,
-  setError,
   setDraft,
   setRecordingRowKey,
   onRevalidate,
 }: {
   scope: ShortcutScopeKey;
   actionId: string;
-  setError: SetError;
   setDraft: SetDraft;
   setRecordingRowKey: SetRecordingRowKey;
   onRevalidate: () => void;
 }) => {
-  setError(null);
   setDraft((nextDraft) => updateActionPrimaryBinding(nextDraft, scope, actionId, null));
   onRevalidate();
 
