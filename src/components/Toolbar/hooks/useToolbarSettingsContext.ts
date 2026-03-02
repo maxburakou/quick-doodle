@@ -42,7 +42,7 @@ export const useToolbarSettingsContext = () => {
     useShallow((state) => ({
       selectedStrokeIds: state.selectedStrokeIds,
       primarySelectedStrokeId: state.primarySelectedStrokeId,
-    }))
+    })),
   );
 
   const resolvedContext = resolveSettingsContext({
@@ -57,12 +57,15 @@ export const useToolbarSettingsContext = () => {
     : (TOOL_CONFIG[effectiveTool]?.settings ?? [])
         .map((settingId) => SETTING_REGISTRY[settingId])
         .filter(
-          (definition): definition is (typeof SETTING_REGISTRY)[keyof typeof SETTING_REGISTRY] =>
+          (
+            definition,
+          ): definition is (typeof SETTING_REGISTRY)[keyof typeof SETTING_REGISTRY] =>
             Boolean(definition) &&
             (definition.isVisible?.({
               tool: effectiveTool,
               context: resolvedContext.context,
-            }) ?? true)
+            }) ??
+              true),
         );
 
   return {

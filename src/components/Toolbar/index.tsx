@@ -3,9 +3,8 @@ import "./styles.css";
 import Draggable from "react-draggable";
 import { useToolbarVisibility } from "@/store/useToolbarStore";
 import { useSettingsStore } from "@/store";
-import { ToolbarSettingsPanel } from "./components/ToolbarSettingsPanel";
-import { ToolbarToolsList } from "./components/ToolbarToolsList";
-import { useToolbarSettingsContext } from "./hooks/useToolbarSettingsContext";
+import { ToolbarSettingsPanel, ToolbarToolsList } from "./components";
+import { useToolbarSettingsContext } from "./hooks";
 
 export const Toolbar: React.FC = () => {
   const activeTool = useTool();

@@ -17,9 +17,7 @@ import {
   ToolbarSettingDefinition,
   ToolbarToolConfig,
 } from "./types";
-import { ColorOptions } from "./ColorOptions";
-import { ThicknessOptions } from "./ThicknessOptions";
-import { FontSizeOptions } from "./FontSizeOptions";
+import { ColorOptions, FontSizeOptions, ThicknessOptions } from "./components";
 
 export const TOOL_CONFIG: Record<Tool, ToolbarToolConfig> = {
   [Tool.Pen]: {

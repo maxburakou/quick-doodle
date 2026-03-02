@@ -1,7 +1,7 @@
 import { resolveToolHotkeyLabel } from "@/components/Canvas/helpers/shortcutMatcher";
 import { Tool } from "@/types";
 import { SettingsSnapshot } from "@/types/settings";
-import { TOOL_CONFIG } from "../config";
+import { TOOL_CONFIG } from "../../config";
 
 interface ToolbarToolsListProps {
   activeTool: Tool;
