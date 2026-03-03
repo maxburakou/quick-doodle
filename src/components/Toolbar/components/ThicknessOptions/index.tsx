@@ -1,12 +1,12 @@
 import {
   useSetToolThickness,
-  useToolThickness,
   useToolThicknesses,
 } from "@/store";
 import { Minus } from "lucide-react";
+import { useToolbarThicknessContext } from "../../hooks/useToolbarThicknessContext";
 
 export const ThicknessOptions = () => {
-  const selectedThickness = useToolThickness();
+  const { contextThickness } = useToolbarThicknessContext();
   const thicknesses = useToolThicknesses();
   const setThickness = useSetToolThickness();
 
@@ -17,7 +17,7 @@ export const ThicknessOptions = () => {
           key={index}
           onClick={() => setThickness(thickness)}
           className={`options-button thickness-button ${
-            thickness === selectedThickness ? "--active" : ""
+            thickness === contextThickness ? "--active" : ""
           }`}
         >
           <Minus size={16} strokeWidth={thickness} />

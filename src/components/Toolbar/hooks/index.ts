@@ -1,3 +1,4 @@
 export { useToolbarSettingsContext } from "./useToolbarSettingsContext";
 export { useToolbarColorContext } from "./useToolbarColorContext";
-export { useApplySelectionColor } from "./useApplySelectionColor";
+export { useToolbarThicknessContext } from "./useToolbarThicknessContext";
+export { useToolbarFontSizeContext } from "./useToolbarFontSizeContext";

@@ -12,6 +12,7 @@ import {
   useCanvasScaleSetup,
   useDrawMode,
   usePointerEvents,
+  useSelectionSettingsController,
   useSelectMode,
   useShortcuts,
 } from "./hooks";
@@ -70,6 +71,7 @@ export const Canvas: React.FC = () => {
 
   useShortcuts();
   useCanvasScaleSetup(canvasRef, ctxRef);
+  useSelectionSettingsController();
 
   const drawMode = useDrawMode({
     ctxRef,

@@ -19,3 +19,4 @@ export {
   resolveSelectTarget,
   finalizeStrokePoints,
 } from "./selectMode";
+export * from "./selectionSettings";

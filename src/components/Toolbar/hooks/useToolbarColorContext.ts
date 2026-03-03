@@ -1,14 +1,6 @@
-import {
-  usePresent,
-  useShapeEditorStore,
-  useTool,
-  useToolColor,
-} from "@/store";
-import { useShallow } from "zustand/react/shallow";
-import {
-  resolveContextColor,
-  getSingleSelectedStroke,
-} from "../services/selectionSettingsService";
+import { useToolColor } from "@/store";
+import { resolveContextColor } from "@/components/Canvas/helpers/selectionSettings";
+import { useSingleSelectedStroke } from "@/components/Canvas/hooks/useSingleSelectedStroke";
 
 type SelectionColorSource = "store" | "single-selection";
 
@@ -16,22 +8,8 @@ export const useToolbarColorContext = (): {
   contextColor: string;
   selectionColorSource: SelectionColorSource;
 } => {
-  const activeTool = useTool();
-  const present = usePresent();
   const storeColor = useToolColor();
-  const { selectedStrokeIds, primarySelectedStrokeId } = useShapeEditorStore(
-    useShallow((state) => ({
-      selectedStrokeIds: state.selectedStrokeIds,
-      primarySelectedStrokeId: state.primarySelectedStrokeId,
-    }))
-  );
-
-  const selectedStroke = getSingleSelectedStroke({
-    activeTool,
-    selectedStrokeIds,
-    primarySelectedStrokeId,
-    present,
-  });
+  const selectedStroke = useSingleSelectedStroke();
   const contextColor = resolveContextColor(storeColor, selectedStroke);
 
   if (selectedStroke) {

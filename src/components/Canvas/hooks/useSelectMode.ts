@@ -8,8 +8,6 @@ import {
   TransformHandle,
 } from "@/types";
 import {
-  useSetFontSize,
-  useSetToolColor,
   useSnapStore,
   useTextEditorMode,
 } from "@/store";
@@ -173,8 +171,6 @@ export const useSelectMode = ({
     useState<SnapGuidesRenderData | null>(null);
   const [cursor, setCursor] = useState<React.CSSProperties["cursor"]>("default");
   const textEditorMode = useTextEditorMode();
-  const setToolColor = useSetToolColor();
-  const setFontSize = useSetFontSize();
   const isSnapEnabled = useSnapStore((state) => state.enabled);
 
   const selectedStrokes = useMemo(
@@ -296,8 +292,6 @@ export const useSelectMode = ({
             fontSize: normalizedText.fontSize,
             color: normalizedTextStroke.color,
           });
-          setToolColor(normalizedTextStroke.color);
-          setFontSize(normalizedText.fontSize);
           setActiveSnapGuides(null);
           setCursor("default");
           return;
@@ -324,10 +318,8 @@ export const useSelectMode = ({
       selectedStrokes,
       setSelection,
       startGroupMove,
-      setFontSize,
       startTextEdit,
       startTransform,
-      setToolColor,
       toggleSelection,
     ]
   );
