@@ -4,8 +4,11 @@ import {
   useTool,
   useToolColor,
 } from "@/store";
-import { Tool } from "@/types";
 import { useShallow } from "zustand/react/shallow";
+import {
+  resolveContextColor,
+  getSingleSelectedStroke,
+} from "../services/selectionSettingsService";
 
 type SelectionColorSource = "store" | "single-selection";
 
@@ -23,19 +26,20 @@ export const useToolbarColorContext = (): {
     }))
   );
 
-  if (activeTool === Tool.Select && selectedStrokeIds.length === 1) {
-    const targetId = primarySelectedStrokeId ?? selectedStrokeIds[0];
-    const selectedStroke = present.find((stroke) => stroke.id === targetId);
-    if (selectedStroke) {
-      return {
-        contextColor: selectedStroke.color,
-        selectionColorSource: "single-selection",
-      };
-    }
+  const selectedStroke = getSingleSelectedStroke({
+    activeTool,
+    selectedStrokeIds,
+    primarySelectedStrokeId,
+    present,
+  });
+  const contextColor = resolveContextColor(storeColor, selectedStroke);
+
+  if (selectedStroke) {
+    return { contextColor, selectionColorSource: "single-selection" };
   }
 
   return {
-    contextColor: storeColor,
+    contextColor,
     selectionColorSource: "store",
   };
 };
