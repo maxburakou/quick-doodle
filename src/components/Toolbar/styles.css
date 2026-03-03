@@ -172,13 +172,16 @@ hr.--vertical {
   font-size: x-small;
 }
 
-.settings-button {
-  color: #444444;
-  transition: all 0.2s;
+.custom-color-button {
+  width: 16px;
+  height: 16px;
+  border: 1px solid #dcdcdc;
+  border-radius: 4px;
+  transition: transform 0.2s;
 }
 
-.settings-button:hover {
-  transform: rotate(45deg);
+.popover-trigger:hover .custom-color-button {
+  transform: scale(1.1);
 }
 
 .react-draggable-dragging {

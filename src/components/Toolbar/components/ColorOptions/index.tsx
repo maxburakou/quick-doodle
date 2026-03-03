@@ -1,10 +1,10 @@
 import { Popover } from "@/components";
-import { useSetToolColor, useToolColor, useToolColors } from "@/store";
-import { Settings } from "lucide-react";
+import { useSetToolColor, useToolColors } from "@/store";
+import { useToolbarColorContext } from "../../hooks/useToolbarColorContext";
 import { ToolbarColorPicker } from "../ToolbarColorPicker";
 
 export const ColorOptions = () => {
-  const selectedColor = useToolColor();
+  const { contextColor } = useToolbarColorContext();
   const colors = useToolColors();
   const setColor = useSetToolColor();
 
@@ -15,13 +15,17 @@ export const ColorOptions = () => {
           key={index}
           onClick={() => setColor(color)}
           className={`options-button color-button ${
-            color === selectedColor ? "--active" : ""
+            color === contextColor ? "--active" : ""
           }`}
           style={{ backgroundColor: color }}
         />
       ))}
       <Popover content={<ToolbarColorPicker />}>
-        <Settings className="settings-button" size={16} />
+        <button
+          className="custom-color-button"
+          style={{ backgroundColor: contextColor }}
+          aria-label="Custom color"
+        />
       </Popover>
     </>
   );
