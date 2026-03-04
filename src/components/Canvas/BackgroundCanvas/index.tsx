@@ -9,7 +9,7 @@ import {
   useTextEditorMode,
 } from "@/store";
 import { buildPreviewStrokes } from "@/store/useShapeEditorStore/helpers";
-import { Tool } from "@/types";
+import { CanvasBackground, Tool } from "@/types";
 import "./styles.css";
 
 const Canvas = () => {
@@ -44,9 +44,10 @@ const Canvas = () => {
 
   return (
     <canvas
-      className="background-canvas"
+      className={`background-canvas ${
+        background === CanvasBackground.Light ? "--light" : "--transparent"
+      }`}
       ref={canvasRef}
-      style={{ background }}
     />
   );
 };
