@@ -1,14 +1,12 @@
-import {
-  useSetToolThickness,
-  useToolThicknesses,
-} from "@/store";
+import { useToolThicknesses } from "@/store";
+import { useSelectionSettingsActions } from "@/components/Canvas/hooks/useSelectionSettingsActions";
 import { Minus } from "lucide-react";
 import { useToolbarThicknessContext } from "../../hooks/useToolbarThicknessContext";
 
 export const ThicknessOptions = () => {
   const { contextThickness } = useToolbarThicknessContext();
   const thicknesses = useToolThicknesses();
-  const setThickness = useSetToolThickness();
+  const { setThickness } = useSelectionSettingsActions();
 
   return (
     <>

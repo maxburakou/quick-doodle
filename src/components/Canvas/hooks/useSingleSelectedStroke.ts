@@ -1,21 +1,6 @@
-import { usePresent, useShapeEditorStore, useTool } from "@/store";
-import { useShallow } from "zustand/react/shallow";
-import { getSingleSelectedStroke } from "../helpers/selectionSettings";
+import { useSelectedStrokes } from "./useSelectedStrokes";
 
 export const useSingleSelectedStroke = () => {
-  const activeTool = useTool();
-  const present = usePresent();
-  const { selectedStrokeIds, primarySelectedStrokeId } = useShapeEditorStore(
-    useShallow((state) => ({
-      selectedStrokeIds: state.selectedStrokeIds,
-      primarySelectedStrokeId: state.primarySelectedStrokeId,
-    }))
-  );
-
-  return getSingleSelectedStroke({
-    activeTool,
-    selectedStrokeIds,
-    primarySelectedStrokeId,
-    present,
-  });
+  const selectedStrokes = useSelectedStrokes();
+  return selectedStrokes.length === 1 ? selectedStrokes[0] : null;
 };

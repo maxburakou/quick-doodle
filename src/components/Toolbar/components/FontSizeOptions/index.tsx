@@ -1,5 +1,6 @@
 //import { Popover } from "@/components";
-import { useFontSizes, useSetFontSize } from "@/store";
+import { useFontSizes } from "@/store";
+import { useSelectionSettingsActions } from "@/components/Canvas/hooks/useSelectionSettingsActions";
 import { getFontSizeLabel } from "./helpers";
 import { useToolbarFontSizeContext } from "../../hooks/useToolbarFontSizeContext";
 //import { ToolbarFontSizePicker } from "../ToolbarFontSizePicker";
@@ -8,7 +9,7 @@ import { useToolbarFontSizeContext } from "../../hooks/useToolbarFontSizeContext
 export const FontSizeOptions = () => {
   const { contextFontSize } = useToolbarFontSizeContext();
   const fontSizes = useFontSizes();
-  const setFontSize = useSetFontSize();
+  const { setFontSize } = useSelectionSettingsActions();
 
   return (
     <>

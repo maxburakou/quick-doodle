@@ -9,6 +9,12 @@ interface ResolveSingleSelectedStrokeParams {
   present: Stroke[];
 }
 
+interface ResolveSelectedStrokesParams {
+  activeTool: Tool;
+  selectedStrokeIds: string[];
+  present: Stroke[];
+}
+
 interface ApplyColorToStrokeParams {
   present: Stroke[];
   strokeId: string;
@@ -37,6 +43,21 @@ interface ApplySingleSelectionSettingsParams {
   storeThickness: number;
   storeFontSize: number;
   isTransforming: boolean;
+  applyColor?: boolean;
+  applyThickness?: boolean;
+  applyFontSize?: boolean;
+}
+
+interface ApplyGroupSelectionSettingsParams {
+  present: Stroke[];
+  selectedStrokeIds: string[];
+  storeColor: string;
+  storeThickness: number;
+  storeFontSize: number;
+  isTransforming: boolean;
+  applyColor?: boolean;
+  applyThickness?: boolean;
+  applyFontSize?: boolean;
 }
 
 interface UpdateStrokeByIdParams {
@@ -79,6 +100,57 @@ const updateStrokeById = ({
   return replaceStrokeAt(present, index, getNextStroke(current));
 };
 
+const supportsColor = (tool: Tool): boolean => tool !== Tool.Select;
+const supportsThickness = (tool: Tool): boolean =>
+  tool !== Tool.Text && tool !== Tool.Select;
+const supportsFontSize = (tool: Tool): boolean => tool === Tool.Text;
+
+const applyFontSizeToTextStroke = (current: Stroke, fontSize: number): Stroke | null => {
+  if (current.tool !== Tool.Text || !current.text) return null;
+
+  const normalized = normalizeTextStroke(current);
+  const text = normalized.text;
+  if (!text) return null;
+
+  if (text.fontSize === fontSize && normalized.thickness === fontSize) return null;
+
+  const start = normalized.points[0] ?? { x: 0, y: 0, pressure: 0.5 };
+  const metrics = measureTextBox(text.value, fontSize);
+
+  return {
+    ...normalized,
+    // TODO(decouple-text-thickness): keep legacy link for now; text should own font size independently.
+    thickness: fontSize,
+    text: {
+      ...text,
+      fontSize,
+      width: metrics.width,
+      height: metrics.height,
+    },
+    points: [
+      start,
+      {
+        x: start.x + metrics.width,
+        y: start.y + metrics.height,
+        pressure: normalized.points[1]?.pressure ?? start.pressure,
+      },
+    ],
+  };
+};
+
+const resolveUniformValue = <T>(
+  strokes: Stroke[],
+  isRelevant: (stroke: Stroke) => boolean,
+  getValue: (stroke: Stroke) => T
+): T | null => {
+  const relevant = strokes.filter(isRelevant);
+  if (relevant.length === 0) return null;
+
+  const firstValue = getValue(relevant[0]);
+  const isUniform = relevant.every((stroke) => getValue(stroke) === firstValue);
+  return isUniform ? firstValue : null;
+};
+
 export const getSingleSelectedStroke = ({
   activeTool,
   selectedStrokeIds,
@@ -90,6 +162,17 @@ export const getSingleSelectedStroke = ({
 
   const strokeId = primarySelectedStrokeId ?? selectedStrokeIds[0];
   return present.find((stroke) => stroke.id === strokeId) ?? null;
+};
+
+export const getSelectedStrokes = ({
+  activeTool,
+  selectedStrokeIds,
+  present,
+}: ResolveSelectedStrokesParams): Stroke[] => {
+  if (activeTool !== Tool.Select || selectedStrokeIds.length === 0) return [];
+
+  const selectedIdSet = new Set(selectedStrokeIds);
+  return present.filter((stroke) => selectedIdSet.has(stroke.id));
 };
 
 export const resolveContextColor = (
@@ -115,6 +198,34 @@ export const resolveContextFontSize = (
     return storeFontSize;
   }
   return selectedStroke.text.fontSize;
+};
+
+export const resolveGroupColorContext = (selectedStrokes: Stroke[]): string | null => {
+  return resolveUniformValue(
+    selectedStrokes,
+    (stroke) => supportsColor(stroke.tool),
+    (stroke) => stroke.color
+  );
+};
+
+export const resolveGroupThicknessContext = (
+  selectedStrokes: Stroke[]
+): number | null => {
+  return resolveUniformValue(
+    selectedStrokes,
+    (stroke) => supportsThickness(stroke.tool),
+    (stroke) => stroke.thickness
+  );
+};
+
+export const resolveGroupFontSizeContext = (
+  selectedStrokes: Stroke[]
+): number | null => {
+  return resolveUniformValue(
+    selectedStrokes,
+    (stroke) => supportsFontSize(stroke.tool) && Boolean(stroke.text),
+    (stroke) => stroke.text?.fontSize ?? 0
+  );
 };
 
 export const applyColorToStroke = ({
@@ -160,37 +271,63 @@ export const applyFontSizeToStroke = ({
   if (index < 0) return null;
 
   const current = present[index];
-  if (current.tool !== Tool.Text || !current.text) return null;
-
-  const normalized = normalizeTextStroke(current);
-  const text = normalized.text;
-  if (!text) return null;
-
-  if (text.fontSize === fontSize && normalized.thickness === fontSize) return null;
-
-  const start = normalized.points[0] ?? { x: 0, y: 0, pressure: 0.5 };
-  const metrics = measureTextBox(text.value, fontSize);
-  const nextStroke: Stroke = {
-    ...normalized,
-    // TODO(decouple-text-thickness): keep legacy link for now; text should own font size independently.
-    thickness: fontSize,
-    text: {
-      ...text,
-      fontSize,
-      width: metrics.width,
-      height: metrics.height,
-    },
-    points: [
-      start,
-      {
-        x: start.x + metrics.width,
-        y: start.y + metrics.height,
-        pressure: normalized.points[1]?.pressure ?? start.pressure,
-      },
-    ],
-  };
+  const nextStroke = applyFontSizeToTextStroke(current, fontSize);
+  if (!nextStroke) return null;
 
   return replaceStrokeAt(present, index, nextStroke);
+};
+
+export const applyGroupSelectionSettings = ({
+  present,
+  selectedStrokeIds,
+  storeColor,
+  storeThickness,
+  storeFontSize,
+  isTransforming,
+  applyColor = true,
+  applyThickness = true,
+  applyFontSize = true,
+}: ApplyGroupSelectionSettingsParams): Stroke[] | null => {
+  if (isTransforming || selectedStrokeIds.length === 0) return null;
+
+  const selectedIdSet = new Set(selectedStrokeIds);
+  let hasChanges = false;
+
+  const nextPresent = present.map((stroke) => {
+    if (!selectedIdSet.has(stroke.id)) return stroke;
+
+    let nextStroke = stroke;
+
+    if (
+      applyColor &&
+      supportsColor(nextStroke.tool) &&
+      nextStroke.color !== storeColor
+    ) {
+      nextStroke = { ...nextStroke, color: storeColor };
+      hasChanges = true;
+    }
+
+    if (
+      applyThickness &&
+      supportsThickness(nextStroke.tool) &&
+      nextStroke.thickness !== storeThickness
+    ) {
+      nextStroke = { ...nextStroke, thickness: storeThickness };
+      hasChanges = true;
+    }
+
+    if (applyFontSize && supportsFontSize(nextStroke.tool)) {
+      const withFontSize = applyFontSizeToTextStroke(nextStroke, storeFontSize);
+      if (withFontSize) {
+        nextStroke = withFontSize;
+        hasChanges = true;
+      }
+    }
+
+    return nextStroke;
+  });
+
+  return hasChanges ? nextPresent : null;
 };
 
 export const applySingleSelectionSettings = ({
@@ -200,47 +337,56 @@ export const applySingleSelectionSettings = ({
   storeThickness,
   storeFontSize,
   isTransforming,
+  applyColor = true,
+  applyThickness = true,
+  applyFontSize = true,
 }: ApplySingleSelectionSettingsParams): Stroke[] | null => {
   let nextPresent: Stroke[] | null = null;
   let workingPresent = present;
 
   // Apply color first, then shape/text-specific property.
-  const colorResult = applyColorToStroke({
-    present: workingPresent,
-    strokeId: selectedStroke.id,
-    color: storeColor,
-    isTransforming,
-  });
-
-  if (colorResult) {
-    nextPresent = colorResult;
-    workingPresent = colorResult;
-  }
-
-  if (selectedStroke.tool === Tool.Text && selectedStroke.text) {
-    const fontSizeResult = applyFontSizeToStroke({
+  if (applyColor) {
+    const colorResult = applyColorToStroke({
       present: workingPresent,
       strokeId: selectedStroke.id,
-      fontSize: storeFontSize,
+      color: storeColor,
       isTransforming,
     });
 
-    if (fontSizeResult) {
-      nextPresent = fontSizeResult;
+    if (colorResult) {
+      nextPresent = colorResult;
+      workingPresent = colorResult;
+    }
+  }
+
+  if (selectedStroke.tool === Tool.Text && selectedStroke.text) {
+    if (applyFontSize) {
+      const fontSizeResult = applyFontSizeToStroke({
+        present: workingPresent,
+        strokeId: selectedStroke.id,
+        fontSize: storeFontSize,
+        isTransforming,
+      });
+
+      if (fontSizeResult) {
+        nextPresent = fontSizeResult;
+      }
     }
 
     return nextPresent;
   }
 
-  const thicknessResult = applyThicknessToStroke({
-    present: workingPresent,
-    strokeId: selectedStroke.id,
-    thickness: storeThickness,
-    isTransforming,
-  });
+  if (applyThickness) {
+    const thicknessResult = applyThicknessToStroke({
+      present: workingPresent,
+      strokeId: selectedStroke.id,
+      thickness: storeThickness,
+      isTransforming,
+    });
 
-  if (thicknessResult) {
-    nextPresent = thicknessResult;
+    if (thicknessResult) {
+      nextPresent = thicknessResult;
+    }
   }
 
   return nextPresent;

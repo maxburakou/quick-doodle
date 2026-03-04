@@ -1,12 +1,14 @@
 import { Popover } from "@/components";
-import { useSetToolColor, useToolColors } from "@/store";
+import { useToolColor, useToolColors } from "@/store";
+import { useSelectionSettingsActions } from "@/components/Canvas/hooks/useSelectionSettingsActions";
 import { useToolbarColorContext } from "../../hooks/useToolbarColorContext";
 import { ToolbarColorPicker } from "../ToolbarColorPicker";
 
 export const ColorOptions = () => {
   const { contextColor } = useToolbarColorContext();
+  const storeColor = useToolColor();
   const colors = useToolColors();
-  const setColor = useSetToolColor();
+  const { setColor } = useSelectionSettingsActions();
 
   return (
     <>
@@ -23,7 +25,7 @@ export const ColorOptions = () => {
       <Popover content={<ToolbarColorPicker />}>
         <button
           className="custom-color-button"
-          style={{ backgroundColor: contextColor }}
+          style={{ backgroundColor: contextColor ?? storeColor }}
           aria-label="Custom color"
         />
       </Popover>
