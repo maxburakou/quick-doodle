@@ -238,6 +238,15 @@ hr.--vertical {
   transition: transform 0.2s;
 }
 
+.custom-color-button.--mixed {
+  background-image: linear-gradient(135deg, #FFD662 0 50%, #00539C 50% 100%);
+}
+
+.custom-color-button.--active {
+  border: 1px solid #444444;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+}
+
 .popover-trigger:hover .custom-color-button {
   transform: scale(1.1);
 }

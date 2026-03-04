@@ -85,9 +85,9 @@ export const useSelectionSettingsActions = () => {
   const setColor = useCallback(
     (color: string) => {
       const prevColor = useToolSettingsStore.getState().color;
-      if (color === prevColor) return;
-
-      useToolSettingsStore.getState().setColor(color);
+      if (color !== prevColor) {
+        useToolSettingsStore.getState().setColor(color);
+      }
       applyToSelection({ color });
     },
     [applyToSelection]
@@ -107,9 +107,9 @@ export const useSelectionSettingsActions = () => {
   const setThickness = useCallback(
     (thickness: number) => {
       const prevThickness = useToolSettingsStore.getState().thickness;
-      if (thickness === prevThickness) return;
-
-      useToolSettingsStore.getState().setThickness(thickness);
+      if (thickness !== prevThickness) {
+        useToolSettingsStore.getState().setThickness(thickness);
+      }
       applyToSelection({ thickness });
     },
     [applyToSelection]
@@ -118,9 +118,9 @@ export const useSelectionSettingsActions = () => {
   const setFontSize = useCallback(
     (fontSize: number) => {
       const prevFontSize = useTextSettingsStore.getState().fontSize;
-      if (fontSize === prevFontSize) return;
-
-      useTextSettingsStore.getState().setFontSize(fontSize);
+      if (fontSize !== prevFontSize) {
+        useTextSettingsStore.getState().setFontSize(fontSize);
+      }
       applyToSelection({ fontSize });
     },
     [applyToSelection]

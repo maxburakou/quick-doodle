@@ -4,15 +4,31 @@ import { useToolColor } from "@/store";
 import { useSelectionSettingsActions } from "@/components/Canvas/hooks/useSelectionSettingsActions";
 import { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
+import { useToolbarColorContext } from "../../hooks/useToolbarColorContext";
 
 export const ToolbarColorPicker: React.FC = () => {
-  const color = useToolColor();
-  const { updateColor } = useSelectionSettingsActions();
-  const [tempColor, setTempColor] = useState(color);
+  const storeColor = useToolColor();
+  const { contextColor, selectionColorSource } = useToolbarColorContext();
+  const isMixedGroupColor =
+    selectionColorSource === "group-selection" && contextColor === null;
+  const { updateColor, setColor } = useSelectionSettingsActions();
+  const [tempColor, setTempColor] = useState(
+    isMixedGroupColor ? "" : contextColor ?? storeColor
+  );
   const isValid = /^#[0-9A-Fa-f]{6}$/.test(tempColor);
+  const pickerColor = isValid ? tempColor : storeColor;
+
+  const applyColor = (newColor: string) => {
+    if (isMixedGroupColor) {
+      setColor(newColor);
+      return;
+    }
+
+    updateColor(newColor);
+  };
 
   const debouncedUpdateColor = useDebouncedCallback((newColor: string) => {
-    updateColor(newColor);
+    applyColor(newColor);
   }, 300);
 
   const handleColorChange = (newColor: string) => {
@@ -30,11 +46,12 @@ export const ToolbarColorPicker: React.FC = () => {
   };
 
   return (
-    <section className="color-picker">
-      <HexColorPicker color={tempColor} onChange={handleColorChange} />
+    <section className={`color-picker ${isMixedGroupColor ? "--mixed" : ""}`}>
+      <HexColorPicker color={pickerColor} onChange={handleColorChange} />
       <input
         type="text"
         value={tempColor}
+        placeholder="Hex Color"
         onChange={handleInputChange}
         onKeyDown={(e) => e.stopPropagation()}
         onKeyUp={(e) => e.stopPropagation()}

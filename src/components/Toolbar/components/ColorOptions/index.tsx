@@ -5,10 +5,15 @@ import { useToolbarColorContext } from "../../hooks/useToolbarColorContext";
 import { ToolbarColorPicker } from "../ToolbarColorPicker";
 
 export const ColorOptions = () => {
-  const { contextColor } = useToolbarColorContext();
+  const { contextColor, selectionColorSource } = useToolbarColorContext();
   const storeColor = useToolColor();
   const colors = useToolColors();
   const { setColor } = useSelectionSettingsActions();
+  const isMixedGroupColor =
+    selectionColorSource === "group-selection" && contextColor === null;
+  const isCustomContextColor =
+    contextColor !== null && !colors.includes(contextColor);
+  const isCustomButtonActive = isMixedGroupColor || isCustomContextColor;
 
   return (
     <>
@@ -24,8 +29,12 @@ export const ColorOptions = () => {
       ))}
       <Popover content={<ToolbarColorPicker />}>
         <button
-          className="custom-color-button"
-          style={{ backgroundColor: contextColor ?? storeColor }}
+          className={`options-button custom-color-button ${
+            isMixedGroupColor ? "--mixed" : ""
+          } ${isCustomButtonActive ? "--active" : ""}`.trim()}
+          style={
+            isMixedGroupColor ? undefined : { backgroundColor: contextColor ?? storeColor }
+          }
           aria-label="Custom color"
         />
       </Popover>
