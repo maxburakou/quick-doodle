@@ -114,6 +114,25 @@ hr.--vertical {
   display: flex;
   justify-content: space-around;
   align-items: center;
+  position: relative;
+}
+
+.toolbar-settings-section {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s ease;
+  pointer-events: none;
+}
+
+.toolbar-settings-section.--open {
+  grid-template-rows: 1fr;
+  pointer-events: auto;
+}
+
+.toolbar-settings-section-inner {
+  min-height: 0;
+  border-radius: 10px;
+  overflow: hidden;
 }
 
 .options-button {

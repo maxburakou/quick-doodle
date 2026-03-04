@@ -8,19 +8,21 @@ interface ToolbarSettingsPanelProps {
 export const ToolbarSettingsPanel: React.FC<ToolbarSettingsPanelProps> = ({
   visibleSettings,
 }) => {
-  if (visibleSettings.length === 0) return null;
+  const hasSettings = visibleSettings.length > 0;
 
   return (
-    <>
-      <hr className="toolbar-divider" />
-      <div className="toolbar-settings">
-        {visibleSettings.map((setting, index) => (
-          <Fragment key={setting.id}>
-            {index > 0 ? <hr className="toolbar-divider --vertical" /> : null}
-            {setting.component}
-          </Fragment>
-        ))}
+    <div className={`toolbar-settings-section ${hasSettings ? "--open" : ""}`}>
+      <div className="toolbar-settings-section-inner">
+        <hr className="toolbar-divider" />
+        <div className="toolbar-settings">
+          {visibleSettings.map((setting, index) => (
+            <Fragment key={setting.id}>
+              {index > 0 ? <hr className="toolbar-divider --vertical" /> : null}
+              {setting.component}
+            </Fragment>
+          ))}
+        </div>
       </div>
-    </>
+    </div>
   );
 };
