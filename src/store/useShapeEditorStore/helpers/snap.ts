@@ -68,6 +68,7 @@ export interface SnapComputation {
 
 type PointLike = Pick<StrokePoint, "x" | "y">;
 type LocalAnchor = PointLike & { kind: SnapAnchorKind };
+type CanvasSnapBounds = { width: number; height: number };
 
 interface ResolveMoveSnapPointerParams {
   pointer: StrokePoint;
@@ -104,6 +105,7 @@ interface AxisSnapSelection {
 
 const X_AXIS_KINDS = new Set<AxisSnapKind>(["left", "centerX", "right"]);
 const Y_AXIS_KINDS = new Set<AxisSnapKind>(["top", "centerY", "bottom"]);
+const CANVAS_SNAP_ID = "__canvas__";
 
 export const isLineLikeSnapTool = (tool: Tool) =>
   tool === Tool.Line || tool === Tool.Arrow || tool === Tool.Highlighter;
@@ -261,6 +263,40 @@ const getPenAnchors = (stroke: Stroke): SnapAnchor[] => {
   );
 };
 
+const getCanvasSnapAnchors = ({ width, height }: CanvasSnapBounds): SnapAnchor[] => {
+  const centerX = width / 2;
+  const centerY = height / 2;
+
+  return [
+    toAnchor({ x: 0, y: 0 }, CANVAS_SNAP_ID, "corner"),
+    toAnchor({ x: centerX, y: 0 }, CANVAS_SNAP_ID, "edgeMid"),
+    toAnchor({ x: width, y: 0 }, CANVAS_SNAP_ID, "corner"),
+    toAnchor({ x: width, y: centerY }, CANVAS_SNAP_ID, "edgeMid"),
+    toAnchor({ x: width, y: height }, CANVAS_SNAP_ID, "corner"),
+    toAnchor({ x: centerX, y: height }, CANVAS_SNAP_ID, "edgeMid"),
+    toAnchor({ x: 0, y: height }, CANVAS_SNAP_ID, "corner"),
+    toAnchor({ x: 0, y: centerY }, CANVAS_SNAP_ID, "edgeMid"),
+    toAnchor({ x: centerX, y: centerY }, CANVAS_SNAP_ID, "center"),
+  ];
+};
+
+const getCanvasAxisSnapCandidates = ({
+  width,
+  height,
+}: CanvasSnapBounds): AxisSnapCandidate[] => {
+  const centerX = width / 2;
+  const centerY = height / 2;
+
+  return [
+    { strokeId: CANVAS_SNAP_ID, kind: "left", x: 0, y: centerY },
+    { strokeId: CANVAS_SNAP_ID, kind: "centerX", x: centerX, y: centerY },
+    { strokeId: CANVAS_SNAP_ID, kind: "right", x: width, y: centerY },
+    { strokeId: CANVAS_SNAP_ID, kind: "top", x: centerX, y: 0 },
+    { strokeId: CANVAS_SNAP_ID, kind: "centerY", x: centerX, y: centerY },
+    { strokeId: CANVAS_SNAP_ID, kind: "bottom", x: centerX, y: height },
+  ];
+};
+
 export const getStrokeSnapAnchors = (stroke: Stroke): SnapAnchor[] => {
   switch (stroke.tool) {
     case Tool.Rectangle:
@@ -284,11 +320,16 @@ export const getStrokeSnapAnchors = (stroke: Stroke): SnapAnchor[] => {
 
 export const getSceneSnapAnchors = (
   strokes: Stroke[],
-  excludedIds: Set<string>
-): SnapAnchor[] =>
-  strokes
+  excludedIds: Set<string>,
+  canvasBounds?: CanvasSnapBounds
+): SnapAnchor[] => {
+  const strokeAnchors = strokes
     .filter((stroke) => !excludedIds.has(stroke.id))
     .flatMap((stroke) => getStrokeSnapAnchors(stroke));
+  if (!canvasBounds) return strokeAnchors;
+
+  return [...strokeAnchors, ...getCanvasSnapAnchors(canvasBounds)];
+};
 
 export const getStrokeAxisSnapCandidates = (
   stroke: Stroke
@@ -313,11 +354,16 @@ export const getStrokeAxisSnapCandidates = (
 
 export const getSceneAxisSnapCandidates = (
   strokes: Stroke[],
-  excludedIds: Set<string>
-): AxisSnapCandidate[] =>
-  strokes
+  excludedIds: Set<string>,
+  canvasBounds?: CanvasSnapBounds
+): AxisSnapCandidate[] => {
+  const strokeCandidates = strokes
     .filter((stroke) => !excludedIds.has(stroke.id))
     .flatMap((stroke) => getStrokeAxisSnapCandidates(stroke));
+  if (!canvasBounds) return strokeCandidates;
+
+  return [...strokeCandidates, ...getCanvasAxisSnapCandidates(canvasBounds)];
+};
 
 export const resolveNearestSnap = (
   point: PointLike,

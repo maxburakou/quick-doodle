@@ -172,6 +172,13 @@ export const useSelectMode = ({
   const [cursor, setCursor] = useState<React.CSSProperties["cursor"]>("default");
   const textEditorMode = useTextEditorMode();
   const isSnapEnabled = useSnapStore((state) => state.enabled);
+  const getCanvasBounds = useCallback(() => {
+    const canvas = ctxRef.current?.canvas;
+    const width = canvas?.clientWidth ?? window.innerWidth;
+    const height = canvas?.clientHeight ?? window.innerHeight;
+
+    return { width, height };
+  }, [ctxRef]);
 
   const selectedStrokes = useMemo(
     () =>
@@ -358,11 +365,13 @@ export const useSelectMode = ({
                   };
             const anchors = getSceneSnapAnchors(
               present,
-              new Set(selectedStrokeIds)
+              new Set(selectedStrokeIds),
+              getCanvasBounds()
             );
             const axisCandidates = getSceneAxisSnapCandidates(
               present,
-              new Set(selectedStrokeIds)
+              new Set(selectedStrokeIds),
+              getCanvasBounds()
             );
             const snap = resolveMoveSnapPointer({
               pointer: point,
@@ -390,11 +399,13 @@ export const useSelectMode = ({
         ) {
           const anchors = getSceneSnapAnchors(
             present,
-            new Set(selectedStrokeIds)
+            new Set(selectedStrokeIds),
+            getCanvasBounds()
           );
           const axisCandidates = getSceneAxisSnapCandidates(
             present,
-            new Set(selectedStrokeIds)
+            new Set(selectedStrokeIds),
+            getCanvasBounds()
           );
           const snap = resolveLineEndpointSnap(
             point,
@@ -432,11 +443,13 @@ export const useSelectMode = ({
           } else {
             const anchors = getSceneSnapAnchors(
               present,
-              new Set(session.strokeIds)
+              new Set(session.strokeIds),
+              getCanvasBounds()
             );
             const axisCandidates = getSceneAxisSnapCandidates(
               present,
-              new Set(session.strokeIds)
+              new Set(session.strokeIds),
+              getCanvasBounds()
             );
             const snap = resolveMoveSnapPointer({
               pointer: point,
@@ -467,6 +480,7 @@ export const useSelectMode = ({
       selectedStrokeIds,
       selectedStrokes,
       session,
+      getCanvasBounds,
       updateTransform,
       updateGroupMove,
     ]

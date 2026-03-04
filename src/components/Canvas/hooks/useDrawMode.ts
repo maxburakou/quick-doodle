@@ -47,13 +47,20 @@ export const useDrawMode = ({
   const isDrawingRef = useRef(false);
   const drawableSeedRef = useRef<number>(Date.now());
   const strokeIdRef = useRef<string>("");
+  const getCanvasBounds = useCallback(() => {
+    const canvas = ctxRef.current?.canvas;
+    const width = canvas?.clientWidth ?? window.innerWidth;
+    const height = canvas?.clientHeight ?? window.innerHeight;
+
+    return { width, height };
+  }, [ctxRef]);
   const getSceneAnchors = useCallback(
-    () => getSceneSnapAnchors(present, new Set()),
-    [present]
+    () => getSceneSnapAnchors(present, new Set(), getCanvasBounds()),
+    [getCanvasBounds, present]
   );
   const getSceneAxisCandidates = useCallback(
-    () => getSceneAxisSnapCandidates(present, new Set()),
-    [present]
+    () => getSceneAxisSnapCandidates(present, new Set(), getCanvasBounds()),
+    [getCanvasBounds, present]
   );
   const getAxisConstrainState = useCallback(
     (shiftKey: boolean) => (tool === Tool.Highlighter ? !shiftKey : shiftKey),
