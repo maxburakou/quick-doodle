@@ -1,5 +1,5 @@
 import { HexColorPicker } from "react-colorful";
-import "../../styles.css";
+import "./styles.css";
 import { useToolColor } from "@/store";
 import { useSelectionSettingsActions } from "@/components/Canvas/hooks/useSelectionSettingsActions";
 import { useState } from "react";

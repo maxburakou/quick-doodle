@@ -1,0 +1,7 @@
+.fontsize-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: x-small;
+}

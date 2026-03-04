@@ -2,6 +2,7 @@ import { useToolThicknesses } from "@/store";
 import { useSelectionSettingsActions } from "@/components/Canvas/hooks/useSelectionSettingsActions";
 import { Minus } from "lucide-react";
 import { useToolbarThicknessContext } from "../../hooks/useToolbarThicknessContext";
+import "./styles.css";
 
 export const ThicknessOptions = () => {
   const { contextThickness } = useToolbarThicknessContext();

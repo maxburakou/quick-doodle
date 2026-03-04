@@ -3,6 +3,7 @@ import { useFontSizes } from "@/store";
 import { useSelectionSettingsActions } from "@/components/Canvas/hooks/useSelectionSettingsActions";
 import { getFontSizeLabel } from "./helpers";
 import { useToolbarFontSizeContext } from "../../hooks/useToolbarFontSizeContext";
+import "./styles.css";
 //import { ToolbarFontSizePicker } from "../ToolbarFontSizePicker";
 //import { Settings } from "lucide-react";
 

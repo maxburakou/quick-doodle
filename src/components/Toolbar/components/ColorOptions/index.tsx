@@ -3,6 +3,7 @@ import { useToolColor, useToolColors } from "@/store";
 import { useSelectionSettingsActions } from "@/components/Canvas/hooks/useSelectionSettingsActions";
 import { useToolbarColorContext } from "../../hooks/useToolbarColorContext";
 import { ToolbarColorPicker } from "../ToolbarColorPicker";
+import "./styles.css";
 
 export const ColorOptions = () => {
   const { contextColor, selectionColorSource } = useToolbarColorContext();

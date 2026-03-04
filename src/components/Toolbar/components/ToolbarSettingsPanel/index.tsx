@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 import { ToolbarSettingDefinition } from "../../types";
+import "./styles.css";
 
 interface ToolbarSettingsPanelProps {
   visibleSettings: ToolbarSettingDefinition[];
