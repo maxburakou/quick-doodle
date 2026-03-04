@@ -2,11 +2,6 @@
   width: 40px;
 }
 
-.fontsize-picker .fontsize-input {
-  margin: 0;
-  padding: 4px;
-}
-
 .fontsize-input {
   width: 100%;
   padding: 4px 8px;
@@ -17,6 +12,11 @@
   border-radius: 4px;
   outline: none;
   transition: border-color 0.2s;
+}
+
+.fontsize-picker .fontsize-input {
+  margin-top: 0;
+  padding: 4px;
 }
 
 .fontsize-input.--invalid {
@@ -33,7 +33,7 @@
   transform: translateY(-50%);
 }
 
-.fontsize-arrows button {
+.fontsize-picker .fontsize-arrows button {
   all: unset;
   cursor: pointer;
   font-size: 8px;
@@ -44,6 +44,6 @@
   transition: color 0.2s;
 }
 
-.fontsize-arrows button:hover {
+.fontsize-picker .fontsize-arrows button:hover {
   color: #444444;
 }

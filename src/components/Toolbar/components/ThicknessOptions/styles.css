@@ -3,14 +3,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: none;
 }
 
 .thickness-button.--active {
   border: none;
 }
 
-.thickness-button svg {
+.thickness-button > svg {
   position: absolute;
   top: 50%;
   left: 50%;

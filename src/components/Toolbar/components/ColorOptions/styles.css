@@ -1,6 +1,10 @@
-.options-button {
+.options-button,
+.custom-color-button {
   width: 16px;
   height: 16px;
+}
+
+.options-button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -11,7 +15,6 @@
   background: transparent;
   color: #444444;
   transition: all 0.2s;
-  transform: 0.1s;
   position: relative;
 }
 
@@ -21,7 +24,7 @@
 }
 
 .options-button.--active {
-  border: 1px solid #444444;
+  border-color: #444444;
   background: #007aff;
   color: #ffffff;
 }
@@ -41,8 +44,6 @@
 }
 
 .custom-color-button {
-  width: 16px;
-  height: 16px;
   border: 1px solid #dcdcdc;
   border-radius: 4px;
   transition: transform 0.2s;
@@ -53,7 +54,7 @@
 }
 
 .custom-color-button.--active {
-  border: 1px solid #444444;
+  border-color: #444444;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
 }
 
