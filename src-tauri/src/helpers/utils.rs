@@ -6,6 +6,7 @@ use tauri::{
 
 use crate::{
 	components::tray::apply_visibility_to_tray_menu,
+	ids::events,
 	state::WindowState,
 };
 use super::window_service;
@@ -120,6 +121,16 @@ pub fn toggle_window(app: &AppHandle) -> ToggleOutcome {
 
 	let new_visibility = !was_visible;
 	state.set_main_visible(new_visibility);
+
+	if let Some(window) = window_service::main_window(app) {
+		if let Err(err) = window.emit(events::MAIN_WINDOW_VISIBILITY_CHANGED, new_visibility) {
+			error!(
+				"Error emitting {}: {:?}",
+				events::MAIN_WINDOW_VISIBILITY_CHANGED,
+				err
+			);
+		}
+	}
 
 	#[cfg(debug_assertions)]
 	let tray_start = std::time::Instant::now();
