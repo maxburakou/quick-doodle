@@ -28,6 +28,7 @@ import { getCaretFromBoxStart } from "../utils/textLayout";
 import {
   getSceneAxisSnapCandidates,
   getSceneSnapAnchors,
+  getSceneSnapSegments,
   getStrokeAABB,
   strokeIntersectsMarquee,
   isLineLikeSnapTool,
@@ -365,6 +366,11 @@ export const useSelectMode = ({
               new Set(selectedStrokeIds),
               getCanvasBounds()
             );
+            const segments = getSceneSnapSegments(
+              present,
+              new Set(selectedStrokeIds),
+              getCanvasBounds()
+            );
             const axisCandidates = getSceneAxisSnapCandidates(
               present,
               new Set(selectedStrokeIds),
@@ -376,6 +382,7 @@ export const useSelectMode = ({
               initialCenter,
               movingAnchors,
               anchors,
+              segments,
               axisCandidates,
               snapDistance: SNAP_DISTANCE_PX,
             });
@@ -399,6 +406,11 @@ export const useSelectMode = ({
             new Set(selectedStrokeIds),
             getCanvasBounds()
           );
+          const segments = getSceneSnapSegments(
+            present,
+            new Set(selectedStrokeIds),
+            getCanvasBounds()
+          );
           const axisCandidates = getSceneAxisSnapCandidates(
             present,
             new Set(selectedStrokeIds),
@@ -408,7 +420,9 @@ export const useSelectMode = ({
             point,
             anchors,
             axisCandidates,
-            SNAP_DISTANCE_PX
+            SNAP_DISTANCE_PX,
+            SNAP_DISTANCE_PX,
+            segments
           );
           updateTransform(snap.point, { shiftKey });
           setActiveSnapGuides({
@@ -443,6 +457,11 @@ export const useSelectMode = ({
               new Set(session.strokeIds),
               getCanvasBounds()
             );
+            const segments = getSceneSnapSegments(
+              present,
+              new Set(session.strokeIds),
+              getCanvasBounds()
+            );
             const axisCandidates = getSceneAxisSnapCandidates(
               present,
               new Set(session.strokeIds),
@@ -453,6 +472,7 @@ export const useSelectMode = ({
               startPointer: session.startPointer,
               movingAnchors,
               anchors,
+              segments,
               axisCandidates,
               snapDistance: SNAP_DISTANCE_PX,
             });

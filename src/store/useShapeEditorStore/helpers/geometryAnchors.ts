@@ -1,5 +1,4 @@
 import { Stroke, StrokePoint, Tool } from "@/types";
-import { ELLIPSE_ANCHOR_ANGLES } from "@/config/snapConfig";
 import {
   getBoundsCenter,
   getStrokeAABB,
@@ -10,8 +9,8 @@ import {
 } from "./core";
 
 export type AnchorCenterMode = "always" | "filled_only" | "never";
-export type PenAnchorMode = "path" | "bbox";
-export type HighlighterAnchorMode = "shape" | "box";
+export type StrokeAnchorMode = "auto" | "boxLike" | "lineLike";
+export type AnchorGroup = "boxEdge" | "lineSegment";
 
 export type StrokeAnchorKind =
   | "corner"
@@ -19,19 +18,16 @@ export type StrokeAnchorKind =
   | "center"
   | "ellipseAxis"
   | "lineEnd"
-  | "lineMid"
-  | "path";
+  | "lineMid";
 
 export interface StrokeAnchorPoint extends StrokePoint {
   kind: StrokeAnchorKind;
+  anchorGroup: AnchorGroup;
 }
 
 export interface StrokeAnchorPolicy {
   centerMode?: AnchorCenterMode;
-  penMode?: PenAnchorMode;
-  penStride?: number;
-  includePenLast?: boolean;
-  highlighterMode?: HighlighterAnchorMode;
+  mode?: StrokeAnchorMode;
 }
 
 const shouldIncludeCenter = (stroke: Stroke, mode: AnchorCenterMode) => {
@@ -48,6 +44,7 @@ const rotateAnchorPoints = (
   points.map((point) => ({
     ...rotatePoint(point, center, rotation),
     kind: point.kind,
+    anchorGroup: point.anchorGroup,
   }));
 
 const buildBoxAnchors = (
@@ -58,150 +55,109 @@ const buildBoxAnchors = (
   const center = getBoundsCenter(bounds);
   const rotation = getStrokeRotation(stroke);
   const points: StrokeAnchorPoint[] = [
-    { x: bounds.x, y: bounds.y, pressure: 0.5, kind: "corner" },
+    {
+      x: bounds.x,
+      y: bounds.y,
+      pressure: 0.5,
+      kind: "corner",
+      anchorGroup: "boxEdge",
+    },
     {
       x: bounds.x + bounds.width / 2,
       y: bounds.y,
       pressure: 0.5,
       kind: "edgeMid",
+      anchorGroup: "boxEdge",
     },
-    { x: bounds.x + bounds.width, y: bounds.y, pressure: 0.5, kind: "corner" },
+    {
+      x: bounds.x + bounds.width,
+      y: bounds.y,
+      pressure: 0.5,
+      kind: "corner",
+      anchorGroup: "boxEdge",
+    },
     {
       x: bounds.x + bounds.width,
       y: bounds.y + bounds.height / 2,
       pressure: 0.5,
       kind: "edgeMid",
+      anchorGroup: "boxEdge",
     },
     {
       x: bounds.x + bounds.width,
       y: bounds.y + bounds.height,
       pressure: 0.5,
       kind: "corner",
+      anchorGroup: "boxEdge",
     },
     {
       x: bounds.x + bounds.width / 2,
       y: bounds.y + bounds.height,
       pressure: 0.5,
       kind: "edgeMid",
+      anchorGroup: "boxEdge",
     },
     {
       x: bounds.x,
       y: bounds.y + bounds.height,
       pressure: 0.5,
       kind: "corner",
+      anchorGroup: "boxEdge",
     },
     {
       x: bounds.x,
       y: bounds.y + bounds.height / 2,
       pressure: 0.5,
       kind: "edgeMid",
+      anchorGroup: "boxEdge",
     },
   ];
 
   if (shouldIncludeCenter(stroke, centerMode)) {
-    points.push({ x: center.x, y: center.y, pressure: 0.5, kind: "center" });
+    points.push({
+      x: center.x,
+      y: center.y,
+      pressure: 0.5,
+      kind: "center",
+      anchorGroup: "boxEdge",
+    });
   }
 
   return rotateAnchorPoints(points, center, rotation);
 };
 
-const buildDiamondAnchors = (
-  bounds: ReturnType<typeof getStrokeBounds>,
-  stroke: Stroke,
-  centerMode: AnchorCenterMode
-): StrokeAnchorPoint[] => {
-  const center = getBoundsCenter(bounds);
-  const rotation = getStrokeRotation(stroke);
-  const halfWidth = bounds.width / 2;
-  const halfHeight = bounds.height / 2;
-  const points: StrokeAnchorPoint[] = [
-    { x: center.x, y: center.y - halfHeight, pressure: 0.5, kind: "corner" },
-    { x: center.x + halfWidth, y: center.y, pressure: 0.5, kind: "corner" },
-    { x: center.x, y: center.y + halfHeight, pressure: 0.5, kind: "corner" },
-    { x: center.x - halfWidth, y: center.y, pressure: 0.5, kind: "corner" },
+const buildLineLikeAnchors = (stroke: Stroke): StrokeAnchorPoint[] => {
+  const [start, end] = getStrokeEndpoints(stroke);
+
+  return [
+    { ...start, kind: "lineEnd", anchorGroup: "lineSegment" },
+    { ...end, kind: "lineEnd", anchorGroup: "lineSegment" },
     {
-      x: center.x + halfWidth / 2,
-      y: center.y - halfHeight / 2,
+      x: (start.x + end.x) / 2,
+      y: (start.y + end.y) / 2,
       pressure: 0.5,
-      kind: "edgeMid",
-    },
-    {
-      x: center.x + halfWidth / 2,
-      y: center.y + halfHeight / 2,
-      pressure: 0.5,
-      kind: "edgeMid",
-    },
-    {
-      x: center.x - halfWidth / 2,
-      y: center.y + halfHeight / 2,
-      pressure: 0.5,
-      kind: "edgeMid",
-    },
-    {
-      x: center.x - halfWidth / 2,
-      y: center.y - halfHeight / 2,
-      pressure: 0.5,
-      kind: "edgeMid",
+      kind: "lineMid",
+      anchorGroup: "lineSegment",
     },
   ];
-
-  if (shouldIncludeCenter(stroke, centerMode)) {
-    points.push({ x: center.x, y: center.y, pressure: 0.5, kind: "center" });
-  }
-
-  return rotateAnchorPoints(points, center, rotation);
 };
 
-const buildEllipseAnchors = (
-  bounds: ReturnType<typeof getStrokeBounds>,
+const isLineLikeAnchorTool = (tool: Tool) =>
+  tool === Tool.Line || tool === Tool.Arrow || tool === Tool.Highlighter;
+
+const resolveStrokeAnchorMode = (
   stroke: Stroke,
-  centerMode: AnchorCenterMode
-): StrokeAnchorPoint[] => {
-  const center = getBoundsCenter(bounds);
-  const rotation = getStrokeRotation(stroke);
-  const halfWidth = bounds.width / 2;
-  const halfHeight = bounds.height / 2;
-  const points: StrokeAnchorPoint[] = ELLIPSE_ANCHOR_ANGLES.map((angleDeg) => {
-    const angleRad = (angleDeg * Math.PI) / 180;
-    return {
-      x: center.x + Math.cos(angleRad) * halfWidth,
-      y: center.y + Math.sin(angleRad) * halfHeight,
-      pressure: 0.5,
-      kind: "ellipseAxis",
-    };
-  });
-
-  if (shouldIncludeCenter(stroke, centerMode)) {
-    points.push({ x: center.x, y: center.y, pressure: 0.5, kind: "center" });
+  policyMode: StrokeAnchorMode
+): Exclude<StrokeAnchorMode, "auto"> => {
+  if (policyMode === "lineLike" || policyMode === "boxLike") {
+    return policyMode;
   }
 
-  return rotateAnchorPoints(points, center, rotation);
-};
-
-const decimatePenPoints = (
-  points: StrokePoint[],
-  stride: number,
-  includeLast: boolean
-): StrokeAnchorPoint[] => {
-  if (points.length === 0) return [];
-  const step = Math.max(1, stride);
-  const output: StrokeAnchorPoint[] = [];
-
-  for (let index = 0; index < points.length; index += step) {
-    const point = points[index];
-    if (!point) continue;
-    output.push({ ...point, kind: "path" });
+  if (isLineLikeAnchorTool(stroke.tool)) {
+    return "lineLike";
   }
 
-  if (includeLast) {
-    const last = points[points.length - 1];
-    const lastOut = output[output.length - 1];
-    if (last && (!lastOut || last.x !== lastOut.x || last.y !== lastOut.y)) {
-      output.push({ ...last, kind: "path" });
-    }
-  }
-
-  return output;
+  return "boxLike";
 };
 
 export const getStrokeAnchorPoints = (
@@ -209,56 +165,25 @@ export const getStrokeAnchorPoints = (
   policy?: StrokeAnchorPolicy
 ): StrokeAnchorPoint[] => {
   const centerMode = policy?.centerMode ?? "always";
-  const penMode = policy?.penMode ?? "bbox";
-  const penStride = policy?.penStride ?? 1;
-  const includePenLast = policy?.includePenLast ?? true;
-  const highlighterMode = policy?.highlighterMode ?? "shape";
+  const mode = resolveStrokeAnchorMode(stroke, policy?.mode ?? "auto");
 
-  if (stroke.tool === Tool.Pen) {
-    if (penMode === "path") {
-      return decimatePenPoints(stroke.points, penStride, includePenLast);
-    }
-
-    const bounds = getStrokeAABB(stroke);
-    return buildBoxAnchors(bounds, stroke, centerMode);
+  if (mode === "lineLike") {
+    return buildLineLikeAnchors(stroke);
   }
 
-  if (stroke.tool === Tool.Highlighter && highlighterMode === "box") {
+  if (stroke.tool === Tool.Pen) {
     const bounds = getStrokeAABB(stroke);
     return buildBoxAnchors(bounds, stroke, centerMode);
   }
 
   if (
-    stroke.tool === Tool.Line ||
-    stroke.tool === Tool.Arrow ||
-    stroke.tool === Tool.Highlighter
+    stroke.tool === Tool.Text ||
+    stroke.tool === Tool.Rectangle ||
+    stroke.tool === Tool.Diamond ||
+    stroke.tool === Tool.Ellipse
   ) {
-    const [start, end] = getStrokeEndpoints(stroke);
-    return [
-      { ...start, kind: "lineEnd" },
-      { ...end, kind: "lineEnd" },
-      {
-        x: (start.x + end.x) / 2,
-        y: (start.y + end.y) / 2,
-        pressure: 0.5,
-        kind: "lineMid",
-      },
-    ];
-  }
-
-  if (stroke.tool === Tool.Text || stroke.tool === Tool.Rectangle) {
     const bounds = getStrokeBounds(stroke);
     return buildBoxAnchors(bounds, stroke, centerMode);
-  }
-
-  if (stroke.tool === Tool.Diamond) {
-    const bounds = getStrokeBounds(stroke);
-    return buildDiamondAnchors(bounds, stroke, centerMode);
-  }
-
-  if (stroke.tool === Tool.Ellipse) {
-    const bounds = getStrokeBounds(stroke);
-    return buildEllipseAnchors(bounds, stroke, centerMode);
   }
 
   return [];

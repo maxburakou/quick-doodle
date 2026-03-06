@@ -1,5 +1,9 @@
 import {
+  getBoundsCenter,
+  getStrokeBounds,
   getStrokeAABB,
+  getStrokeRotation,
+  rotatePoint,
 } from "./core";
 import { isShapeBoxTool, ShapeBoxTool, Stroke, StrokePoint, Tool } from "@/types";
 import { constrainToSquareBounds } from "@/components/Canvas/utils/constrainToSquareBounds";
@@ -61,6 +65,20 @@ export interface SnapComputation {
   axisSnap: AxisSnapResult | null;
 }
 
+export interface SnapSegment {
+  strokeId: string;
+  start: Pick<StrokePoint, "x" | "y">;
+  end: Pick<StrokePoint, "x" | "y">;
+  anchorGroup: "boxEdge" | "lineSegment";
+}
+
+export interface SegmentSnapResult {
+  snappedX: number;
+  snappedY: number;
+  target: Pick<StrokePoint, "x" | "y">;
+  segment: SnapSegment;
+}
+
 type PointLike = Pick<StrokePoint, "x" | "y">;
 type CanvasSnapBounds = { width: number; height: number };
 
@@ -70,6 +88,7 @@ interface ResolveMoveSnapPointerParams {
   initialCenter?: PointLike;
   movingAnchors?: PointLike[];
   anchors: SnapAnchor[];
+  segments?: SnapSegment[];
   axisCandidates?: AxisSnapCandidate[];
   snapDistance?: number;
   axisSnapDistance?: number;
@@ -81,6 +100,7 @@ interface ResolveShapeCreateEndpointSnapParams {
   tool: ShapeBoxTool;
   shiftKey: boolean;
   anchors: SnapAnchor[];
+  segments?: SnapSegment[];
   axisCandidates?: AxisSnapCandidate[];
   snapDistance?: number;
   axisSnapDistance?: number;
@@ -100,6 +120,17 @@ interface AxisSnapSelection {
 const X_AXIS_KINDS = new Set<AxisSnapKind>(["left", "centerX", "right"]);
 const Y_AXIS_KINDS = new Set<AxisSnapKind>(["top", "centerY", "bottom"]);
 const CANVAS_SNAP_ID = "__canvas__";
+
+const createCanvasBoundaryStroke = ({ width, height }: CanvasSnapBounds): Stroke => ({
+  id: CANVAS_SNAP_ID,
+  points: [
+    { x: 0, y: 0, pressure: 0.5 },
+    { x: width, y: height, pressure: 0.5 },
+  ],
+  color: "",
+  thickness: 1,
+  tool: Tool.Rectangle,
+});
 
 export const isLineLikeSnapTool = (tool: Tool) =>
   tool === Tool.Line || tool === Tool.Arrow || tool === Tool.Highlighter;
@@ -145,7 +176,6 @@ const mapStrokeAnchorKindToSnapKind = (
     case "lineEnd":
       return "lineEnd";
     case "lineMid":
-    case "path":
       return "lineMid";
     default:
       return "lineMid";
@@ -153,44 +183,142 @@ const mapStrokeAnchorKindToSnapKind = (
 };
 
 const getCanvasSnapAnchors = ({ width, height }: CanvasSnapBounds): SnapAnchor[] => {
-  const centerX = width / 2;
-  const centerY = height / 2;
-
-  return [
-    toAnchor({ x: 0, y: 0 }, CANVAS_SNAP_ID, "corner"),
-    toAnchor({ x: centerX, y: 0 }, CANVAS_SNAP_ID, "edgeMid"),
-    toAnchor({ x: width, y: 0 }, CANVAS_SNAP_ID, "corner"),
-    toAnchor({ x: width, y: centerY }, CANVAS_SNAP_ID, "edgeMid"),
-    toAnchor({ x: width, y: height }, CANVAS_SNAP_ID, "corner"),
-    toAnchor({ x: centerX, y: height }, CANVAS_SNAP_ID, "edgeMid"),
-    toAnchor({ x: 0, y: height }, CANVAS_SNAP_ID, "corner"),
-    toAnchor({ x: 0, y: centerY }, CANVAS_SNAP_ID, "edgeMid"),
-    toAnchor({ x: centerX, y: centerY }, CANVAS_SNAP_ID, "center"),
-  ];
+  return getStrokeSnapAnchors(createCanvasBoundaryStroke({ width, height }));
 };
 
 const getCanvasAxisSnapCandidates = ({
   width,
   height,
 }: CanvasSnapBounds): AxisSnapCandidate[] => {
-  const centerX = width / 2;
-  const centerY = height / 2;
+  return getStrokeAxisSnapCandidates(createCanvasBoundaryStroke({ width, height }));
+};
+
+const projectPointToSegment = (
+  point: PointLike,
+  start: PointLike,
+  end: PointLike
+) => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const segmentLengthSq = dx * dx + dy * dy;
+
+  if (segmentLengthSq === 0) {
+    const deltaX = point.x - start.x;
+    const deltaY = point.y - start.y;
+    return {
+      projection: { x: start.x, y: start.y },
+      distance: Math.hypot(deltaX, deltaY),
+    };
+  }
+
+  const t = Math.max(
+    0,
+    Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / segmentLengthSq)
+  );
+  const projection = {
+    x: start.x + t * dx,
+    y: start.y + t * dy,
+  };
+  const deltaX = point.x - projection.x;
+  const deltaY = point.y - projection.y;
+
+  return {
+    projection,
+    distance: Math.hypot(deltaX, deltaY),
+  };
+};
+
+const getBoxSnapSegments = (stroke: Stroke): SnapSegment[] => {
+  const bounds = stroke.tool === Tool.Pen ? getStrokeAABB(stroke) : getStrokeBounds(stroke);
+  const center = getBoundsCenter(bounds);
+  const rotation = getStrokeRotation(stroke);
+  const corners = [
+    { x: bounds.x, y: bounds.y },
+    { x: bounds.x + bounds.width, y: bounds.y },
+    { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
+    { x: bounds.x, y: bounds.y + bounds.height },
+  ].map((point) => rotatePoint(point, center, rotation));
 
   return [
-    { strokeId: CANVAS_SNAP_ID, kind: "left", x: 0, y: centerY },
-    { strokeId: CANVAS_SNAP_ID, kind: "centerX", x: centerX, y: centerY },
-    { strokeId: CANVAS_SNAP_ID, kind: "right", x: width, y: centerY },
-    { strokeId: CANVAS_SNAP_ID, kind: "top", x: centerX, y: 0 },
-    { strokeId: CANVAS_SNAP_ID, kind: "centerY", x: centerX, y: centerY },
-    { strokeId: CANVAS_SNAP_ID, kind: "bottom", x: centerX, y: height },
+    {
+      strokeId: stroke.id,
+      start: corners[0],
+      end: corners[1],
+      anchorGroup: "boxEdge",
+    },
+    {
+      strokeId: stroke.id,
+      start: corners[1],
+      end: corners[2],
+      anchorGroup: "boxEdge",
+    },
+    {
+      strokeId: stroke.id,
+      start: corners[2],
+      end: corners[3],
+      anchorGroup: "boxEdge",
+    },
+    {
+      strokeId: stroke.id,
+      start: corners[3],
+      end: corners[0],
+      anchorGroup: "boxEdge",
+    },
+  ];
+};
+
+export const getStrokeSnapSegments = (stroke: Stroke): SnapSegment[] => {
+  if (isLineLikeSnapTool(stroke.tool)) {
+    const points = getStrokeAnchorPoints(stroke, { mode: "lineLike", centerMode: "never" });
+    const start = points.find((point) => point.kind === "lineEnd");
+    const end = points
+      .slice()
+      .reverse()
+      .find((point) => point.kind === "lineEnd");
+    if (!start || !end) return [];
+
+    return [
+      {
+        strokeId: stroke.id,
+        start,
+        end,
+        anchorGroup: "lineSegment",
+      },
+    ];
+  }
+
+  if (
+    stroke.tool === Tool.Rectangle ||
+    stroke.tool === Tool.Diamond ||
+    stroke.tool === Tool.Ellipse ||
+    stroke.tool === Tool.Text ||
+    stroke.tool === Tool.Pen
+  ) {
+    return getBoxSnapSegments(stroke);
+  }
+
+  return [];
+};
+
+export const getSceneSnapSegments = (
+  strokes: Stroke[],
+  excludedIds: Set<string>,
+  canvasBounds?: CanvasSnapBounds
+): SnapSegment[] => {
+  const strokeSegments = strokes
+    .filter((stroke) => !excludedIds.has(stroke.id))
+    .flatMap((stroke) => getStrokeSnapSegments(stroke));
+  if (!canvasBounds) return strokeSegments;
+
+  return [
+    ...strokeSegments,
+    ...getStrokeSnapSegments(createCanvasBoundaryStroke(canvasBounds)),
   ];
 };
 
 export const getStrokeSnapAnchors = (stroke: Stroke): SnapAnchor[] => {
   const points = getStrokeAnchorPoints(stroke, {
     centerMode: "always",
-    penMode: "bbox",
-    highlighterMode: "shape",
   });
 
   return points.map((point) =>
@@ -280,6 +408,35 @@ export const resolveNearestSnap = (
     snappedX: best.x,
     snappedY: best.y,
     target: best,
+  };
+};
+
+export const resolveNearestSegmentSnap = (
+  point: PointLike,
+  segments: SnapSegment[],
+  distance: number = SNAP_DISTANCE_PX
+): SegmentSnapResult | null => {
+  let bestDistance = Number.POSITIVE_INFINITY;
+  let bestProjection: PointLike | null = null;
+  let bestSegment: SnapSegment | null = null;
+
+  for (const segment of segments) {
+    const projected = projectPointToSegment(point, segment.start, segment.end);
+    if (projected.distance > distance) continue;
+    if (projected.distance >= bestDistance) continue;
+
+    bestDistance = projected.distance;
+    bestProjection = projected.projection;
+    bestSegment = segment;
+  }
+
+  if (!bestProjection || !bestSegment) return null;
+
+  return {
+    snappedX: bestProjection.x,
+    snappedY: bestProjection.y,
+    target: bestProjection,
+    segment: bestSegment,
   };
 };
 
@@ -376,12 +533,48 @@ const resolveTranslationSnap = (
   };
 };
 
+const resolveTranslationSegmentSnap = (
+  movingPoints: PointLike[],
+  segments: SnapSegment[],
+  snapDistance: number
+): TranslationSnapResolution | null => {
+  let bestDelta: { x: number; y: number } | null = null;
+  let bestTarget: StrokePoint | null = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (const movingPoint of movingPoints) {
+    const snapResult = resolveNearestSegmentSnap(movingPoint, segments, snapDistance);
+    if (!snapResult) continue;
+
+    const deltaX = snapResult.snappedX - movingPoint.x;
+    const deltaY = snapResult.snappedY - movingPoint.y;
+    const distance = Math.hypot(deltaX, deltaY);
+    if (distance >= bestDistance) continue;
+
+    bestDistance = distance;
+    bestDelta = { x: deltaX, y: deltaY };
+    bestTarget = {
+      x: snapResult.target.x,
+      y: snapResult.target.y,
+      pressure: 0.5,
+    };
+  }
+
+  if (!bestDelta || !bestTarget) return null;
+
+  return {
+    delta: bestDelta,
+    pointTarget: bestTarget,
+  };
+};
+
 export const resolveMoveSnapPointer = ({
   pointer,
   startPointer,
   initialCenter,
   movingAnchors,
   anchors,
+  segments = [],
   axisCandidates = [],
   snapDistance = SNAP_DISTANCE_PX,
   axisSnapDistance = AXIS_SNAP_DISTANCE_PX,
@@ -408,6 +601,23 @@ export const resolveMoveSnapPointer = ({
         y: pointer.y + pointSnap.delta.y,
       },
       pointTarget: pointSnap.pointTarget,
+      axisSnap: null,
+    };
+  }
+
+  const segmentSnap = resolveTranslationSegmentSnap(
+    movedAnchors,
+    segments,
+    snapDistance
+  );
+  if (segmentSnap) {
+    return {
+      point: {
+        ...pointer,
+        x: pointer.x + segmentSnap.delta.x,
+        y: pointer.y + segmentSnap.delta.y,
+      },
+      pointTarget: segmentSnap.pointTarget,
       axisSnap: null,
     };
   }
@@ -442,7 +652,8 @@ export const resolveLineEndpointSnap = (
   anchors: SnapAnchor[],
   axisCandidates: AxisSnapCandidate[] = [],
   distance: number = SNAP_DISTANCE_PX,
-  axisSnapDistance: number = AXIS_SNAP_DISTANCE_PX
+  axisSnapDistance: number = AXIS_SNAP_DISTANCE_PX,
+  segments: SnapSegment[] = []
 ): SnapComputation => {
   const pointSnap = resolveNearestSnap(point, anchors, distance);
   if (pointSnap) {
@@ -455,6 +666,23 @@ export const resolveLineEndpointSnap = (
       pointTarget: {
         x: pointSnap.target.x,
         y: pointSnap.target.y,
+        pressure: 0.5,
+      },
+      axisSnap: null,
+    };
+  }
+
+  const segmentSnap = resolveNearestSegmentSnap(point, segments, distance);
+  if (segmentSnap) {
+    return {
+      point: {
+        ...point,
+        x: segmentSnap.snappedX,
+        y: segmentSnap.snappedY,
+      },
+      pointTarget: {
+        x: segmentSnap.target.x,
+        y: segmentSnap.target.y,
         pressure: 0.5,
       },
       axisSnap: null,
@@ -492,6 +720,7 @@ export const resolveShapeCreateEndpointSnap = ({
   tool,
   shiftKey,
   anchors,
+  segments = [],
   axisCandidates = [],
   snapDistance = SNAP_DISTANCE_PX,
   axisSnapDistance = AXIS_SNAP_DISTANCE_PX,
@@ -528,6 +757,31 @@ export const resolveShapeCreateEndpointSnap = ({
     return {
       point: finalPoint,
       pointTarget: pointSnap.pointTarget,
+      axisSnap: null,
+    };
+  }
+
+  const segmentSnap = resolveTranslationSegmentSnap(
+    draftAnchors,
+    segments,
+    snapDistance
+  );
+  if (segmentSnap) {
+    const snappedPoint: StrokePoint = {
+      ...effectivePoint,
+      x: effectivePoint.x + segmentSnap.delta.x,
+      y: effectivePoint.y + segmentSnap.delta.y,
+    };
+    const finalPoint = getConstrainedShapeEndpoint(
+      startPoint,
+      snappedPoint,
+      tool,
+      shiftKey
+    );
+
+    return {
+      point: finalPoint,
+      pointTarget: segmentSnap.pointTarget,
       axisSnap: null,
     };
   }

@@ -367,10 +367,6 @@ export const doesActiveZoneIntersectRect = (
 
   const anchors = getStrokeAnchorPoints(stroke, {
     centerMode: "filled_only",
-    penMode: "path",
-    penStride: 5,
-    includePenLast: true,
-    highlighterMode: "shape",
   });
   if (anchors.some((anchor) => isPointInsideBounds(anchor, rect))) {
     return true;
