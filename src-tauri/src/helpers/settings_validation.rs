@@ -144,7 +144,12 @@ fn binding_path_from_action(action_id: &str, idx: usize) -> String {
 		return format!("shortcuts.global.actions.{}.bindings[{}]", action, idx);
 	}
 
-	for prefix in ["canvas.history.", "canvas.tools.", "canvas.toggles."] {
+	for prefix in [
+		"canvas.history.",
+		"canvas.clipboard.",
+		"canvas.tools.",
+		"canvas.toggles.",
+	] {
 		if let Some(action) = action_id.strip_prefix(prefix) {
 			let group = prefix.trim_end_matches('.').split('.').nth(1).unwrap_or("history");
 			return format!(

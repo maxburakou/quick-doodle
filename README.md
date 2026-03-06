@@ -62,8 +62,11 @@ Now it should open without any issues! 🎉
 |----------|--------|
 | `Ctrl + Z` | **Undo** (reverts last drawn element) |
 | `Ctrl + Shift + Z` | **Redo** (restores last undone action) |
-| `Ctrl + C` | **Clear Canvas** (can be undone) |
+| `Ctrl + Shift + C` | **Clear Canvas** (can be undone) |
 | `Ctrl + R` | **Reset Canvas** (cannot be undone) |
+| `Ctrl + C` | **Copy Selection** (Select tool) |
+| `Ctrl + X` | **Cut Selection** (Select tool) |
+| `Ctrl + V` | **Paste** (Select tool) |
 | `Ctrl + Q` | **Toggle Toolbar** |
 | `Ctrl + A` | **Toggle Background** |
 | `[` / `]` | **Cycle through available thickness or font size** |

@@ -3,6 +3,7 @@ import { Binding, ValidationIssue } from "@/types/settings";
 export type ShortcutScopeKey =
   | "global"
   | "canvas.history"
+  | "canvas.clipboard"
   | "canvas.toggles"
   | "canvas.tools";
 

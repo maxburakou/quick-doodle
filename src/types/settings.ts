@@ -34,6 +34,7 @@ export interface SettingsSnapshot {
     global: ShortcutScope;
     canvas: {
       history: ShortcutScope;
+      clipboard: ShortcutScope;
       tools: ShortcutScope;
       toggles: ShortcutScope;
     };

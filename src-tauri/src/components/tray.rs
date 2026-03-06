@@ -65,7 +65,7 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<(Menu<Wry>,
 	let menu_item_redo =
 		MenuItem::with_id(app, menu_ids::REDO, "Redo", visibility, Some("Shift+CmdOrCtrl+Z"))?;
 	let menu_item_clear =
-		MenuItem::with_id(app, menu_ids::CLEAR, "Clear", visibility, Some("CmdOrCtrl+C"))?;
+		MenuItem::with_id(app, menu_ids::CLEAR, "Clear", visibility, Some("Shift+CmdOrCtrl+C"))?;
 	let menu_item_reset =
 		MenuItem::with_id(app, menu_ids::RESET, "Reset", visibility, Some("CmdOrCtrl+R"))?;
 	let menu_item_quit = MenuItem::with_id(app, menu_ids::QUIT, "Quit", true, Some("CmdOrCtrl+Q"))?;

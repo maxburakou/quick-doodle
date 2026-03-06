@@ -13,6 +13,16 @@ export const SHORTCUT_SECTIONS: ShortcutSectionDefinition[] = [
     ],
   },
   {
+    id: "canvas-clipboard",
+    title: "Canvas / Clipboard",
+    scope: "canvas.clipboard",
+    actions: [
+      { actionId: "copy", label: "Copy Selection" },
+      { actionId: "cut", label: "Cut Selection" },
+      { actionId: "paste", label: "Paste" },
+    ],
+  },
+  {
     id: "canvas-toggle",
     title: "Canvas / Toggle",
     scope: "canvas.toggles",

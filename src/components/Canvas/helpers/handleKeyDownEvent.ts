@@ -1,4 +1,5 @@
 import {
+  useClipboardStore,
   useCanvasStore,
   useHistoryStore,
   useSnapStore,
@@ -20,6 +21,8 @@ const { toggleBackground: toggleCanvas } = useCanvasStore.getState();
 const { toggleVisibility: toggleToolbar } = useToolbarStore.getState();
 const { toggleEnabled: toggleSnap } = useSnapStore.getState();
 const { toNextFontSize, toPrevFontSize } = useTextSettingsStore.getState();
+const { copySelection, cutSelection, pasteFromClipboard, hasData } =
+  useClipboardStore.getState();
 const TOOL_VALUES = new Set(Object.values(Tool));
 const TOOL_ACTION_PREFIX = "canvas.tools.tool_";
 
@@ -28,6 +31,16 @@ const ACTION_HANDLERS: Record<string, () => void> = {
   "canvas.history.redo": redo,
   "canvas.history.clear": clear,
   "canvas.history.reset": reset,
+  "canvas.clipboard.copy": () => {
+    const { selectedStrokeIds } = useShapeEditorStore.getState();
+    if (selectedStrokeIds.length === 0) return;
+    copySelection();
+  },
+  "canvas.clipboard.cut": cutSelection,
+  "canvas.clipboard.paste": () => {
+    if (!hasData()) return;
+    pasteFromClipboard();
+  },
   "canvas.toggles.background": toggleCanvas,
   "canvas.toggles.toolbar": toggleToolbar,
   "canvas.toggles.snap": toggleSnap,
@@ -66,6 +79,16 @@ export const handleKeyDownEvent = (event: KeyboardEvent) => {
   const { code, shiftKey } = event;
   const isDeleteShortcut = code === "Delete" || code === "Backspace";
   const textEditorMode = useTextEditorStore.getState().mode;
+  const { tool } = useToolStore.getState();
+  const actionId = resolveCanvasShortcutAction(event);
+
+  if (tool === Tool.Select && textEditorMode !== "edit" && textEditorMode !== "create") {
+    if (actionId?.startsWith("canvas.clipboard.")) {
+      event.preventDefault();
+      applyShortcutAction(actionId);
+      return;
+    }
+  }
 
   if (isDeleteShortcut && textEditorMode !== "edit" && textEditorMode !== "create") {
     event.preventDefault();
@@ -83,15 +106,16 @@ export const handleKeyDownEvent = (event: KeyboardEvent) => {
     return;
   }
 
-  const actionId = resolveCanvasShortcutAction(event);
   if (actionId) {
+    if (actionId.startsWith("canvas.clipboard.")) {
+      return;
+    }
+
     event.preventDefault();
     if (applyShortcutAction(actionId)) {
       return;
     }
   }
-
-  const { tool } = useToolStore.getState();
 
   if (shiftKey && code === "BracketLeft") {
     event.preventDefault();

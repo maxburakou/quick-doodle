@@ -18,6 +18,10 @@ pub fn compile_shortcuts(snapshot: &SettingsSnapshot) -> CompiledShortcuts {
 		actions.insert(format!("canvas.history.{}", action), value.bindings.clone());
 	}
 
+	for (action, value) in &snapshot.shortcuts.canvas.clipboard.actions {
+		actions.insert(format!("canvas.clipboard.{}", action), value.bindings.clone());
+	}
+
 	for (action, value) in &snapshot.shortcuts.canvas.tools.actions {
 		actions.insert(format!("canvas.tools.{}", action), value.bindings.clone());
 	}

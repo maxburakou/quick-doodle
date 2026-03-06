@@ -91,6 +91,10 @@ export const getScopeActions = (draft: SettingsSnapshot, scope: ShortcutScopeKey
     return draft.shortcuts.canvas.history.actions;
   }
 
+  if (scope === "canvas.clipboard") {
+    return draft.shortcuts.canvas.clipboard.actions;
+  }
+
   if (scope === "canvas.toggles") {
     return draft.shortcuts.canvas.toggles.actions;
   }
@@ -180,6 +184,7 @@ export const parseRowKey = (
   if (
     scope !== "global" &&
     scope !== "canvas.history" &&
+    scope !== "canvas.clipboard" &&
     scope !== "canvas.toggles" &&
     scope !== "canvas.tools"
   ) {

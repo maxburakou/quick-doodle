@@ -53,6 +53,8 @@ pub struct ShortcutScope {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CanvasShortcuts {
 	pub history: ShortcutScope,
+	#[serde(default = "default_canvas_clipboard_scope")]
+	pub clipboard: ShortcutScope,
 	pub tools: ShortcutScope,
 	pub toggles: ShortcutScope,
 }
@@ -73,6 +75,40 @@ pub struct ValidationIssue {
 	pub path: String,
 	pub kind: String,
 	pub message: String,
+}
+
+fn default_canvas_clipboard_scope() -> ShortcutScope {
+	ShortcutScope {
+		actions: HashMap::from([
+			(
+				"copy".to_string(),
+				ShortcutAction {
+					bindings: vec![Binding {
+						code: "KeyC".to_string(),
+						modifiers: vec!["Primary".to_string()],
+					}],
+				},
+			),
+			(
+				"cut".to_string(),
+				ShortcutAction {
+					bindings: vec![Binding {
+						code: "KeyX".to_string(),
+						modifiers: vec!["Primary".to_string()],
+					}],
+				},
+			),
+			(
+				"paste".to_string(),
+				ShortcutAction {
+					bindings: vec![Binding {
+						code: "KeyV".to_string(),
+						modifiers: vec!["Primary".to_string()],
+					}],
+				},
+			),
+		]),
+	}
 }
 
 impl SettingsSnapshot {
@@ -141,7 +177,7 @@ impl SettingsSnapshot {
 								ShortcutAction {
 									bindings: vec![Binding {
 										code: "KeyC".to_string(),
-										modifiers: vec!["Primary".to_string()],
+										modifiers: vec!["Primary".to_string(), "Shift".to_string()],
 									}],
 								},
 							),
@@ -156,6 +192,7 @@ impl SettingsSnapshot {
 							),
 						]),
 					},
+					clipboard: default_canvas_clipboard_scope(),
 					tools: ShortcutScope {
 						actions: HashMap::from([
 							(

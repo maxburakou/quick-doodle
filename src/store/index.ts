@@ -79,3 +79,4 @@ export {
 } from "./useShapeEditorStore";
 export { useSnapStore, useSnapEnabled, useToggleSnapEnabled } from "./useSnapStore";
 export { useSettingsStore } from "./useSettingsStore";
+export { useClipboardStore, useClipboardHasData } from "./useClipboardStore";

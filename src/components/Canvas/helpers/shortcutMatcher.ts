@@ -62,6 +62,11 @@ export const updateCanvasShortcutMatcher = (snapshot: SettingsSnapshot) => {
   );
   appendGroupBindings(
     canvasComboActionMap,
+    "canvas.clipboard",
+    snapshot.shortcuts.canvas.clipboard.actions
+  );
+  appendGroupBindings(
+    canvasComboActionMap,
     "canvas.tools",
     snapshot.shortcuts.canvas.tools.actions
   );
