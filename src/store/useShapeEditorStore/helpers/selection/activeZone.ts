@@ -16,7 +16,7 @@ import {
   inverseRotatePoint,
   isEditableShapeTool,
 } from "../core";
-import { getStrokeAnchorPoints } from "../geometry/anchors";
+import { getStrokeContourSegments } from "../geometry/contours";
 import { getToolProfile } from "../toolProfile";
 
 const intersectsBounds = (a: ShapeBounds, b: ShapeBounds) =>
@@ -24,15 +24,6 @@ const intersectsBounds = (a: ShapeBounds, b: ShapeBounds) =>
   a.x + a.width >= b.x &&
   a.y <= b.y + b.height &&
   a.y + a.height >= b.y;
-
-const isPointInsideBounds = (
-  point: Pick<StrokePoint, "x" | "y">,
-  bounds: ShapeBounds
-) =>
-  point.x >= bounds.x &&
-  point.x <= bounds.x + bounds.width &&
-  point.y >= bounds.y &&
-  point.y <= bounds.y + bounds.height;
 
 const expandBounds = (bounds: ShapeBounds, padding: number): ShapeBounds => ({
   x: bounds.x - padding,
@@ -63,6 +54,76 @@ const getMarqueeCorners = (bounds: ShapeBounds): StrokePoint[] => [
   },
   { x: bounds.x, y: bounds.y + bounds.height, pressure: 0.5 },
 ];
+
+const isPointOnRect = (
+  point: Pick<StrokePoint, "x" | "y">,
+  rect: ShapeBounds
+) =>
+  point.x >= rect.x &&
+  point.x <= rect.x + rect.width &&
+  point.y >= rect.y &&
+  point.y <= rect.y + rect.height;
+
+const orientation = (
+  a: Pick<StrokePoint, "x" | "y">,
+  b: Pick<StrokePoint, "x" | "y">,
+  c: Pick<StrokePoint, "x" | "y">
+) => {
+  const value = (b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y);
+  if (Math.abs(value) < 1e-6) return 0;
+  return value > 0 ? 1 : 2;
+};
+
+const onSegment = (
+  a: Pick<StrokePoint, "x" | "y">,
+  b: Pick<StrokePoint, "x" | "y">,
+  c: Pick<StrokePoint, "x" | "y">
+) =>
+  b.x <= Math.max(a.x, c.x) &&
+  b.x >= Math.min(a.x, c.x) &&
+  b.y <= Math.max(a.y, c.y) &&
+  b.y >= Math.min(a.y, c.y);
+
+const segmentsIntersect = (
+  a1: Pick<StrokePoint, "x" | "y">,
+  a2: Pick<StrokePoint, "x" | "y">,
+  b1: Pick<StrokePoint, "x" | "y">,
+  b2: Pick<StrokePoint, "x" | "y">
+) => {
+  const o1 = orientation(a1, a2, b1);
+  const o2 = orientation(a1, a2, b2);
+  const o3 = orientation(b1, b2, a1);
+  const o4 = orientation(b1, b2, a2);
+
+  if (o1 !== o2 && o3 !== o4) return true;
+
+  if (o1 === 0 && onSegment(a1, b1, a2)) return true;
+  if (o2 === 0 && onSegment(a1, b2, a2)) return true;
+  if (o3 === 0 && onSegment(b1, a1, b2)) return true;
+  if (o4 === 0 && onSegment(b1, a2, b2)) return true;
+
+  return false;
+};
+
+const segmentIntersectsRect = (
+  start: Pick<StrokePoint, "x" | "y">,
+  end: Pick<StrokePoint, "x" | "y">,
+  rect: ShapeBounds
+) => {
+  if (isPointOnRect(start, rect) || isPointOnRect(end, rect)) return true;
+
+  const topLeft = { x: rect.x, y: rect.y };
+  const topRight = { x: rect.x + rect.width, y: rect.y };
+  const bottomRight = { x: rect.x + rect.width, y: rect.y + rect.height };
+  const bottomLeft = { x: rect.x, y: rect.y + rect.height };
+
+  return (
+    segmentsIntersect(start, end, topLeft, topRight) ||
+    segmentsIntersect(start, end, topRight, bottomRight) ||
+    segmentsIntersect(start, end, bottomRight, bottomLeft) ||
+    segmentsIntersect(start, end, bottomLeft, topLeft)
+  );
+};
 
 const getLocalShapeCoordinates = (stroke: Stroke, pointer: StrokePoint) => {
   const bounds = getStrokeBounds(stroke);
@@ -361,10 +422,12 @@ export const doesActiveZoneIntersectRect = (
   );
   if (!intersectsBounds(activeAABB, rect)) return false;
 
-  const anchors = getStrokeAnchorPoints(stroke, {
-    centerMode: "filled_only",
-  });
-  if (anchors.some((anchor) => isPointInsideBounds(anchor, rect))) {
+  const contourSegments = getStrokeContourSegments(stroke);
+  if (
+    contourSegments.some((segment) =>
+      segmentIntersectsRect(segment.start, segment.end, rect)
+    )
+  ) {
     return true;
   }
 

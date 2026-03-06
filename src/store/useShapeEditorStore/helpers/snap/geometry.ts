@@ -1,13 +1,5 @@
 import { Stroke, StrokePoint, Tool } from "@/types";
-import {
-  getBoundsCenter,
-  getStrokeAABB,
-  getStrokeBounds,
-  getStrokeRotation,
-  rotatePoint,
-} from "../core";
-import { getStrokeAnchorPoints } from "../geometry/anchors";
-import { isLineLikeGeometryTool } from "../toolProfile";
+import { getStrokeContourSegments } from "../geometry/contours";
 
 export type PointLike = Pick<StrokePoint, "x" | "y">;
 export type CanvasSnapBounds = { width: number; height: number };
@@ -70,76 +62,13 @@ export const projectPointToSegment = (
   };
 };
 
-const getBoxSnapSegments = (stroke: Stroke): SnapSegment[] => {
-  const bounds = stroke.tool === Tool.Pen ? getStrokeAABB(stroke) : getStrokeBounds(stroke);
-  const center = getBoundsCenter(bounds);
-  const rotation = getStrokeRotation(stroke);
-  const corners = [
-    { x: bounds.x, y: bounds.y },
-    { x: bounds.x + bounds.width, y: bounds.y },
-    { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
-    { x: bounds.x, y: bounds.y + bounds.height },
-  ].map((point) => rotatePoint(point, center, rotation));
-
-  return [
-    {
-      strokeId: stroke.id,
-      start: corners[0],
-      end: corners[1],
-      anchorGroup: "boxEdge",
-    },
-    {
-      strokeId: stroke.id,
-      start: corners[1],
-      end: corners[2],
-      anchorGroup: "boxEdge",
-    },
-    {
-      strokeId: stroke.id,
-      start: corners[2],
-      end: corners[3],
-      anchorGroup: "boxEdge",
-    },
-    {
-      strokeId: stroke.id,
-      start: corners[3],
-      end: corners[0],
-      anchorGroup: "boxEdge",
-    },
-  ];
-};
-
 export const getStrokeSnapSegments = (stroke: Stroke): SnapSegment[] => {
-  if (isLineLikeGeometryTool(stroke.tool)) {
-    const points = getStrokeAnchorPoints(stroke, { mode: "lineLike", centerMode: "never" });
-    const start = points.find((point) => point.kind === "lineEnd");
-    const end = points
-      .slice()
-      .reverse()
-      .find((point) => point.kind === "lineEnd");
-    if (!start || !end) return [];
-
-    return [
-      {
-        strokeId: stroke.id,
-        start,
-        end,
-        anchorGroup: "lineSegment",
-      },
-    ];
-  }
-
-  if (
-    stroke.tool === Tool.Rectangle ||
-    stroke.tool === Tool.Diamond ||
-    stroke.tool === Tool.Ellipse ||
-    stroke.tool === Tool.Text ||
-    stroke.tool === Tool.Pen
-  ) {
-    return getBoxSnapSegments(stroke);
-  }
-
-  return [];
+  return getStrokeContourSegments(stroke).map((segment) => ({
+    strokeId: stroke.id,
+    start: segment.start,
+    end: segment.end,
+    anchorGroup: segment.group,
+  }));
 };
 
 export const getSceneSnapSegments = (
