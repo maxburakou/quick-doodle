@@ -2,9 +2,8 @@ import { isShapeBoxTool, Stroke, StrokePoint, Tool, TransformHandle } from "@/ty
 import { CSSProperties } from "react";
 import {
   getHandleAtPointer,
+  getTopMostStrokeAtPointer,
   getStrokeAABB,
-  isInteriorHitForClosedShape,
-  isUnfilledClosedShape,
   hitTestStroke,
 } from "@/store/useShapeEditorStore/helpers";
 import { constrainLineToAxis, constrainToSquareBounds } from "../utils";
@@ -52,38 +51,7 @@ const isPointInsideGroupBounds = (point: StrokePoint, strokes: Stroke[]) => {
 };
 
 const canUseBoundsFallbackForSelectedStroke = (stroke: Stroke) =>
-  stroke.tool !== Tool.Line && stroke.tool !== Tool.Arrow;
-
-const resolveTopStrokeWithPassThrough = (
-  pointer: StrokePoint,
-  strokes: Stroke[],
-  options?: {
-    excludedStrokeIds?: string[];
-    fallbackToSkipped?: boolean;
-  }
-): Stroke | null => {
-  const excluded = new Set(options?.excludedStrokeIds ?? []);
-  const fallbackToSkipped = options?.fallbackToSkipped ?? true;
-  let skippedUnfilledClosedShape: Stroke | null = null;
-
-  for (let index = strokes.length - 1; index >= 0; index -= 1) {
-    const stroke = strokes[index];
-    if (!stroke || excluded.has(stroke.id)) continue;
-    if (!hitTestStroke(stroke, pointer)) continue;
-
-    const shouldPassThrough =
-      isUnfilledClosedShape(stroke) && isInteriorHitForClosedShape(stroke, pointer);
-
-    if (shouldPassThrough) {
-      skippedUnfilledClosedShape = skippedUnfilledClosedShape ?? stroke;
-      continue;
-    }
-
-    return stroke;
-  }
-
-  return fallbackToSkipped ? skippedUnfilledClosedShape : null;
-};
+  stroke.tool === Tool.Text;
 
 export const getCursorByHandle = (handle: TransformHandle): SelectCursor => {
   if (handle === "move") return "grab";
@@ -104,21 +72,6 @@ export const resolveSelectCursor = (
     const selectedHandle = getHandleAtPointer(primarySelectedStroke, pointer);
     if (selectedHandle) return getCursorByHandle(selectedHandle);
 
-    if (
-      isUnfilledClosedShape(primarySelectedStroke) &&
-      isInteriorHitForClosedShape(primarySelectedStroke, pointer)
-    ) {
-      const underlyingStroke = resolveTopStrokeWithPassThrough(pointer, present, {
-        excludedStrokeIds: [primarySelectedStroke.id],
-        fallbackToSkipped: false,
-      });
-      if (underlyingStroke) {
-        const underlyingHandle = getHandleAtPointer(underlyingStroke, pointer);
-        if (underlyingHandle) return getCursorByHandle(underlyingHandle);
-        return "grab";
-      }
-    }
-
     if (hitTestStroke(primarySelectedStroke, pointer)) return "grab";
     if (
       canUseBoundsFallbackForSelectedStroke(primarySelectedStroke) &&
@@ -137,7 +90,7 @@ export const resolveSelectCursor = (
     if (isPointInsideGroupBounds(pointer, selectedStrokes)) return "grab";
   }
 
-  const targetStroke = resolveTopStrokeWithPassThrough(pointer, present);
+  const targetStroke = getTopMostStrokeAtPointer(present, pointer);
   if (!targetStroke) return "default";
 
   const targetHandle =
@@ -162,25 +115,6 @@ export const resolveSelectTarget = (
         isBodyHit: true,
         targetKind: "single-selected",
       };
-    }
-
-    if (
-      isUnfilledClosedShape(primarySelectedStroke) &&
-      isInteriorHitForClosedShape(primarySelectedStroke, pointer)
-    ) {
-      const underlyingStroke = resolveTopStrokeWithPassThrough(pointer, present, {
-        excludedStrokeIds: [primarySelectedStroke.id],
-        fallbackToSkipped: false,
-      });
-
-      if (underlyingStroke) {
-        return {
-          targetStroke: underlyingStroke,
-          nextHandle: getHandleAtPointer(underlyingStroke, pointer) ?? "move",
-          isBodyHit: true,
-          targetKind: "unselected",
-        };
-      }
     }
 
     if (hitTestStroke(primarySelectedStroke, pointer)) {
@@ -230,7 +164,7 @@ export const resolveSelectTarget = (
     }
   }
 
-  const targetStroke = resolveTopStrokeWithPassThrough(pointer, present);
+  const targetStroke = getTopMostStrokeAtPointer(present, pointer);
   if (!targetStroke) {
     return {
       targetStroke: null,

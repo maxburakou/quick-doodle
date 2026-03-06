@@ -406,24 +406,61 @@ export const hitTestStroke = (stroke: Stroke, pointer: StrokePoint) => {
 
   const localShape = getLocalShapeCoordinates(stroke, pointer);
   if (!localShape) return false;
-  const { localX, localY, halfWidth, halfHeight } = localShape;
+  const { localX, localY, halfWidth, halfHeight, contourBand } = localShape;
+  const isFilledClosedShape = Boolean(stroke.shapeFill);
 
   if (stroke.tool === Tool.Rectangle) {
-    return isPointInRectangleArea(
-      localX,
-      localY,
-      halfWidth,
-      halfHeight,
-      HIT_TOLERANCE
-    );
+    return isFilledClosedShape
+      ? isPointInRectangleArea(
+          localX,
+          localY,
+          halfWidth,
+          halfHeight,
+          HIT_TOLERANCE
+        )
+      : isPointInRectangleBand(
+          localX,
+          localY,
+          halfWidth,
+          halfHeight,
+          contourBand
+        );
   }
 
   if (stroke.tool === Tool.Ellipse) {
-    return isPointInEllipseArea(localX, localY, halfWidth, halfHeight, HIT_TOLERANCE);
+    return isFilledClosedShape
+      ? isPointInEllipseArea(
+          localX,
+          localY,
+          halfWidth,
+          halfHeight,
+          HIT_TOLERANCE
+        )
+      : isPointInEllipseBand(
+          localX,
+          localY,
+          halfWidth,
+          halfHeight,
+          contourBand
+        );
   }
 
   if (stroke.tool === Tool.Diamond) {
-    return isPointInDiamondArea(localX, localY, halfWidth, halfHeight, HIT_TOLERANCE);
+    return isFilledClosedShape
+      ? isPointInDiamondArea(
+          localX,
+          localY,
+          halfWidth,
+          halfHeight,
+          HIT_TOLERANCE
+        )
+      : isPointInDiamondBand(
+          localX,
+          localY,
+          halfWidth,
+          halfHeight,
+          contourBand
+        );
   }
 
   return false;
