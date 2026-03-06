@@ -1,4 +1,6 @@
 import { ShapeBounds, Stroke, StrokePoint, Tool } from "@/types";
+import { ACTIVE_ZONE_PX } from "@/config/selectionConfig";
+import { getHighlighterStrokeWidth } from "@/utils/highlighter";
 import {
   getBoundsCenter,
   getStrokeAABB,
@@ -55,7 +57,7 @@ const drawPolyline = (ctx: CanvasRenderingContext2D, points: StrokePoint[]) => {
 const drawLineLikeSelectionOverlay = (
   ctx: CanvasRenderingContext2D,
   points: StrokePoint[],
-  thickness: number,
+  activeZoneWidth: number,
   outlineColor: string
 ) => {
   if (points.length === 0) return;
@@ -64,7 +66,7 @@ const drawLineLikeSelectionOverlay = (
   ctx.save();
   ctx.setLineDash([]);
   ctx.strokeStyle = SELECTION_FILL_COLOR;
-  ctx.lineWidth = Math.max(thickness + 10, 12);
+  ctx.lineWidth = activeZoneWidth;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   drawPolyline(ctx, pathPoints);
@@ -76,50 +78,14 @@ const drawLineLikeSelectionOverlay = (
   ctx.stroke();
 };
 
-const getStrokePointBounds = (points: StrokePoint[]) => {
-  const firstPoint = points[0];
-  if (!firstPoint) return null;
+const getDefaultLineLikeOverlayWidth = (thickness: number) =>
+  Math.max(thickness + 10, 12);
 
-  let minX = firstPoint.x;
-  let maxX = firstPoint.x;
-  let minY = firstPoint.y;
-  let maxY = firstPoint.y;
-
-  points.forEach((point) => {
-    if (point.x < minX) minX = point.x;
-    if (point.x > maxX) maxX = point.x;
-    if (point.y < minY) minY = point.y;
-    if (point.y > maxY) maxY = point.y;
-  });
-
-  return {
-    minX,
-    minY,
-    width: maxX - minX,
-    height: maxY - minY,
-  };
-};
-
-const drawHighlighterSelectionOverlay = (
-  ctx: CanvasRenderingContext2D,
-  stroke: Stroke
-) => {
-  const pointsBounds = getStrokePointBounds(stroke.points);
-  if (!pointsBounds) return;
-
-  const padding = Math.max(6, stroke.thickness * 2);
-  const paddedWidth = pointsBounds.width + padding * 2;
-  const paddedHeight = pointsBounds.height + padding * 2;
-  const x = pointsBounds.minX - padding;
-  const y = pointsBounds.minY - padding;
-
-  if (paddedWidth >= MIN_FILL_SIZE && paddedHeight >= MIN_FILL_SIZE) {
-    ctx.fillStyle = SELECTION_FILL_COLOR;
-    ctx.fillRect(x, y, paddedWidth, paddedHeight);
-  }
-
-  ctx.strokeRect(x, y, paddedWidth, paddedHeight);
-};
+const getHighlighterOverlayWidth = (thickness: number) =>
+  Math.max(
+    getDefaultLineLikeOverlayWidth(thickness),
+    getHighlighterStrokeWidth(thickness) + ACTIVE_ZONE_PX * 2
+  );
 
 const drawPolygonFromCorners = (
   ctx: CanvasRenderingContext2D,
@@ -197,15 +163,30 @@ export const drawShapeEditorOverlay = (
   switch (stroke.tool) {
     case Tool.Pen: {
       const penPoints = stroke.points.length >= 2 ? stroke.points : [start, end];
-      drawLineLikeSelectionOverlay(ctx, penPoints, stroke.thickness, outlineColor);
+      drawLineLikeSelectionOverlay(
+        ctx,
+        penPoints,
+        getDefaultLineLikeOverlayWidth(stroke.thickness),
+        outlineColor
+      );
       break;
     }
-    case Tool.Highlighter:
-      drawHighlighterSelectionOverlay(ctx, stroke);
-      break;
     case Tool.Line:
     case Tool.Arrow:
-      drawLineLikeSelectionOverlay(ctx, [start, end], stroke.thickness, outlineColor);
+      drawLineLikeSelectionOverlay(
+        ctx,
+        [start, end],
+        getDefaultLineLikeOverlayWidth(stroke.thickness),
+        outlineColor
+      );
+      break;
+    case Tool.Highlighter:
+      drawLineLikeSelectionOverlay(
+        ctx,
+        [start, end],
+        getHighlighterOverlayWidth(stroke.thickness),
+        outlineColor
+      );
       break;
     default:
       drawShapeBoundsOverlay(ctx, stroke);
@@ -214,7 +195,7 @@ export const drawShapeEditorOverlay = (
 
   ctx.setLineDash([]);
 
-  if (stroke.tool === Tool.Pen || stroke.tool === Tool.Highlighter) {
+  if (stroke.tool === Tool.Pen) {
     ctx.restore();
     return;
   }

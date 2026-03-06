@@ -1,19 +1,14 @@
 import {
-  getBoundsCenter,
   getStrokeAABB,
-  getStrokeBounds,
-  getStrokeEndpoints,
-  getStrokeRotation,
-  rotatePoint,
 } from "./core";
 import { isShapeBoxTool, ShapeBoxTool, Stroke, StrokePoint, Tool } from "@/types";
 import { constrainToSquareBounds } from "@/components/Canvas/utils/constrainToSquareBounds";
 import {
   AXIS_SNAP_DISTANCE_PX,
-  ELLIPSE_ANCHOR_ANGLES,
   SNAP_DISTANCE_PX,
   SNAP_PRIORITY_ORDER,
 } from "@/config/snapConfig";
+import { getStrokeAnchorPoints, StrokeAnchorPoint } from "./geometryAnchors";
 
 export type SnapAnchorKind =
   | "corner"
@@ -67,7 +62,6 @@ export interface SnapComputation {
 }
 
 type PointLike = Pick<StrokePoint, "x" | "y">;
-type LocalAnchor = PointLike & { kind: SnapAnchorKind };
 type CanvasSnapBounds = { width: number; height: number };
 
 interface ResolveMoveSnapPointerParams {
@@ -136,131 +130,26 @@ const toAnchor = (
   kind,
 });
 
-const toWorldAnchor = (
-  center: PointLike,
-  rotation: number,
-  localPoint: PointLike,
-  strokeId: string,
-  kind: SnapAnchorKind
-): SnapAnchor => {
-  const worldPoint = rotatePoint(
-    {
-      x: center.x + localPoint.x,
-      y: center.y + localPoint.y,
-    },
-    center,
-    rotation
-  );
-
-  return toAnchor(worldPoint, strokeId, kind);
-};
-
-const buildBoxLocalAnchors = (halfWidth: number, halfHeight: number): LocalAnchor[] => [
-  { x: -halfWidth, y: -halfHeight, kind: "corner" },
-  { x: 0, y: -halfHeight, kind: "edgeMid" },
-  { x: halfWidth, y: -halfHeight, kind: "corner" },
-  { x: halfWidth, y: 0, kind: "edgeMid" },
-  { x: halfWidth, y: halfHeight, kind: "corner" },
-  { x: 0, y: halfHeight, kind: "edgeMid" },
-  { x: -halfWidth, y: halfHeight, kind: "corner" },
-  { x: -halfWidth, y: 0, kind: "edgeMid" },
-  { x: 0, y: 0, kind: "center" },
-];
-
-const buildRotatedAnchors = (
-  strokeId: string,
-  center: PointLike,
-  rotation: number,
-  locals: LocalAnchor[]
-): SnapAnchor[] =>
-  locals.map((local) => toWorldAnchor(center, rotation, local, strokeId, local.kind));
-
-const getRectangleLikeAnchors = (stroke: Stroke): SnapAnchor[] => {
-  const bounds = getStrokeBounds(stroke);
-  const center = getBoundsCenter(bounds);
-  const rotation = getStrokeRotation(stroke);
-  return buildRotatedAnchors(
-    stroke.id,
-    center,
-    rotation,
-    buildBoxLocalAnchors(bounds.width / 2, bounds.height / 2)
-  );
-};
-
-const getDiamondAnchors = (stroke: Stroke): SnapAnchor[] => {
-  const bounds = getStrokeBounds(stroke);
-  const center = getBoundsCenter(bounds);
-  const rotation = getStrokeRotation(stroke);
-
-  const halfWidth = bounds.width / 2;
-  const halfHeight = bounds.height / 2;
-
-  const locals: LocalAnchor[] = [
-    { x: 0, y: -halfHeight, kind: "corner" },
-    { x: halfWidth, y: 0, kind: "corner" },
-    { x: 0, y: halfHeight, kind: "corner" },
-    { x: -halfWidth, y: 0, kind: "corner" },
-    { x: halfWidth / 2, y: -halfHeight / 2, kind: "edgeMid" },
-    { x: halfWidth / 2, y: halfHeight / 2, kind: "edgeMid" },
-    { x: -halfWidth / 2, y: halfHeight / 2, kind: "edgeMid" },
-    { x: -halfWidth / 2, y: -halfHeight / 2, kind: "edgeMid" },
-    { x: 0, y: 0, kind: "center" },
-  ];
-
-  return buildRotatedAnchors(stroke.id, center, rotation, locals);
-};
-
-const getEllipseAnchors = (stroke: Stroke): SnapAnchor[] => {
-  const bounds = getStrokeBounds(stroke);
-  const center = getBoundsCenter(bounds);
-  const rotation = getStrokeRotation(stroke);
-
-  const halfWidth = bounds.width / 2;
-  const halfHeight = bounds.height / 2;
-
-  const anchors = [toAnchor(center, stroke.id, "center")];
-
-  ELLIPSE_ANCHOR_ANGLES.forEach((angleDeg) => {
-    const angleRad = (angleDeg * Math.PI) / 180;
-    const localPoint = {
-      x: Math.cos(angleRad) * halfWidth,
-      y: Math.sin(angleRad) * halfHeight,
-    };
-
-    anchors.push(
-      toWorldAnchor(center, rotation, localPoint, stroke.id, "ellipseAxis")
-    );
-  });
-
-  return anchors;
-};
-
-const getLineAnchors = (stroke: Stroke): SnapAnchor[] => {
-  const [start, end] = getStrokeEndpoints(stroke);
-  const mid = {
-    x: (start.x + end.x) / 2,
-    y: (start.y + end.y) / 2,
-  };
-
-  return [
-    toAnchor(start, stroke.id, "lineEnd"),
-    toAnchor(end, stroke.id, "lineEnd"),
-    toAnchor(mid, stroke.id, "lineMid"),
-  ];
-};
-
-const getPenAnchors = (stroke: Stroke): SnapAnchor[] => {
-  const bounds = getStrokeAABB(stroke);
-  const center = {
-    x: bounds.x + bounds.width / 2,
-    y: bounds.y + bounds.height / 2,
-  };
-  return buildRotatedAnchors(
-    stroke.id,
-    center,
-    0,
-    buildBoxLocalAnchors(bounds.width / 2, bounds.height / 2)
-  );
+const mapStrokeAnchorKindToSnapKind = (
+  point: StrokeAnchorPoint
+): SnapAnchorKind => {
+  switch (point.kind) {
+    case "corner":
+      return "corner";
+    case "edgeMid":
+      return "edgeMid";
+    case "center":
+      return "center";
+    case "ellipseAxis":
+      return "ellipseAxis";
+    case "lineEnd":
+      return "lineEnd";
+    case "lineMid":
+    case "path":
+      return "lineMid";
+    default:
+      return "lineMid";
+  }
 };
 
 const getCanvasSnapAnchors = ({ width, height }: CanvasSnapBounds): SnapAnchor[] => {
@@ -298,24 +187,15 @@ const getCanvasAxisSnapCandidates = ({
 };
 
 export const getStrokeSnapAnchors = (stroke: Stroke): SnapAnchor[] => {
-  switch (stroke.tool) {
-    case Tool.Rectangle:
-      return getRectangleLikeAnchors(stroke);
-    case Tool.Diamond:
-      return getDiamondAnchors(stroke);
-    case Tool.Ellipse:
-      return getEllipseAnchors(stroke);
-    case Tool.Line:
-    case Tool.Arrow:
-    case Tool.Highlighter:
-      return getLineAnchors(stroke);
-    case Tool.Text:
-      return getRectangleLikeAnchors(stroke);
-    case Tool.Pen:
-      return getPenAnchors(stroke);
-    default:
-      return [];
-  }
+  const points = getStrokeAnchorPoints(stroke, {
+    centerMode: "always",
+    penMode: "bbox",
+    highlighterMode: "shape",
+  });
+
+  return points.map((point) =>
+    toAnchor(point, stroke.id, mapStrokeAnchorKindToSnapKind(point))
+  );
 };
 
 export const getSceneSnapAnchors = (

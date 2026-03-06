@@ -1,4 +1,5 @@
 import { StrokePoint } from "@/types";
+import { getHighlighterStrokeWidth } from "@/utils/highlighter";
 import { constrainLineToAxis } from "../constrainLineToAxis";
 
 export const drawHighlighter = (
@@ -15,7 +16,7 @@ export const drawHighlighter = (
 
   ctx.globalAlpha = 0.3;
   ctx.strokeStyle = color;
-  ctx.lineWidth = thickness * 5;
+  ctx.lineWidth = getHighlighterStrokeWidth(thickness);
   ctx.lineCap = "round";
 
   ctx.beginPath();

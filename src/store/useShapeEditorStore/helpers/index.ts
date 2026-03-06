@@ -18,10 +18,18 @@ export {
   getStrokeTransformHandles,
   getHandleAtPointer,
   hitTestStroke,
-  isUnfilledClosedShape,
-  isInteriorHitForClosedShape,
+  strokeIntersectsMarquee,
   getTopMostStrokeAtPointer,
 } from "./selection";
+export {
+  isPointInActiveZone,
+  doesActiveZoneIntersectRect,
+} from "./selection/activeZone";
+export {
+  getStrokeAnchorPoints,
+  type StrokeAnchorPoint,
+  type StrokeAnchorPolicy,
+} from "./geometryAnchors";
 
 export {
   applySessionTransform,

@@ -254,7 +254,11 @@ export const applySessionTransform = (
   }
 
   if (handle === "rotate") {
-    if (initialStroke.tool === Tool.Line || initialStroke.tool === Tool.Arrow) {
+    if (
+      initialStroke.tool === Tool.Line ||
+      initialStroke.tool === Tool.Arrow ||
+      initialStroke.tool === Tool.Highlighter
+    ) {
       const [start, end] = getStrokeEndpoints(initialStroke);
       const center = {
         x: (start.x + end.x) / 2,
@@ -264,7 +268,11 @@ export const applySessionTransform = (
       const to = Math.atan2(pointer.y - center.y, pointer.x - center.x);
       const initialLineAngle = Math.atan2(end.y - start.y, end.x - start.x);
       const nextLineAngle = initialLineAngle + (to - from);
-      const normalizedLineAngle = shiftKey ? snapAngle(nextLineAngle) : nextLineAngle;
+      const shouldSnapAngle =
+        initialStroke.tool === Tool.Highlighter ? !shiftKey : shiftKey;
+      const normalizedLineAngle = shouldSnapAngle
+        ? snapAngle(nextLineAngle)
+        : nextLineAngle;
       const rotationDelta = normalizedLineAngle - initialLineAngle;
 
       return rotateLineStroke(initialStroke, rotationDelta);
@@ -285,10 +293,14 @@ export const applySessionTransform = (
   }
 
   if (
-    (initialStroke.tool === Tool.Line || initialStroke.tool === Tool.Arrow) &&
+    (initialStroke.tool === Tool.Line ||
+      initialStroke.tool === Tool.Arrow ||
+      initialStroke.tool === Tool.Highlighter) &&
     (handle === "nw" || handle === "se")
   ) {
-    return resizeLineStroke(initialStroke, handle, pointer, shiftKey);
+    const keepAxis =
+      initialStroke.tool === Tool.Highlighter ? !shiftKey : shiftKey;
+    return resizeLineStroke(initialStroke, handle, pointer, keepAxis);
   }
 
   const keepAspect =

@@ -29,6 +29,7 @@ import {
   getSceneAxisSnapCandidates,
   getSceneSnapAnchors,
   getStrokeAABB,
+  strokeIntersectsMarquee,
   isLineLikeSnapTool,
   isShapeBoxSnapTool,
   getStrokeSnapAnchors,
@@ -86,15 +87,9 @@ const normalizeMarqueeBounds = (
   height: Math.abs(current.y - start.y),
 });
 
-const intersects = (a: ShapeBounds, b: ShapeBounds) =>
-  a.x <= b.x + b.width &&
-  a.x + a.width >= b.x &&
-  a.y <= b.y + b.height &&
-  a.y + a.height >= b.y;
-
 const getStrokesInMarquee = (strokes: Stroke[], marqueeBounds: ShapeBounds) =>
   strokes
-    .filter((stroke) => intersects(getStrokeAABB(stroke), marqueeBounds))
+    .filter((stroke) => strokeIntersectsMarquee(stroke, marqueeBounds))
     .map((stroke) => stroke.id);
 
 const getGroupBoundsAnchors = (
@@ -139,7 +134,9 @@ const canSnapSingleResize = (
   if (handle === "rotate") return false;
   if (isShapeBoxSnapTool(stroke.tool)) return true;
   if (!isLineLikeSnapTool(stroke.tool)) return false;
-  return (handle === "nw" || handle === "se") && !shiftKey;
+  const isAxisConstrained =
+    stroke.tool === Tool.Highlighter ? !shiftKey : shiftKey;
+  return (handle === "nw" || handle === "se") && !isAxisConstrained;
 };
 
 export const useSelectMode = ({
