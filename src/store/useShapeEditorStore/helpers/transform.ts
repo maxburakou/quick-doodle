@@ -18,6 +18,7 @@ import {
   rotatePoint,
   withStrokeEndpoints,
 } from "./core";
+import { getAxisConstrainedByShift, isLineLikeGeometryTool } from "./toolProfile";
 
 const MIN_SIZE = 8;
 const MIN_TEXT_FONT_SIZE = 8;
@@ -254,11 +255,7 @@ export const applySessionTransform = (
   }
 
   if (handle === "rotate") {
-    if (
-      initialStroke.tool === Tool.Line ||
-      initialStroke.tool === Tool.Arrow ||
-      initialStroke.tool === Tool.Highlighter
-    ) {
+    if (isLineLikeGeometryTool(initialStroke.tool)) {
       const [start, end] = getStrokeEndpoints(initialStroke);
       const center = {
         x: (start.x + end.x) / 2,
@@ -268,8 +265,10 @@ export const applySessionTransform = (
       const to = Math.atan2(pointer.y - center.y, pointer.x - center.x);
       const initialLineAngle = Math.atan2(end.y - start.y, end.x - start.x);
       const nextLineAngle = initialLineAngle + (to - from);
-      const shouldSnapAngle =
-        initialStroke.tool === Tool.Highlighter ? !shiftKey : shiftKey;
+      const shouldSnapAngle = getAxisConstrainedByShift(
+        initialStroke.tool,
+        shiftKey
+      );
       const normalizedLineAngle = shouldSnapAngle
         ? snapAngle(nextLineAngle)
         : nextLineAngle;
@@ -292,14 +291,8 @@ export const applySessionTransform = (
     };
   }
 
-  if (
-    (initialStroke.tool === Tool.Line ||
-      initialStroke.tool === Tool.Arrow ||
-      initialStroke.tool === Tool.Highlighter) &&
-    (handle === "nw" || handle === "se")
-  ) {
-    const keepAxis =
-      initialStroke.tool === Tool.Highlighter ? !shiftKey : shiftKey;
+  if (isLineLikeGeometryTool(initialStroke.tool) && (handle === "nw" || handle === "se")) {
+    const keepAxis = getAxisConstrainedByShift(initialStroke.tool, shiftKey);
     return resizeLineStroke(initialStroke, handle, pointer, keepAxis);
   }
 

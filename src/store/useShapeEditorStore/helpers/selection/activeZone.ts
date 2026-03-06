@@ -1,6 +1,5 @@
 import { ShapeBounds, Stroke, StrokePoint, Tool } from "@/types";
 import { hitTestText } from "@/components/Canvas/utils/textGeometry";
-import { getHighlighterHitRadius } from "@/utils/highlighter";
 import {
   ACTIVE_ZONE_PX,
   MARQUEE_MAX_SAMPLING_POINTS,
@@ -17,7 +16,8 @@ import {
   inverseRotatePoint,
   isEditableShapeTool,
 } from "../core";
-import { getStrokeAnchorPoints } from "../geometryAnchors";
+import { getStrokeAnchorPoints } from "../geometry/anchors";
+import { getToolProfile } from "../toolProfile";
 
 const intersectsBounds = (a: ShapeBounds, b: ShapeBounds) =>
   a.x <= b.x + b.width &&
@@ -217,19 +217,15 @@ const isPointInDiamondBand = (
 };
 
 const getLineLikeActiveZoneTolerance = (stroke: Stroke) => {
-  if (stroke.tool === Tool.Highlighter) {
-    return Math.max(ACTIVE_ZONE_PX, getHighlighterHitRadius(stroke.thickness));
-  }
-
-  return ACTIVE_ZONE_PX;
+  return getToolProfile(stroke.tool).interactionRadius(stroke.thickness);
 };
 
 const getStrokeActiveZonePadding = (stroke: Stroke) => {
-  if (stroke.tool === Tool.Highlighter) {
-    return getLineLikeActiveZoneTolerance(stroke);
-  }
+  const profile = getToolProfile(stroke.tool);
+  const interactionRadius = profile.interactionRadius(stroke.thickness);
+  const aabbPadding = profile.aabbPadding(stroke.thickness);
 
-  return ACTIVE_ZONE_PX;
+  return Math.max(0, interactionRadius - aabbPadding);
 };
 
 const isPointInShapedZone = (stroke: Stroke, pointer: StrokePoint) => {

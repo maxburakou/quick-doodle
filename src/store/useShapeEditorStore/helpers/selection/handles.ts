@@ -1,10 +1,4 @@
-import {
-  ShapeBounds,
-  Stroke,
-  StrokePoint,
-  Tool,
-  TransformHandle,
-} from "@/types";
+import { Stroke, StrokePoint, Tool, TransformHandle } from "@/types";
 import {
   distance,
   getBoundsCenter,
@@ -13,11 +7,8 @@ import {
   getStrokeRotation,
   isEditableShapeTool,
   rotatePoint,
-} from "./core";
-import {
-  doesActiveZoneIntersectRect,
-  isPointInActiveZone,
-} from "./selection/activeZone";
+} from "../core";
+import { isLineLikeGeometryTool } from "../toolProfile";
 
 const HANDLE_RADIUS = 8;
 const ROTATE_HANDLE_OFFSET = 28;
@@ -35,11 +26,7 @@ export const getStrokeTransformHandles = (
 
   const [start, end] = getStrokeEndpoints(stroke);
 
-  if (
-    stroke.tool === Tool.Line ||
-    stroke.tool === Tool.Arrow ||
-    stroke.tool === Tool.Highlighter
-  ) {
+  if (isLineLikeGeometryTool(stroke.tool)) {
     const center = {
       x: (start.x + end.x) / 2,
       y: (start.y + end.y) / 2,
@@ -174,29 +161,6 @@ export const getHandleAtPointer = (
 
   for (const { handle, point } of handles) {
     if (distance(pointer, point) <= radius) return handle;
-  }
-
-  return null;
-};
-
-export const hitTestStroke = (stroke: Stroke, pointer: StrokePoint) => {
-  return isPointInActiveZone(stroke, pointer);
-};
-
-export const strokeIntersectsMarquee = (stroke: Stroke, marqueeBounds: ShapeBounds) => {
-  return doesActiveZoneIntersectRect(stroke, marqueeBounds);
-};
-
-export const getTopMostStrokeAtPointer = (
-  strokes: Stroke[],
-  pointer: StrokePoint
-): Stroke | null => {
-  for (let index = strokes.length - 1; index >= 0; index -= 1) {
-    const stroke = strokes[index];
-    if (!stroke) continue;
-    if (hitTestStroke(stroke, pointer)) {
-      return stroke;
-    }
   }
 
   return null;

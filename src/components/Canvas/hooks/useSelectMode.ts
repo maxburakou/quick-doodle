@@ -26,6 +26,7 @@ import { CanvasPointerPayload } from "./types";
 import { normalizeTextStroke } from "../utils/textGeometry";
 import { getCaretFromBoxStart } from "../utils/textLayout";
 import {
+  getAxisConstrainedByShift,
   getSceneAxisSnapCandidates,
   getSceneSnapAnchors,
   getSceneSnapSegments,
@@ -135,8 +136,7 @@ const canSnapSingleResize = (
   if (handle === "rotate") return false;
   if (isShapeBoxSnapTool(stroke.tool)) return true;
   if (!isLineLikeSnapTool(stroke.tool)) return false;
-  const isAxisConstrained =
-    stroke.tool === Tool.Highlighter ? !shiftKey : shiftKey;
+  const isAxisConstrained = getAxisConstrainedByShift(stroke.tool, shiftKey);
   return (handle === "nw" || handle === "se") && !isAxisConstrained;
 };
 

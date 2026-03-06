@@ -4,6 +4,7 @@ import { useSnapStore } from "@/store";
 import { createStrokeId } from "@/store/useShapeEditorStore/helpers";
 import {
   type SnapComputation,
+  getAxisConstrainedByShift,
   getSceneAxisSnapCandidates,
   getSceneSnapAnchors,
   getSceneSnapSegments,
@@ -70,7 +71,7 @@ export const useDrawMode = ({
     [getCanvasBounds, present]
   );
   const getAxisConstrainState = useCallback(
-    (shiftKey: boolean) => (tool === Tool.Highlighter ? !shiftKey : shiftKey),
+    (shiftKey: boolean) => getAxisConstrainedByShift(tool, shiftKey),
     [tool]
   );
   const isSnapEnabled = useSnapStore((state) => state.enabled);

@@ -9,7 +9,7 @@ import {
 import { constrainLineToAxis } from "@/components/Canvas/utils/constrainLineToAxis";
 import { constrainToSquareBounds } from "@/components/Canvas/utils/constrainToSquareBounds";
 import { normalizeTextStroke } from "@/components/Canvas/utils/textGeometry";
-import { getHighlighterHitRadius } from "@/utils/highlighter";
+import { getToolProfile } from "./toolProfile";
 
 const EDITABLE_SHAPE_TOOLS: EditableShapeTool[] = [
   Tool.Pen,
@@ -90,10 +90,10 @@ const getPenStrokeBounds = (stroke: Stroke): ShapeBounds => {
     if (point.y > maxY) maxY = point.y;
   });
 
-  const padding =
-    stroke.tool === Tool.Highlighter
-      ? Math.max(6, getHighlighterHitRadius(stroke.thickness))
-      : Math.max(6, stroke.thickness * 2);
+  const padding = Math.max(
+    6,
+    getToolProfile(stroke.tool).aabbPadding(stroke.thickness)
+  );
 
   return {
     x: minX - padding,

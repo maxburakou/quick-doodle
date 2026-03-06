@@ -6,7 +6,8 @@ import {
   getStrokeEndpoints,
   getStrokeRotation,
   rotatePoint,
-} from "./core";
+} from "../core";
+import { isLineLikeGeometryTool } from "../toolProfile";
 
 export type AnchorCenterMode = "always" | "filled_only" | "never";
 export type StrokeAnchorMode = "auto" | "boxLike" | "lineLike";
@@ -142,9 +143,6 @@ const buildLineLikeAnchors = (stroke: Stroke): StrokeAnchorPoint[] => {
   ];
 };
 
-const isLineLikeAnchorTool = (tool: Tool) =>
-  tool === Tool.Line || tool === Tool.Arrow || tool === Tool.Highlighter;
-
 const resolveStrokeAnchorMode = (
   stroke: Stroke,
   policyMode: StrokeAnchorMode
@@ -153,7 +151,7 @@ const resolveStrokeAnchorMode = (
     return policyMode;
   }
 
-  if (isLineLikeAnchorTool(stroke.tool)) {
+  if (isLineLikeGeometryTool(stroke.tool)) {
     return "lineLike";
   }
 

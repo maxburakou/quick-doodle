@@ -17,10 +17,12 @@ export {
 export {
   getStrokeTransformHandles,
   getHandleAtPointer,
+} from "./selection/handles";
+export {
   hitTestStroke,
   strokeIntersectsMarquee,
   getTopMostStrokeAtPointer,
-} from "./selection";
+} from "./selection/facade";
 export {
   isPointInActiveZone,
   doesActiveZoneIntersectRect,
@@ -29,7 +31,15 @@ export {
   getStrokeAnchorPoints,
   type StrokeAnchorPoint,
   type StrokeAnchorPolicy,
-} from "./geometryAnchors";
+} from "./geometry/anchors";
+export {
+  getToolProfile,
+  isLineLikeGeometryTool,
+  getAxisConstrainedByShift,
+  type ToolProfile,
+  type ToolGeometryMode,
+  type AxisConstraintMode,
+} from "./toolProfile";
 
 export {
   applySessionTransform,
