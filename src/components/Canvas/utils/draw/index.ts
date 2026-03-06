@@ -31,6 +31,7 @@ export const drawStrokes = (
       isShiftPressed,
       text,
       rotation,
+      shapeFill,
     }) => {
       const hasMinimumPoints = points.length >= 2;
 
@@ -84,6 +85,7 @@ export const drawStrokes = (
           points[points.length - 1],
           color,
           thickness,
+          shapeFill,
           drawableSeed,
           isShiftPressed,
           rotation
@@ -98,6 +100,7 @@ export const drawStrokes = (
           points[points.length - 1],
           color,
           thickness,
+          shapeFill,
           drawableSeed,
           isShiftPressed,
           rotation
@@ -112,6 +115,7 @@ export const drawStrokes = (
           points[points.length - 1],
           color,
           thickness,
+          shapeFill,
           drawableSeed,
           isShiftPressed,
           rotation

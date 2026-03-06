@@ -5,10 +5,11 @@ import {
   useTool,
   useToolSettingsStore,
 } from "@/store";
-import { Tool } from "@/types";
+import { isFillableShapeTool, Tool } from "@/types";
 import { useCallback, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import {
+  applyShapeFillToStroke,
   applyGroupSelectionSettings,
   applySingleSelectionSettings,
 } from "../helpers/selectionSettings";
@@ -126,10 +127,42 @@ export const useSelectionSettingsActions = () => {
     [applyToSelection]
   );
 
+  const setShapeFill = useCallback(
+    (enabled: boolean) => {
+      const prevEnabled = useToolSettingsStore.getState().shapeFill;
+      if (enabled !== prevEnabled) {
+        useToolSettingsStore.getState().setShapeFill(enabled);
+      }
+
+      if (
+        activeTool !== Tool.Select ||
+        session ||
+        !selectedStroke ||
+        !isFillableShapeTool(selectedStroke.tool)
+      ) {
+        return;
+      }
+
+      const currentPresent = useHistoryStore.getState().present;
+      const nextPresent = applyShapeFillToStroke({
+        present: currentPresent,
+        strokeId: selectedStroke.id,
+        enabled,
+        isTransforming: false,
+      });
+
+      if (nextPresent) {
+        commitPresent(nextPresent);
+      }
+    },
+    [activeTool, commitPresent, selectedStroke, session]
+  );
+
   return {
     setColor,
     updateColor,
     setThickness,
     setFontSize,
+    setShapeFill,
   };
 };

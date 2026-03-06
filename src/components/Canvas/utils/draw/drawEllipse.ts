@@ -1,9 +1,10 @@
 import { Options } from "roughjs/bin/core";
-import { RoughShape, StrokePoint } from "@/types";
+import { RoughShape, ShapeFill, StrokePoint } from "@/types";
 import rough from "roughjs";
 import { generateRoughShape } from "../generateRoughShape";
 import { getRoughOptions } from "../getRoughOptions";
 import { constrainToSquareBounds } from "../constrainToSquareBounds";
+import { getShapeFillOptions } from "./getShapeFillOptions";
 
 export const drawEllipse = (
   ctx: CanvasRenderingContext2D,
@@ -11,6 +12,7 @@ export const drawEllipse = (
   end: StrokePoint,
   color: string,
   thickness: number,
+  shapeFill?: ShapeFill,
   drawableSeed?: number,
   isShiftPressed?: boolean,
   rotation: number = 0
@@ -24,6 +26,7 @@ export const drawEllipse = (
   const options: Options = getRoughOptions({
     stroke: color,
     strokeWidth: thickness / 1.5,
+    ...getShapeFillOptions(Boolean(shapeFill)),
     seed: drawableSeed,
   });
 

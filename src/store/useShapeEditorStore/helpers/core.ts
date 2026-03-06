@@ -1,5 +1,6 @@
 import {
   EditableShapeTool,
+  isShapeBoxTool,
   ShapeBounds,
   Stroke,
   StrokePoint,
@@ -52,11 +53,7 @@ export const getStrokeEndpoints = (stroke: Stroke): [StrokePoint, StrokePoint] =
     return [start, constrainLineToAxis(start, rawEnd, 15)];
   }
 
-  if (
-    stroke.tool === Tool.Rectangle ||
-    stroke.tool === Tool.Ellipse ||
-    stroke.tool === Tool.Diamond
-  ) {
+  if (isShapeBoxTool(stroke.tool)) {
     return [start, constrainToSquareBounds(start, rawEnd)];
   }
 

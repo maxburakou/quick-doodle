@@ -1,4 +1,4 @@
-import { Stroke, StrokePoint, Tool, TransformHandle } from "@/types";
+import { isShapeBoxTool, Stroke, StrokePoint, Tool, TransformHandle } from "@/types";
 import { CSSProperties } from "react";
 import {
   getHandleAtPointer,
@@ -265,9 +265,7 @@ export const finalizeStrokePoints = (
       strokeTool === Tool.Line ||
       strokeTool === Tool.Arrow ||
       strokeTool === Tool.Highlighter ||
-      strokeTool === Tool.Rectangle ||
-      strokeTool === Tool.Ellipse ||
-      strokeTool === Tool.Diamond
+      isShapeBoxTool(strokeTool)
     ) {
       return [start, end];
     }
@@ -282,11 +280,7 @@ export const finalizeStrokePoints = (
     return [start, constrainLineToAxis(start, end, 15)];
   }
 
-  if (
-    strokeTool === Tool.Rectangle ||
-    strokeTool === Tool.Ellipse ||
-    strokeTool === Tool.Diamond
-  ) {
+  if (isShapeBoxTool(strokeTool)) {
     return [start, constrainToSquareBounds(start, end)];
   }
 

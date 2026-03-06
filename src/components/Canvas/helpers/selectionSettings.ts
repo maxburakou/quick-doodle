@@ -1,4 +1,4 @@
-import { Stroke, Tool } from "@/types";
+import { isFillableShapeTool, Stroke, Tool } from "@/types";
 import { normalizeTextStroke } from "@/components/Canvas/utils/textGeometry";
 import { measureTextBox } from "@/components/Canvas/utils/textLayout";
 
@@ -33,6 +33,13 @@ interface ApplyFontSizeToStrokeParams {
   present: Stroke[];
   strokeId: string;
   fontSize: number;
+  isTransforming: boolean;
+}
+
+interface ApplyShapeFillToStrokeParams {
+  present: Stroke[];
+  strokeId: string;
+  enabled: boolean;
   isTransforming: boolean;
 }
 
@@ -104,6 +111,12 @@ const supportsColor = (tool: Tool): boolean => tool !== Tool.Select;
 const supportsThickness = (tool: Tool): boolean =>
   tool !== Tool.Text && tool !== Tool.Select;
 const supportsFontSize = (tool: Tool): boolean => tool === Tool.Text;
+const supportsShapeFill = (tool: Tool): boolean => isFillableShapeTool(tool);
+
+const buildShapeFill = (color: string) => ({
+  color,
+  style: "solid" as const,
+});
 
 const applyFontSizeToTextStroke = (current: Stroke, fontSize: number): Stroke | null => {
   if (current.tool !== Tool.Text || !current.text) return null;
@@ -275,6 +288,25 @@ export const applyFontSizeToStroke = ({
   if (!nextStroke) return null;
 
   return replaceStrokeAt(present, index, nextStroke);
+};
+
+export const applyShapeFillToStroke = ({
+  present,
+  strokeId,
+  enabled,
+  isTransforming,
+}: ApplyShapeFillToStrokeParams): Stroke[] | null => {
+  return updateStrokeById({
+    present,
+    strokeId,
+    isTransforming,
+    shouldUpdate: (stroke) =>
+      supportsShapeFill(stroke.tool) && Boolean(stroke.shapeFill) !== enabled,
+    getNextStroke: (stroke) => ({
+      ...stroke,
+      shapeFill: enabled ? buildShapeFill(stroke.color) : undefined,
+    }),
+  });
 };
 
 export const applyGroupSelectionSettings = ({

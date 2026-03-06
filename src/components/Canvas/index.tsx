@@ -24,10 +24,11 @@ export const Canvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
-  const { color, thickness } = useToolSettingsStore(
+  const { color, thickness, shapeFill } = useToolSettingsStore(
     useShallow((state) => ({
       color: state.color,
       thickness: state.thickness,
+      shapeFill: state.shapeFill,
     }))
   );
   const tool = useToolStore((state) => state.tool);
@@ -78,6 +79,7 @@ export const Canvas: React.FC = () => {
     present,
     color,
     thickness,
+    shapeFill,
     tool,
     addAction,
   });

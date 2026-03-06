@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef } from "react";
-import { Stroke, StrokePoint, Tool } from "@/types";
+import { isFillableShapeTool, Stroke, StrokePoint, Tool } from "@/types";
 import { useSnapStore } from "@/store";
 import { createStrokeId } from "@/store/useShapeEditorStore/helpers";
 import {
@@ -25,6 +25,7 @@ interface UseDrawModeParams {
   present: Stroke[];
   color: string;
   thickness: number;
+  shapeFill: boolean;
   tool: Tool;
   addAction: (stroke: Stroke) => void;
 }
@@ -40,6 +41,7 @@ export const useDrawMode = ({
   present,
   color,
   thickness,
+  shapeFill: shapeFillEnabled,
   tool,
   addAction,
 }: UseDrawModeParams) => {
@@ -67,6 +69,11 @@ export const useDrawMode = ({
     [tool]
   );
   const isSnapEnabled = useSnapStore((state) => state.enabled);
+  const shapeFillData = useMemo(() => {
+    if (!shapeFillEnabled || !isFillableShapeTool(tool)) return undefined;
+
+    return { color, style: "solid" as const };
+  }, [color, shapeFillEnabled, tool]);
 
   const toGuidesRenderData = (snap: SnapPreview) => ({
     pointGuide: snap.pointTarget,
@@ -186,11 +193,12 @@ export const useDrawMode = ({
         thickness,
         tool,
         drawableSeed: drawableSeedRef.current,
+        shapeFill: shapeFillData,
       };
 
       drawCanvas([stroke], ctxRef.current);
     },
-    [color, thickness, tool, ctxRef]
+    [color, thickness, tool, ctxRef, shapeFillData]
   );
 
   const handlePointerMove = useCallback(
@@ -209,6 +217,7 @@ export const useDrawMode = ({
         tool,
         drawableSeed: drawableSeedRef.current,
         isShiftPressed: isAxisConstrained,
+        shapeFill: shapeFillData,
       };
 
       const ctx = ctxRef.current;
@@ -217,7 +226,15 @@ export const useDrawMode = ({
         drawSnapGuides(ctx, toGuidesRenderData(snap));
       }
     },
-    [color, ctxRef, getAxisConstrainState, resolveCreateSnap, thickness, tool]
+    [
+      color,
+      ctxRef,
+      getAxisConstrainState,
+      resolveCreateSnap,
+      shapeFillData,
+      thickness,
+      tool,
+    ]
   );
 
   const handlePointerUp = useCallback(
@@ -241,6 +258,7 @@ export const useDrawMode = ({
         thickness,
         tool,
         drawableSeed: drawableSeedRef.current,
+        shapeFill: shapeFillData,
       };
 
       addAction(stroke);
@@ -248,7 +266,16 @@ export const useDrawMode = ({
       strokeIdRef.current = "";
       clearCanvas(ctxRef.current);
     },
-    [addAction, color, ctxRef, getAxisConstrainState, thickness, tool, withSnappedEndpoint]
+    [
+      addAction,
+      color,
+      ctxRef,
+      getAxisConstrainState,
+      shapeFillData,
+      thickness,
+      tool,
+      withSnappedEndpoint,
+    ]
   );
 
   return useMemo(

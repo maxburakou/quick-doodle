@@ -2,12 +2,14 @@ import {
   useFontSize,
   useSetFontSize,
   useSetToolColor,
+  useSetToolShapeFill,
   useSetToolThickness,
   useTool,
   useToolColor,
+  useToolShapeFill,
   useToolThickness,
 } from "@/store";
-import { Tool } from "@/types";
+import { isFillableShapeTool, Tool } from "@/types";
 import { useEffect, useMemo } from "react";
 import {
   resolveGroupColorContext,
@@ -22,10 +24,12 @@ export const useSelectionSettingsController = () => {
   const storeColor = useToolColor();
   const storeThickness = useToolThickness();
   const storeFontSize = useFontSize();
+  const storeShapeFill = useToolShapeFill();
 
   const setToolColor = useSetToolColor();
   const setToolThickness = useSetToolThickness();
   const setFontSize = useSetFontSize();
+  const setShapeFill = useSetToolShapeFill();
 
   const selectedStrokes = useSelectedStrokes();
   const selectedStroke = useSingleSelectedStroke();
@@ -58,6 +62,13 @@ export const useSelectionSettingsController = () => {
         return;
       }
 
+      if (
+        isFillableShapeTool(selectedStroke.tool) &&
+        storeShapeFill !== Boolean(selectedStroke.shapeFill)
+      ) {
+        setShapeFill(Boolean(selectedStroke.shapeFill));
+      }
+
       if (storeThickness !== selectedStroke.thickness) {
         setToolThickness(selectedStroke.thickness);
       }
@@ -83,10 +94,12 @@ export const useSelectionSettingsController = () => {
     selectedStroke,
     selectedStrokes.length,
     setFontSize,
+    setShapeFill,
     setToolColor,
     setToolThickness,
     storeColor,
     storeFontSize,
+    storeShapeFill,
     storeThickness,
   ]);
 };

@@ -7,6 +7,7 @@ export const TOOLBAR_SETTING_CONTROL = {
   COLOR: "color",
   STROKE: "stroke",
   TEXT_SIZE: "textSize",
+  FILL: "fill",
 } as const;
 
 export type ToolbarSettingControl = ValueOf<typeof TOOLBAR_SETTING_CONTROL>;

@@ -6,7 +6,7 @@ import {
   getStrokeRotation,
   rotatePoint,
 } from "./core";
-import { Stroke, StrokePoint, Tool } from "@/types";
+import { isShapeBoxTool, ShapeBoxTool, Stroke, StrokePoint, Tool } from "@/types";
 import { constrainToSquareBounds } from "@/components/Canvas/utils/constrainToSquareBounds";
 import {
   AXIS_SNAP_DISTANCE_PX,
@@ -84,7 +84,7 @@ interface ResolveMoveSnapPointerParams {
 interface ResolveShapeCreateEndpointSnapParams {
   startPoint: StrokePoint;
   point: StrokePoint;
-  tool: Tool.Rectangle | Tool.Diamond | Tool.Ellipse;
+  tool: ShapeBoxTool;
   shiftKey: boolean;
   anchors: SnapAnchor[];
   axisCandidates?: AxisSnapCandidate[];
@@ -111,7 +111,7 @@ export const isLineLikeSnapTool = (tool: Tool) =>
   tool === Tool.Line || tool === Tool.Arrow || tool === Tool.Highlighter;
 
 export const isShapeBoxSnapTool = (tool: Tool) =>
-  tool === Tool.Rectangle || tool === Tool.Diamond || tool === Tool.Ellipse;
+  isShapeBoxTool(tool);
 
 export const getConstrainedShapeEndpoint = (
   startPoint: StrokePoint,

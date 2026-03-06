@@ -1,4 +1,4 @@
-import { Tool } from "@/types";
+import { isFillableShapeTool, Tool } from "@/types";
 import { createElement } from "react";
 import {
   ArrowUpRight,
@@ -13,11 +13,12 @@ import {
 } from "lucide-react";
 import {
   TOOLBAR_SETTING_CONTROL,
+  TOOLBAR_SETTINGS_CONTEXT,
   ToolbarSettingControl,
   ToolbarSettingDefinition,
   ToolbarToolConfig,
 } from "./types";
-import { ColorOptions, FontSizeOptions, ThicknessOptions } from "./components";
+import { ColorOptions, FillOptions, FontSizeOptions, ThicknessOptions } from "./components";
 
 export const TOOL_CONFIG: Record<Tool, ToolbarToolConfig> = {
   [Tool.Pen]: {
@@ -43,17 +44,29 @@ export const TOOL_CONFIG: Record<Tool, ToolbarToolConfig> = {
   [Tool.Rectangle]: {
     hotkeySlot: 5,
     icon: createElement(Square, { size: 14 }),
-    settings: [TOOLBAR_SETTING_CONTROL.COLOR, TOOLBAR_SETTING_CONTROL.STROKE],
+    settings: [
+      TOOLBAR_SETTING_CONTROL.COLOR,
+      TOOLBAR_SETTING_CONTROL.STROKE,
+      TOOLBAR_SETTING_CONTROL.FILL,
+    ],
   },
   [Tool.Diamond]: {
     hotkeySlot: 6,
     icon: createElement(Diamond, { size: 14 }),
-    settings: [TOOLBAR_SETTING_CONTROL.COLOR, TOOLBAR_SETTING_CONTROL.STROKE],
+    settings: [
+      TOOLBAR_SETTING_CONTROL.COLOR,
+      TOOLBAR_SETTING_CONTROL.STROKE,
+      TOOLBAR_SETTING_CONTROL.FILL,
+    ],
   },
   [Tool.Ellipse]: {
     hotkeySlot: 7,
     icon: createElement(Circle, { size: 14 }),
-    settings: [TOOLBAR_SETTING_CONTROL.COLOR, TOOLBAR_SETTING_CONTROL.STROKE],
+    settings: [
+      TOOLBAR_SETTING_CONTROL.COLOR,
+      TOOLBAR_SETTING_CONTROL.STROKE,
+      TOOLBAR_SETTING_CONTROL.FILL,
+    ],
   },
   [Tool.Text]: {
     hotkeySlot: 8,
@@ -101,5 +114,12 @@ export const SETTING_REGISTRY: Record<
     id: TOOLBAR_SETTING_CONTROL.TEXT_SIZE,
     component: createElement(FontSizeOptions),
     isVisible: ({ tool }) => tool === Tool.Text,
+  },
+  [TOOLBAR_SETTING_CONTROL.FILL]: {
+    id: TOOLBAR_SETTING_CONTROL.FILL,
+    component: createElement(FillOptions),
+    isVisible: ({ tool, context }) =>
+      isFillableShapeTool(tool) &&
+      context !== TOOLBAR_SETTINGS_CONTEXT.GROUP_SELECTION,
   },
 };

@@ -1,4 +1,4 @@
-import { Stroke, StrokePoint, Tool, TransformHandle } from "@/types";
+import { isShapeBoxTool, Stroke, StrokePoint, Tool, TransformHandle } from "@/types";
 import {
   distance,
   distanceToSegment,
@@ -197,10 +197,7 @@ const hitTestPenStroke = (stroke: Stroke, pointer: StrokePoint) => {
 };
 
 export const isUnfilledClosedShape = (stroke: Stroke) =>
-  (stroke.tool === Tool.Rectangle ||
-    stroke.tool === Tool.Ellipse ||
-    stroke.tool === Tool.Diamond) &&
-  !stroke.shapeFill;
+  isShapeBoxTool(stroke.tool) && !stroke.shapeFill;
 
 const isPointInRectangleArea = (
   localX: number,
