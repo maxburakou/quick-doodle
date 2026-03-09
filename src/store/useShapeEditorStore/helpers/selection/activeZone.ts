@@ -15,9 +15,20 @@ import {
   inverseRotatePoint,
   isEditableShapeTool,
 } from "../core";
-import { getStrokeContourSegments } from "../geometry/contours";
+import {
+  type ContourSegment,
+  getStrokeContourSegments,
+} from "../geometry/contours";
 import { segmentIntersectsRect } from "../geometry/intersections";
 import { getToolProfile } from "../toolProfile";
+
+interface LocalShapeCoordinates {
+  localX: number;
+  localY: number;
+  halfWidth: number;
+  halfHeight: number;
+  contourBand: number;
+}
 
 const intersectsBounds = (a: ShapeBounds, b: ShapeBounds) =>
   a.x <= b.x + b.width &&
@@ -55,7 +66,31 @@ const getMarqueeCorners = (bounds: ShapeBounds): StrokePoint[] => [
   { x: bounds.x, y: bounds.y + bounds.height, pressure: 0.5 },
 ];
 
-const getLocalShapeCoordinates = (stroke: Stroke, pointer: StrokePoint) => {
+const getLineLikeActiveZoneTolerance = (stroke: Stroke) => {
+  return getToolProfile(stroke.tool).interactionRadius(stroke.thickness);
+};
+
+const getStrokeActiveZonePadding = (stroke: Stroke) => {
+  const profile = getToolProfile(stroke.tool);
+  const interactionRadius = profile.interactionRadius(stroke.thickness);
+  const aabbPadding = profile.aabbPadding(stroke.thickness);
+
+  return Math.max(0, interactionRadius - aabbPadding);
+};
+
+const isContourShapeTool = (tool: Tool) =>
+  tool === Tool.Rectangle || tool === Tool.Diamond || tool === Tool.Ellipse;
+
+const isSegmentDistanceTool = (tool: Tool) =>
+  tool === Tool.Pen ||
+  tool === Tool.Highlighter ||
+  tool === Tool.Line ||
+  tool === Tool.Arrow;
+
+const getLocalShapeCoordinates = (
+  stroke: Stroke,
+  pointer: StrokePoint
+): LocalShapeCoordinates | null => {
   const bounds = getStrokeBounds(stroke);
   const center = getBoundsCenter(bounds);
   const local = inverseRotatePoint(pointer, center, getStrokeRotation(stroke));
@@ -207,27 +242,6 @@ const isPointInDiamondBand = (
   return !insideInner;
 };
 
-const isContourShapeTool = (tool: Tool) =>
-  tool === Tool.Rectangle || tool === Tool.Diamond || tool === Tool.Ellipse;
-
-const isSegmentDistanceTool = (tool: Tool) =>
-  tool === Tool.Pen ||
-  tool === Tool.Highlighter ||
-  tool === Tool.Line ||
-  tool === Tool.Arrow;
-
-const getLineLikeActiveZoneTolerance = (stroke: Stroke) => {
-  return getToolProfile(stroke.tool).interactionRadius(stroke.thickness);
-};
-
-const getStrokeActiveZonePadding = (stroke: Stroke) => {
-  const profile = getToolProfile(stroke.tool);
-  const interactionRadius = profile.interactionRadius(stroke.thickness);
-  const aabbPadding = profile.aabbPadding(stroke.thickness);
-
-  return Math.max(0, interactionRadius - aabbPadding);
-};
-
 const isPointNearContourSegments = (
   point: Pick<StrokePoint, "x" | "y">,
   stroke: Stroke,
@@ -245,13 +259,13 @@ const isPointNearContourSegments = (
   );
 };
 
-const isPointInShapedZone = (stroke: Stroke, pointer: StrokePoint) => {
-  if (isSegmentDistanceTool(stroke.tool)) {
-    const tolerance = getLineLikeActiveZoneTolerance(stroke);
-    return isPointNearContourSegments(pointer, stroke, tolerance);
-  }
+const hitSegmentDistanceZone = (stroke: Stroke, point: StrokePoint) => {
+  const tolerance = getLineLikeActiveZoneTolerance(stroke);
+  return isPointNearContourSegments(point, stroke, tolerance);
+};
 
-  const localShape = getLocalShapeCoordinates(stroke, pointer);
+const hitContourShapeZone = (stroke: Stroke, point: StrokePoint) => {
+  const localShape = getLocalShapeCoordinates(stroke, point);
   if (!localShape) return false;
 
   const { localX, localY, halfWidth, halfHeight, contourBand } = localShape;
@@ -314,6 +328,18 @@ const isPointInShapedZone = (stroke: Stroke, pointer: StrokePoint) => {
   return false;
 };
 
+const hitActiveZoneByTool = (stroke: Stroke, point: StrokePoint) => {
+  if (isSegmentDistanceTool(stroke.tool)) {
+    return hitSegmentDistanceZone(stroke, point);
+  }
+
+  if (isContourShapeTool(stroke.tool)) {
+    return hitContourShapeZone(stroke, point);
+  }
+
+  return false;
+};
+
 export const isPointInActiveZone = (stroke: Stroke, point: StrokePoint): boolean => {
   if (!isEditableShapeTool(stroke.tool)) return false;
 
@@ -321,7 +347,28 @@ export const isPointInActiveZone = (stroke: Stroke, point: StrokePoint): boolean
     return hitTestText(stroke, point, ACTIVE_ZONE_PX);
   }
 
-  return isPointInShapedZone(stroke, point);
+  return hitActiveZoneByTool(stroke, point);
+};
+
+const hasContourRectIntersection = (
+  segments: ContourSegment[],
+  rect: ShapeBounds
+) =>
+  segments.some((segment) => segmentIntersectsRect(segment.start, segment.end, rect));
+
+const hasCornerBasedIntersection = (
+  stroke: Stroke,
+  rectCorners: StrokePoint[],
+  contourSegments: ContourSegment[]
+) => {
+  if (isContourShapeTool(stroke.tool) && !stroke.shapeFill) {
+    const tolerance = getLineLikeActiveZoneTolerance(stroke);
+    return rectCorners.some((corner) =>
+      isPointNearContourSegments(corner, stroke, tolerance, contourSegments)
+    );
+  }
+
+  return rectCorners.some((corner) => isPointInActiveZone(stroke, corner));
 };
 
 const sampleIntersectionWithActiveZone = (stroke: Stroke, area: ShapeBounds) => {
@@ -360,25 +407,12 @@ export const doesActiveZoneIntersectRect = (
   if (!intersectsBounds(activeAABB, rect)) return false;
 
   const contourSegments = getStrokeContourSegments(stroke);
-  if (
-    contourSegments.some((segment) =>
-      segmentIntersectsRect(segment.start, segment.end, rect)
-    )
-  ) {
+  if (hasContourRectIntersection(contourSegments, rect)) {
     return true;
   }
 
   const rectCorners = getMarqueeCorners(rect);
-  if (isContourShapeTool(stroke.tool) && !stroke.shapeFill) {
-    const tolerance = getLineLikeActiveZoneTolerance(stroke);
-    if (
-      rectCorners.some((corner) =>
-        isPointNearContourSegments(corner, stroke, tolerance, contourSegments)
-      )
-    ) {
-      return true;
-    }
-  } else if (rectCorners.some((corner) => isPointInActiveZone(stroke, corner))) {
+  if (hasCornerBasedIntersection(stroke, rectCorners, contourSegments)) {
     return true;
   }
 

@@ -139,6 +139,11 @@ export const getPenContourPoints = (
 };
 
 const toContourCacheKey = (stroke: Stroke, policy?: StrokeContourPolicy) => {
+  const firstPoint = stroke.points[0];
+  const middlePoint =
+    stroke.points.length > 0
+      ? stroke.points[Math.floor(stroke.points.length / 2)]
+      : undefined;
   const lastPoint = stroke.points[stroke.points.length - 1];
   const shapeFillKey = stroke.shapeFill
     ? `1:${stroke.shapeFill.style ?? ""}:${stroke.shapeFill.color}`
@@ -148,6 +153,8 @@ const toContourCacheKey = (stroke: Stroke, policy?: StrokeContourPolicy) => {
     stroke.id,
     stroke.tool,
     stroke.points.length,
+    firstPoint ? `${firstPoint.x},${firstPoint.y}` : "none",
+    middlePoint ? `${middlePoint.x},${middlePoint.y}` : "none",
     lastPoint ? `${lastPoint.x},${lastPoint.y}` : "none",
     stroke.thickness,
     stroke.rotation ?? 0,

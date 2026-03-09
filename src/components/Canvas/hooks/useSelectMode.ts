@@ -27,9 +27,6 @@ import { normalizeTextStroke } from "../utils/textGeometry";
 import { getCaretFromBoxStart } from "../utils/textLayout";
 import {
   getAxisConstrainedByShift,
-  getSceneAxisSnapCandidates,
-  getSceneSnapAnchors,
-  getSceneSnapSegments,
   getStrokeAABB,
   strokeIntersectsMarquee,
   isLineLikeSnapTool,
@@ -39,6 +36,10 @@ import {
   resolveLineEndpointSnap,
 } from "@/store/useShapeEditorStore/helpers";
 import { SNAP_DISTANCE_PX } from "@/config/snapConfig";
+import {
+  getCachedSceneSnapContext,
+  type SceneSnapContextCache,
+} from "../utils/snap/snapContext";
 
 const TEXT_EDIT_SECOND_CLICK_INTERVAL_MS = 400;
 const MARQUEE_DRAG_THRESHOLD = 3;
@@ -164,6 +165,7 @@ export const useSelectMode = ({
   const marqueeStartRef = useRef<StrokePoint | null>(null);
   const marqueeShiftRef = useRef(false);
   const marqueeActiveRef = useRef(false);
+  const sessionSnapCacheRef = useRef<SceneSnapContextCache | null>(null);
   const [marqueeBounds, setMarqueeBounds] = useState<ShapeBounds | null>(null);
   const [activeSnapGuides, setActiveSnapGuides] =
     useState<SnapGuidesRenderData | null>(null);
@@ -177,6 +179,23 @@ export const useSelectMode = ({
 
     return { width, height };
   }, [ctxRef]);
+
+  const clearSessionSnapCache = useCallback(() => {
+    sessionSnapCacheRef.current = null;
+  }, []);
+
+  const getSceneSnapData = useCallback(
+    (excludedIds: string[]) => {
+      const canvasBounds = getCanvasBounds();
+      return getCachedSceneSnapContext(
+        sessionSnapCacheRef,
+        present,
+        excludedIds,
+        canvasBounds
+      );
+    },
+    [getCanvasBounds, present]
+  );
 
   const selectedStrokes = useMemo(
     () =>
@@ -213,15 +232,17 @@ export const useSelectMode = ({
       marqueeStartRef.current = null;
       marqueeActiveRef.current = false;
       marqueeShiftRef.current = false;
+      clearSessionSnapCache();
       setMarqueeBounds(null);
       setActiveSnapGuides(null);
     },
-    [clearSelection, present, selectedStrokeIds, setSelection]
+    [clearSelection, clearSessionSnapCache, present, selectedStrokeIds, setSelection]
   );
 
   const handlePointerDown = useCallback(
     ({ point, shiftKey }: CanvasPointerPayload) => {
       const startMarqueeSelection = () => {
+        clearSessionSnapCache();
         marqueeStartRef.current = point;
         marqueeShiftRef.current = shiftKey;
         marqueeActiveRef.current = false;
@@ -318,6 +339,7 @@ export const useSelectMode = ({
       setCursor(nextHandle === "move" ? "grabbing" : getCursorByHandle(nextHandle));
     },
     [
+      clearSessionSnapCache,
       present,
       primarySelectedStroke,
       selectedStrokes,
@@ -361,20 +383,8 @@ export const useSelectMode = ({
                     x: session.initialBounds.x + session.initialBounds.width / 2,
                     y: session.initialBounds.y + session.initialBounds.height / 2,
                   };
-            const anchors = getSceneSnapAnchors(
-              present,
-              new Set(selectedStrokeIds),
-              getCanvasBounds()
-            );
-            const segments = getSceneSnapSegments(
-              present,
-              new Set(selectedStrokeIds),
-              getCanvasBounds()
-            );
-            const axisCandidates = getSceneAxisSnapCandidates(
-              present,
-              new Set(selectedStrokeIds),
-              getCanvasBounds()
+            const { anchors, segments, axisCandidates } = getSceneSnapData(
+              selectedStrokeIds
             );
             const snap = resolveMoveSnapPointer({
               pointer: point,
@@ -401,20 +411,8 @@ export const useSelectMode = ({
             shiftKey
           )
         ) {
-          const anchors = getSceneSnapAnchors(
-            present,
-            new Set(selectedStrokeIds),
-            getCanvasBounds()
-          );
-          const segments = getSceneSnapSegments(
-            present,
-            new Set(selectedStrokeIds),
-            getCanvasBounds()
-          );
-          const axisCandidates = getSceneAxisSnapCandidates(
-            present,
-            new Set(selectedStrokeIds),
-            getCanvasBounds()
+          const { anchors, segments, axisCandidates } = getSceneSnapData(
+            selectedStrokeIds
           );
           const snap = resolveLineEndpointSnap(
             point,
@@ -452,20 +450,8 @@ export const useSelectMode = ({
             updateGroupMove(point);
             setActiveSnapGuides(null);
           } else {
-            const anchors = getSceneSnapAnchors(
-              present,
-              new Set(session.strokeIds),
-              getCanvasBounds()
-            );
-            const segments = getSceneSnapSegments(
-              present,
-              new Set(session.strokeIds),
-              getCanvasBounds()
-            );
-            const axisCandidates = getSceneAxisSnapCandidates(
-              present,
-              new Set(session.strokeIds),
-              getCanvasBounds()
+            const { anchors, segments, axisCandidates } = getSceneSnapData(
+              session.strokeIds
             );
             const snap = resolveMoveSnapPointer({
               pointer: point,
@@ -497,7 +483,7 @@ export const useSelectMode = ({
       selectedStrokeIds,
       selectedStrokes,
       session,
-      getCanvasBounds,
+      getSceneSnapData,
       updateTransform,
       updateGroupMove,
     ]
@@ -511,19 +497,23 @@ export const useSelectMode = ({
       }
 
       if (!session) {
+        clearSessionSnapCache();
         setActiveSnapGuides(null);
         return;
       }
       if (session.type === "single") {
         commitTransform(present, commitPresent);
+        clearSessionSnapCache();
         setActiveSnapGuides(null);
         return;
       }
 
       commitGroupMove(present, commitPresent);
+      clearSessionSnapCache();
       setActiveSnapGuides(null);
     },
     [
+      clearSessionSnapCache,
       commitGroupMove,
       commitPresent,
       commitTransform,
@@ -535,10 +525,17 @@ export const useSelectMode = ({
 
   const handlePointerLeave = useCallback(() => {
     if (!session && !marqueeStartRef.current) {
+      clearSessionSnapCache();
       setActiveSnapGuides(null);
       setCursor("default");
     }
-  }, [session]);
+  }, [clearSessionSnapCache, session]);
+
+  useEffect(() => {
+    if (!session) {
+      clearSessionSnapCache();
+    }
+  }, [clearSessionSnapCache, session]);
 
   useEffect(() => {
     const prevTool = prevToolRef.current;
@@ -555,6 +552,7 @@ export const useSelectMode = ({
       marqueeStartRef.current = null;
       marqueeActiveRef.current = false;
       marqueeShiftRef.current = false;
+      clearSessionSnapCache();
       setMarqueeBounds(null);
       setActiveSnapGuides(null);
       clearCanvas(ctxRef.current);
@@ -567,6 +565,7 @@ export const useSelectMode = ({
     commitGroupMove,
     commitPresent,
     commitTransform,
+    clearSessionSnapCache,
     ctxRef,
     present,
     session,

@@ -9,8 +9,8 @@ import {
 } from "../core";
 import {
   getDiamondContourPoints,
-  getEllipseContourPoints,
   getRectangleContourPoints,
+  getStrokeContourSegments,
 } from "./contours";
 import { isLineLikeGeometryTool } from "../toolProfile";
 
@@ -163,7 +163,9 @@ const buildEllipseAnchors = (
   stroke: Stroke,
   centerMode: AnchorCenterMode
 ): StrokeAnchorPoint[] => {
-  const contourPoints = getEllipseContourPoints(stroke);
+  const contourPoints = getStrokeContourSegments(stroke).map(
+    (segment) => segment.start
+  );
   if (contourPoints.length < 8) return [];
 
   const anchors: StrokeAnchorPoint[] = [];
