@@ -4,12 +4,13 @@ import { drawCanvas } from "../helpers";
 import {
   useCanvasBackground,
   usePresent,
-  useShapeTransformSession,
+  useShapeEditorStore,
   useTextEditorEditingStrokeId,
   useTextEditorMode,
 } from "@/store";
-import { buildPreviewStrokes } from "@/store/useShapeEditorStore/helpers";
-import { CanvasBackground, Tool } from "@/types";
+import { CanvasBackground } from "@/types";
+import { getRenderLayers } from "../utils";
+import { useShallow } from "zustand/react/shallow";
 import "./styles.css";
 
 const Canvas = () => {
@@ -18,23 +19,26 @@ const Canvas = () => {
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
   const present = usePresent();
-  const session = useShapeTransformSession();
+  const activeStrokeIds = useShapeEditorStore(
+    useShallow((state) => {
+      const session = state.session;
+      if (!session) return [];
+      return session.type === "single" ? [session.strokeId] : session.strokeIds;
+    })
+  );
   const textEditorMode = useTextEditorMode();
   const editingStrokeId = useTextEditorEditingStrokeId();
   const renderStrokes = useMemo(
     () => {
-      const previewStrokes = buildPreviewStrokes(present, session);
-
-      if (textEditorMode !== "edit" || !editingStrokeId) {
-        return previewStrokes;
-      }
-
-      return previewStrokes.filter(
-        (stroke) =>
-          !(stroke.id === editingStrokeId && stroke.tool === Tool.Text)
-      );
+      const { staticStrokes } = getRenderLayers({
+        present,
+        activeStrokeIds,
+        textEditorMode,
+        editingStrokeId,
+      });
+      return staticStrokes;
     },
-    [present, session, textEditorMode, editingStrokeId]
+    [present, activeStrokeIds, textEditorMode, editingStrokeId]
   );
   useCanvasScaleSetup(canvasRef, ctxRef);
 

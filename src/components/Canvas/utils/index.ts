@@ -1,4 +1,5 @@
 export { drawStrokes } from "./draw";
+export { getRenderLayers, getTransformLayerFromSession } from "./renderLayers";
 export { generateRoughShape } from "./generateRoughShape";
 export { getRoughOptions } from "./getRoughOptions";
 export { constrainLineToAxis } from "./constrainLineToAxis";

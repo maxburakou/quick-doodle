@@ -40,6 +40,7 @@ import {
   getCachedSceneSnapContext,
   type SceneSnapContextCache,
 } from "../utils/snap/snapContext";
+import { drawStrokes, getTransformLayerFromSession } from "../utils";
 
 const TEXT_EDIT_SECOND_CLICK_INTERVAL_MS = 400;
 const MARQUEE_DRAG_THRESHOLD = 3;
@@ -206,6 +207,10 @@ export const useSelectMode = ({
     () =>
       present.find((stroke) => stroke.id === primarySelectedStrokeId) ?? null,
     [present, primarySelectedStrokeId]
+  );
+  const transformLayer = useMemo(
+    () => getTransformLayerFromSession(session),
+    [session]
   );
 
   const finalizeMarquee = useCallback(
@@ -586,6 +591,9 @@ export const useSelectMode = ({
     if (!ctx) return;
 
     clearCanvas(ctx);
+    if (transformLayer.isTransforming) {
+      drawStrokes(transformLayer.activeStrokes, ctx);
+    }
 
     if (session?.type === "single") {
       drawShapeEditorOverlay(ctx, session.draftStroke);
@@ -615,6 +623,7 @@ export const useSelectMode = ({
     primarySelectedStroke,
     selectedStrokes,
     session,
+    transformLayer,
     textEditorMode,
     tool,
   ]);
