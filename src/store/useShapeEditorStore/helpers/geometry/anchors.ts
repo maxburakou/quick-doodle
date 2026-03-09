@@ -7,6 +7,11 @@ import {
   getStrokeRotation,
   rotatePoint,
 } from "../core";
+import {
+  getDiamondContourPoints,
+  getEllipseContourPoints,
+  getRectangleContourPoints,
+} from "./contours";
 import { isLineLikeGeometryTool } from "../toolProfile";
 
 export type AnchorCenterMode = "always" | "filled_only" | "never";
@@ -37,94 +42,139 @@ const shouldIncludeCenter = (stroke: Stroke, mode: AnchorCenterMode) => {
   return Boolean(stroke.shapeFill);
 };
 
-const rotateAnchorPoints = (
-  points: StrokeAnchorPoint[],
-  center: Pick<StrokePoint, "x" | "y">,
-  rotation: number
-) =>
-  points.map((point) => ({
-    ...rotatePoint(point, center, rotation),
-    kind: point.kind,
-    anchorGroup: point.anchorGroup,
-  }));
+const createAnchor = (
+  point: Pick<StrokePoint, "x" | "y">,
+  kind: StrokeAnchorKind,
+  anchorGroup: AnchorGroup = "boxEdge"
+): StrokeAnchorPoint => ({
+  x: point.x,
+  y: point.y,
+  pressure: 0.5,
+  kind,
+  anchorGroup,
+});
 
-const buildBoxAnchors = (
-  bounds: ReturnType<typeof getStrokeBounds>,
+const appendCenterAnchor = (
+  anchors: StrokeAnchorPoint[],
+  stroke: Stroke,
+  bounds: ReturnType<typeof getStrokeBounds> | ReturnType<typeof getStrokeAABB>,
+  centerMode: AnchorCenterMode
+) => {
+  if (!shouldIncludeCenter(stroke, centerMode)) {
+    return anchors;
+  }
+
+  return [...anchors, createAnchor(getBoundsCenter(bounds), "center")];
+};
+
+const buildRotatedBoxAnchors = (
+  bounds: ReturnType<typeof getStrokeBounds> | ReturnType<typeof getStrokeAABB>,
   stroke: Stroke,
   centerMode: AnchorCenterMode
 ): StrokeAnchorPoint[] => {
   const center = getBoundsCenter(bounds);
   const rotation = getStrokeRotation(stroke);
   const points: StrokeAnchorPoint[] = [
-    {
-      x: bounds.x,
-      y: bounds.y,
-      pressure: 0.5,
-      kind: "corner",
-      anchorGroup: "boxEdge",
-    },
-    {
-      x: bounds.x + bounds.width / 2,
-      y: bounds.y,
-      pressure: 0.5,
-      kind: "edgeMid",
-      anchorGroup: "boxEdge",
-    },
-    {
-      x: bounds.x + bounds.width,
-      y: bounds.y,
-      pressure: 0.5,
-      kind: "corner",
-      anchorGroup: "boxEdge",
-    },
-    {
-      x: bounds.x + bounds.width,
-      y: bounds.y + bounds.height / 2,
-      pressure: 0.5,
-      kind: "edgeMid",
-      anchorGroup: "boxEdge",
-    },
-    {
-      x: bounds.x + bounds.width,
-      y: bounds.y + bounds.height,
-      pressure: 0.5,
-      kind: "corner",
-      anchorGroup: "boxEdge",
-    },
-    {
-      x: bounds.x + bounds.width / 2,
-      y: bounds.y + bounds.height,
-      pressure: 0.5,
-      kind: "edgeMid",
-      anchorGroup: "boxEdge",
-    },
-    {
-      x: bounds.x,
-      y: bounds.y + bounds.height,
-      pressure: 0.5,
-      kind: "corner",
-      anchorGroup: "boxEdge",
-    },
-    {
-      x: bounds.x,
-      y: bounds.y + bounds.height / 2,
-      pressure: 0.5,
-      kind: "edgeMid",
-      anchorGroup: "boxEdge",
-    },
+    createAnchor({ x: bounds.x, y: bounds.y }, "corner"),
+    createAnchor({ x: bounds.x + bounds.width / 2, y: bounds.y }, "edgeMid"),
+    createAnchor({ x: bounds.x + bounds.width, y: bounds.y }, "corner"),
+    createAnchor(
+      { x: bounds.x + bounds.width, y: bounds.y + bounds.height / 2 },
+      "edgeMid"
+    ),
+    createAnchor(
+      { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
+      "corner"
+    ),
+    createAnchor(
+      { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height },
+      "edgeMid"
+    ),
+    createAnchor({ x: bounds.x, y: bounds.y + bounds.height }, "corner"),
+    createAnchor({ x: bounds.x, y: bounds.y + bounds.height / 2 }, "edgeMid"),
   ];
 
-  if (shouldIncludeCenter(stroke, centerMode)) {
-    points.push({
-      x: center.x,
-      y: center.y,
-      pressure: 0.5,
-      kind: "center",
-      anchorGroup: "boxEdge",
-    });
+  const withCenter = appendCenterAnchor(points, stroke, bounds, centerMode);
+
+  return withCenter.map((point) => ({
+    ...rotatePoint(point, center, rotation),
+    kind: point.kind,
+    anchorGroup: point.anchorGroup,
+  }));
+};
+
+const buildRectangleAnchors = (
+  stroke: Stroke,
+  centerMode: AnchorCenterMode
+): StrokeAnchorPoint[] => {
+  const corners = getRectangleContourPoints(stroke);
+  if (corners.length !== 4) return [];
+
+  const anchors: StrokeAnchorPoint[] = [];
+  for (let index = 0; index < corners.length; index += 1) {
+    const start = corners[index];
+    const end = corners[(index + 1) % corners.length];
+    if (!start || !end) continue;
+
+    anchors.push(createAnchor(start, "corner"));
+    anchors.push(
+      createAnchor(
+        {
+          x: (start.x + end.x) / 2,
+          y: (start.y + end.y) / 2,
+        },
+        "edgeMid"
+      )
+    );
   }
 
-  return rotateAnchorPoints(points, center, rotation);
+  return appendCenterAnchor(anchors, stroke, getStrokeBounds(stroke), centerMode);
+};
+
+const buildDiamondAnchors = (
+  stroke: Stroke,
+  centerMode: AnchorCenterMode
+): StrokeAnchorPoint[] => {
+  const corners = getDiamondContourPoints(stroke);
+  if (corners.length !== 4) return [];
+
+  const anchors: StrokeAnchorPoint[] = [];
+  for (let index = 0; index < corners.length; index += 1) {
+    const start = corners[index];
+    const end = corners[(index + 1) % corners.length];
+    if (!start || !end) continue;
+
+    anchors.push(createAnchor(start, "corner"));
+    anchors.push(
+      createAnchor(
+        {
+          x: (start.x + end.x) / 2,
+          y: (start.y + end.y) / 2,
+        },
+        "edgeMid"
+      )
+    );
+  }
+
+  return appendCenterAnchor(anchors, stroke, getStrokeBounds(stroke), centerMode);
+};
+
+const buildEllipseAnchors = (
+  stroke: Stroke,
+  centerMode: AnchorCenterMode
+): StrokeAnchorPoint[] => {
+  const contourPoints = getEllipseContourPoints(stroke);
+  if (contourPoints.length < 8) return [];
+
+  const anchors: StrokeAnchorPoint[] = [];
+  for (let index = 0; index < 8; index += 1) {
+    const contourIndex = Math.round((index * contourPoints.length) / 8) % contourPoints.length;
+    const point = contourPoints[contourIndex];
+    if (!point) continue;
+    anchors.push(createAnchor(point, "ellipseAxis"));
+  }
+
+  return appendCenterAnchor(anchors, stroke, getStrokeBounds(stroke), centerMode);
 };
 
 const buildLineLikeAnchors = (stroke: Stroke): StrokeAnchorPoint[] => {
@@ -170,18 +220,23 @@ export const getStrokeAnchorPoints = (
   }
 
   if (stroke.tool === Tool.Pen) {
-    const bounds = getStrokeAABB(stroke);
-    return buildBoxAnchors(bounds, stroke, centerMode);
+    return buildRotatedBoxAnchors(getStrokeAABB(stroke), stroke, centerMode);
   }
 
-  if (
-    stroke.tool === Tool.Text ||
-    stroke.tool === Tool.Rectangle ||
-    stroke.tool === Tool.Diamond ||
-    stroke.tool === Tool.Ellipse
-  ) {
-    const bounds = getStrokeBounds(stroke);
-    return buildBoxAnchors(bounds, stroke, centerMode);
+  if (stroke.tool === Tool.Text) {
+    return buildRotatedBoxAnchors(getStrokeBounds(stroke), stroke, centerMode);
+  }
+
+  if (stroke.tool === Tool.Rectangle) {
+    return buildRectangleAnchors(stroke, centerMode);
+  }
+
+  if (stroke.tool === Tool.Diamond) {
+    return buildDiamondAnchors(stroke, centerMode);
+  }
+
+  if (stroke.tool === Tool.Ellipse) {
+    return buildEllipseAnchors(stroke, centerMode);
   }
 
   return [];

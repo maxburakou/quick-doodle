@@ -1,0 +1,3 @@
+export const ELLIPSE_CONTOUR_SEGMENTS = 24;
+export const PEN_MAX_CONTOUR_SEGMENTS = 256;
+export const CONTOUR_CACHE_MAX_SIZE = 512;

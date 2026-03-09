@@ -1,3 +1,8 @@
+import {
+  CONTOUR_CACHE_MAX_SIZE,
+  ELLIPSE_CONTOUR_SEGMENTS,
+  PEN_MAX_CONTOUR_SEGMENTS,
+} from "@/config/contourConfig";
 import { Stroke, StrokePoint, Tool } from "@/types";
 import {
   getBoundsCenter,
@@ -22,8 +27,7 @@ export interface StrokeContourPolicy {
   penMaxSegments?: number;
 }
 
-const DEFAULT_ELLIPSE_SEGMENTS = 24;
-const DEFAULT_PEN_MAX_SEGMENTS = 256;
+const contourSegmentsCache = new Map<string, ContourSegment[]>();
 
 const toPolylinePoints = (
   points: StrokePoint[],
@@ -76,7 +80,7 @@ const buildSegmentsFromOrderedPoints = (
   return segments;
 };
 
-const getRectangleCorners = (stroke: Stroke) => {
+export const getRectangleContourPoints = (stroke: Stroke) => {
   const bounds = getStrokeBounds(stroke);
   const center = getBoundsCenter(bounds);
   const rotation = getStrokeRotation(stroke);
@@ -89,7 +93,7 @@ const getRectangleCorners = (stroke: Stroke) => {
   ].map((point) => rotatePoint(point, center, rotation));
 };
 
-const getDiamondCorners = (stroke: Stroke) => {
+export const getDiamondContourPoints = (stroke: Stroke) => {
   const bounds = getStrokeBounds(stroke);
   const center = getBoundsCenter(bounds);
   const rotation = getStrokeRotation(stroke);
@@ -104,13 +108,16 @@ const getDiamondCorners = (stroke: Stroke) => {
   ].map((point) => rotatePoint(point, center, rotation));
 };
 
-const getEllipsePolyline = (stroke: Stroke, segments: number) => {
+export const getEllipseContourPoints = (
+  stroke: Stroke,
+  ellipseSegments: number = ELLIPSE_CONTOUR_SEGMENTS
+) => {
   const bounds = getStrokeBounds(stroke);
   const center = getBoundsCenter(bounds);
   const rotation = getStrokeRotation(stroke);
   const halfWidth = bounds.width / 2;
   const halfHeight = bounds.height / 2;
-  const count = Math.max(8, segments);
+  const count = Math.max(8, ellipseSegments);
 
   return Array.from({ length: count }, (_, index) => {
     const angle = (index / count) * Math.PI * 2;
@@ -123,13 +130,48 @@ const getEllipsePolyline = (stroke: Stroke, segments: number) => {
   });
 };
 
-const getPenPolyline = (stroke: Stroke, maxSegments: number) => {
-  const source = stroke.points;
-  if (source.length < 2) return [];
-  return toPolylinePoints(source, maxSegments);
+export const getPenContourPoints = (
+  stroke: Stroke,
+  maxSegments: number = PEN_MAX_CONTOUR_SEGMENTS
+) => {
+  if (stroke.points.length < 2) return [];
+  return toPolylinePoints(stroke.points, maxSegments);
 };
 
-export const getStrokeContourSegments = (
+const toContourCacheKey = (stroke: Stroke, policy?: StrokeContourPolicy) => {
+  const lastPoint = stroke.points[stroke.points.length - 1];
+  const shapeFillKey = stroke.shapeFill
+    ? `1:${stroke.shapeFill.style ?? ""}:${stroke.shapeFill.color}`
+    : "0::";
+
+  return [
+    stroke.id,
+    stroke.tool,
+    stroke.points.length,
+    lastPoint ? `${lastPoint.x},${lastPoint.y}` : "none",
+    stroke.thickness,
+    stroke.rotation ?? 0,
+    stroke.isShiftPressed ? 1 : 0,
+    shapeFillKey,
+    policy?.ellipseSegments ?? ELLIPSE_CONTOUR_SEGMENTS,
+    policy?.penMaxSegments ?? PEN_MAX_CONTOUR_SEGMENTS,
+  ].join("|");
+};
+
+const setCachedContourSegments = (key: string, segments: ContourSegment[]) => {
+  contourSegmentsCache.set(key, segments);
+
+  if (contourSegmentsCache.size <= CONTOUR_CACHE_MAX_SIZE) {
+    return;
+  }
+
+  const oldestKey = contourSegmentsCache.keys().next().value;
+  if (typeof oldestKey === "string") {
+    contourSegmentsCache.delete(oldestKey);
+  }
+};
+
+const computeStrokeContourSegments = (
   stroke: Stroke,
   policy?: StrokeContourPolicy
 ): ContourSegment[] => {
@@ -139,14 +181,17 @@ export const getStrokeContourSegments = (
   }
 
   if (stroke.tool === Tool.Pen) {
-    const maxSegments = policy?.penMaxSegments ?? DEFAULT_PEN_MAX_SEGMENTS;
-    const polyline = getPenPolyline(stroke, maxSegments);
-    return buildSegmentsFromOrderedPoints(polyline, "lineSegment", false);
+    const maxSegments = policy?.penMaxSegments ?? PEN_MAX_CONTOUR_SEGMENTS;
+    return buildSegmentsFromOrderedPoints(
+      getPenContourPoints(stroke, maxSegments),
+      "lineSegment",
+      false
+    );
   }
 
   if (stroke.tool === Tool.Rectangle || stroke.tool === Tool.Text) {
     return buildSegmentsFromOrderedPoints(
-      getRectangleCorners(stroke),
+      getRectangleContourPoints(stroke),
       "boxEdge",
       true
     );
@@ -154,22 +199,21 @@ export const getStrokeContourSegments = (
 
   if (stroke.tool === Tool.Diamond) {
     return buildSegmentsFromOrderedPoints(
-      getDiamondCorners(stroke),
+      getDiamondContourPoints(stroke),
       "boxEdge",
       true
     );
   }
 
   if (stroke.tool === Tool.Ellipse) {
-    const ellipseSegments = policy?.ellipseSegments ?? DEFAULT_ELLIPSE_SEGMENTS;
+    const ellipseSegments = policy?.ellipseSegments ?? ELLIPSE_CONTOUR_SEGMENTS;
     return buildSegmentsFromOrderedPoints(
-      getEllipsePolyline(stroke, ellipseSegments),
+      getEllipseContourPoints(stroke, ellipseSegments),
       "boxEdge",
       true
     );
   }
 
-  // Fallback to AABB for unknown editable shapes.
   const bounds = getStrokeAABB(stroke);
   const points = [
     { x: bounds.x, y: bounds.y },
@@ -178,4 +222,20 @@ export const getStrokeContourSegments = (
     { x: bounds.x, y: bounds.y + bounds.height },
   ];
   return buildSegmentsFromOrderedPoints(points, "boxEdge", true);
+};
+
+export const getStrokeContourSegments = (
+  stroke: Stroke,
+  policy?: StrokeContourPolicy
+): ContourSegment[] => {
+  const key = toContourCacheKey(stroke, policy);
+  const cached = contourSegmentsCache.get(key);
+  if (cached) {
+    return cached;
+  }
+
+  const segments = computeStrokeContourSegments(stroke, policy);
+  setCachedContourSegments(key, segments);
+
+  return segments;
 };
