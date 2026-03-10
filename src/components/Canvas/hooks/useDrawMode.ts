@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { isFillableShapeTool, Stroke, StrokePoint, Tool } from "@/types";
-import { useSnapStore } from "@/store";
+import { useSnapStore, useToolStore } from "@/store";
+import { useHistoryStore } from "@/store/useHistoryStore";
+import { useToolSettingsStore } from "@/store/useToolSettingsStore";
 import { createStrokeId } from "@/store/useShapeEditorStore/helpers";
 import {
   type SnapComputation,
@@ -22,12 +24,6 @@ import { buildSceneSnapContext } from "../utils/snap/snapContext";
 
 interface UseDrawModeParams {
   ctxRef: React.MutableRefObject<CanvasRenderingContext2D | null>;
-  present: Stroke[];
-  color: string;
-  thickness: number;
-  shapeFill: boolean;
-  tool: Tool;
-  addAction: (stroke: Stroke) => void;
 }
 
 interface SnapPreview {
@@ -38,14 +34,23 @@ interface SnapPreview {
 
 const EMPTY_EXCLUDED_IDS: string[] = [];
 
+const getToolSettings = () => {
+  const { color, thickness, shapeFill } = useToolSettingsStore.getState();
+  return { color, thickness, shapeFill };
+};
+
+const getShapeFillData = (color: string, shapeFillEnabled: boolean, tool: Tool) => {
+  if (!shapeFillEnabled || !isFillableShapeTool(tool)) return undefined;
+  return { color, style: "solid" as const };
+};
+
+const toGuidesRenderData = (snap: SnapPreview) => ({
+  pointGuide: snap.pointTarget,
+  axisGuides: snap.axisSnap,
+});
+
 export const useDrawMode = ({
   ctxRef,
-  present,
-  color,
-  thickness,
-  shapeFill: shapeFillEnabled,
-  tool,
-  addAction,
 }: UseDrawModeParams) => {
   const pointsRef = useRef<StrokePoint[]>([]);
   const isDrawingRef = useRef(false);
@@ -53,6 +58,10 @@ export const useDrawMode = ({
   const strokeIdRef = useRef<string>("");
   const pendingMoveRef = useRef<CanvasPointerPayload | null>(null);
   const rafMoveIdRef = useRef<number | null>(null);
+
+  const tool = useToolStore((state) => state.tool);
+  const isSnapEnabled = useSnapStore((state) => state.enabled);
+
   const getCanvasBounds = useCallback(() => {
     const canvas = ctxRef.current?.canvas;
     const width = canvas?.clientWidth ?? window.innerWidth;
@@ -60,25 +69,19 @@ export const useDrawMode = ({
 
     return { width, height };
   }, [ctxRef]);
+
   const getSceneSnapContext = useCallback(
-    () => buildSceneSnapContext(present, EMPTY_EXCLUDED_IDS, getCanvasBounds()),
-    [getCanvasBounds, present]
+    () => {
+      const { present } = useHistoryStore.getState();
+      return buildSceneSnapContext(present, EMPTY_EXCLUDED_IDS, getCanvasBounds());
+    },
+    [getCanvasBounds]
   );
+
   const getAxisConstrainState = useCallback(
     (shiftKey: boolean) => getAxisConstrainedByShift(tool, shiftKey),
     [tool]
   );
-  const isSnapEnabled = useSnapStore((state) => state.enabled);
-  const shapeFillData = useMemo(() => {
-    if (!shapeFillEnabled || !isFillableShapeTool(tool)) return undefined;
-
-    return { color, style: "solid" as const };
-  }, [color, shapeFillEnabled, tool]);
-
-  const toGuidesRenderData = (snap: SnapPreview) => ({
-    pointGuide: snap.pointTarget,
-    axisGuides: snap.axisSnap,
-  });
 
   const resolveCreateSnap = useCallback(
     (point: StrokePoint, shiftKey: boolean): SnapPreview => {
@@ -187,6 +190,7 @@ export const useDrawMode = ({
 
   const handlePointerDown = useCallback(
     ({ point }: CanvasPointerPayload) => {
+      const { color, thickness, shapeFill } = getToolSettings();
       startDrawing();
       drawableSeedRef.current = Date.now();
       strokeIdRef.current = createStrokeId();
@@ -200,17 +204,18 @@ export const useDrawMode = ({
         thickness,
         tool,
         drawableSeed: drawableSeedRef.current,
-        shapeFill: shapeFillData,
+        shapeFill: getShapeFillData(color, shapeFill, tool),
       };
 
       drawCanvas([stroke], ctxRef.current);
     },
-    [color, thickness, tool, ctxRef, shapeFillData]
+    [tool, ctxRef]
   );
 
   const processPointerMove = useCallback(
     ({ point, shiftKey }: CanvasPointerPayload) => {
       if (!isDrawingRef.current) return;
+      const { color, thickness, shapeFill } = getToolSettings();
       const isAxisConstrained = getAxisConstrainState(shiftKey);
 
       const snap = resolveCreateSnap(point, shiftKey);
@@ -224,7 +229,7 @@ export const useDrawMode = ({
         tool,
         drawableSeed: drawableSeedRef.current,
         isShiftPressed: isAxisConstrained,
-        shapeFill: shapeFillData,
+        shapeFill: getShapeFillData(color, shapeFill, tool),
       };
 
       const ctx = ctxRef.current;
@@ -234,12 +239,9 @@ export const useDrawMode = ({
       }
     },
     [
-      color,
       ctxRef,
       getAxisConstrainState,
       resolveCreateSnap,
-      shapeFillData,
-      thickness,
       tool,
     ]
   );
@@ -272,6 +274,7 @@ export const useDrawMode = ({
       }
       flushPendingMove();
       if (!isDrawingRef.current) return;
+      const { color, thickness, shapeFill } = getToolSettings();
       const isAxisConstrained = getAxisConstrainState(shiftKey);
 
       stopDrawing();
@@ -290,22 +293,18 @@ export const useDrawMode = ({
         thickness,
         tool,
         drawableSeed: drawableSeedRef.current,
-        shapeFill: shapeFillData,
+        shapeFill: getShapeFillData(color, shapeFill, tool),
       };
 
-      addAction(stroke);
+      useHistoryStore.getState().addAction(stroke);
       pointsRef.current = [];
       strokeIdRef.current = "";
       clearCanvas(ctxRef.current);
     },
     [
-      addAction,
-      color,
       ctxRef,
       flushPendingMove,
       getAxisConstrainState,
-      shapeFillData,
-      thickness,
       tool,
       withSnappedEndpoint,
     ]
