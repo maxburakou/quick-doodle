@@ -1,5 +1,7 @@
-import { usePresent, useShapeEditorStore, useTool } from "@/store";
+import { useShapeEditorStore, useTool } from "@/store";
+import { useHistoryStore } from "@/store/useHistoryStore";
 import { Stroke, Tool } from "@/types";
+import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { SETTING_REGISTRY, TOOL_CONFIG } from "../config";
 import {
@@ -24,7 +26,10 @@ const resolveSettingsContext = ({
   }
 
   if (selectedStrokeIds.length > 1) {
-    return { context: TOOLBAR_SETTINGS_CONTEXT.GROUP_SELECTION, tool: Tool.Select };
+    return {
+      context: TOOLBAR_SETTINGS_CONTEXT.GROUP_SELECTION,
+      tool: Tool.Select,
+    };
   }
 
   if (selectedStrokeIds.length === 1) {
@@ -41,13 +46,17 @@ const resolveSettingsContext = ({
 
 export const useToolbarSettingsContext = () => {
   const activeTool = useTool();
-  const present = usePresent();
   const { selectedStrokeIds, primarySelectedStrokeId } = useShapeEditorStore(
     useShallow((state) => ({
       selectedStrokeIds: state.selectedStrokeIds,
       primarySelectedStrokeId: state.primarySelectedStrokeId,
     })),
   );
+
+  const present = useMemo(() => {
+    if (activeTool !== Tool.Select || selectedStrokeIds.length === 0) return [];
+    return useHistoryStore.getState().present;
+  }, [activeTool, selectedStrokeIds]);
 
   const resolvedContext = resolveSettingsContext({
     activeTool,
@@ -64,7 +73,9 @@ export const useToolbarSettingsContext = () => {
     resolvedContext.context === TOOLBAR_SETTINGS_CONTEXT.GROUP_SELECTION
       ? (() => {
           const selectedIdSet = new Set(selectedStrokeIds);
-          const selectedStrokes = present.filter((stroke) => selectedIdSet.has(stroke.id));
+          const selectedStrokes = present.filter((stroke) =>
+            selectedIdSet.has(stroke.id),
+          );
           const settingIds = new Set<string>();
 
           selectedStrokes.forEach((stroke) => {
@@ -84,7 +95,7 @@ export const useToolbarSettingsContext = () => {
               (
                 definition,
               ): definition is (typeof SETTING_REGISTRY)[keyof typeof SETTING_REGISTRY] =>
-                Boolean(definition)
+                Boolean(definition),
             );
         })()
       : !effectiveTool

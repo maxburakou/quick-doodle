@@ -29,6 +29,7 @@ const buildStrokesById = (strokes: Stroke[]) =>
 
 export const useShapeEditorStore = create<ShapeEditorState>((set, get) => ({
   selectedStrokeIds: [],
+  selectedStrokeIdSet: new Set(),
   primarySelectedStrokeId: null,
   session: null,
 
@@ -40,13 +41,14 @@ export const useShapeEditorStore = create<ShapeEditorState>((set, get) => ({
         : uniqueIds[uniqueIds.length - 1] ?? null;
     set({
       selectedStrokeIds: uniqueIds,
+      selectedStrokeIdSet: new Set(uniqueIds),
       primarySelectedStrokeId: normalizedPrimaryId,
     });
   },
 
   toggleSelection: (id) =>
     set((state) => {
-      const exists = state.selectedStrokeIds.includes(id);
+      const exists = state.selectedStrokeIdSet.has(id);
       if (exists) {
         const nextIds = state.selectedStrokeIds.filter(
           (selectedId) => selectedId !== id
@@ -58,6 +60,7 @@ export const useShapeEditorStore = create<ShapeEditorState>((set, get) => ({
 
         return {
           selectedStrokeIds: nextIds,
+          selectedStrokeIdSet: new Set(nextIds),
           primarySelectedStrokeId: nextPrimary,
           session: null,
         };
@@ -66,6 +69,7 @@ export const useShapeEditorStore = create<ShapeEditorState>((set, get) => ({
       const nextIds = [...state.selectedStrokeIds, id];
       return {
         selectedStrokeIds: nextIds,
+        selectedStrokeIdSet: new Set(nextIds),
         primarySelectedStrokeId: id,
         session: null,
       };
@@ -80,8 +84,10 @@ export const useShapeEditorStore = create<ShapeEditorState>((set, get) => ({
     const initialBounds = getStrokeBounds(normalizedStroke);
     const initialRotation = getStrokeRotation(normalizedStroke);
 
+    const nextIds = [stroke.id];
     set({
-      selectedStrokeIds: [stroke.id],
+      selectedStrokeIds: nextIds,
+      selectedStrokeIdSet: new Set(nextIds),
       primarySelectedStrokeId: stroke.id,
       session: {
         type: "single",
@@ -117,6 +123,7 @@ export const useShapeEditorStore = create<ShapeEditorState>((set, get) => ({
 
     set({
       selectedStrokeIds: strokeIds,
+      selectedStrokeIdSet: new Set(strokeIds),
       primarySelectedStrokeId: strokeIds[strokeIds.length - 1] ?? null,
       session,
     });
@@ -173,8 +180,10 @@ export const useShapeEditorStore = create<ShapeEditorState>((set, get) => ({
       commitPresent(nextPresent);
     }
 
+    const nextIds = [session.draftStroke.id];
     set({
-      selectedStrokeIds: [session.draftStroke.id],
+      selectedStrokeIds: nextIds,
+      selectedStrokeIdSet: new Set(nextIds),
       primarySelectedStrokeId: session.draftStroke.id,
       session: null,
     });
@@ -204,6 +213,7 @@ export const useShapeEditorStore = create<ShapeEditorState>((set, get) => ({
 
     set((state) => ({
       selectedStrokeIds: state.selectedStrokeIds,
+      selectedStrokeIdSet: state.selectedStrokeIdSet,
       primarySelectedStrokeId:
         state.primarySelectedStrokeId ??
         state.selectedStrokeIds[state.selectedStrokeIds.length - 1] ??
@@ -217,6 +227,7 @@ export const useShapeEditorStore = create<ShapeEditorState>((set, get) => ({
   clearSelection: () =>
     set({
       selectedStrokeIds: [],
+      selectedStrokeIdSet: new Set(),
       primarySelectedStrokeId: null,
       session: null,
     }),

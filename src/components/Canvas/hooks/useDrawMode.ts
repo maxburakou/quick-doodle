@@ -21,6 +21,7 @@ import {
 } from "../helpers";
 import { CanvasPointerPayload } from "./types";
 import { buildSceneSnapContext } from "../utils/snap/snapContext";
+import { getCanvasBoundsFromCtx } from "../utils/getCanvasBounds";
 
 interface UseDrawModeParams {
   ctxRef: React.MutableRefObject<CanvasRenderingContext2D | null>;
@@ -62,20 +63,12 @@ export const useDrawMode = ({
   const tool = useToolStore((state) => state.tool);
   const isSnapEnabled = useSnapStore((state) => state.enabled);
 
-  const getCanvasBounds = useCallback(() => {
-    const canvas = ctxRef.current?.canvas;
-    const width = canvas?.clientWidth ?? window.innerWidth;
-    const height = canvas?.clientHeight ?? window.innerHeight;
-
-    return { width, height };
-  }, [ctxRef]);
-
   const getSceneSnapContext = useCallback(
     () => {
       const { present } = useHistoryStore.getState();
-      return buildSceneSnapContext(present, EMPTY_EXCLUDED_IDS, getCanvasBounds());
+      return buildSceneSnapContext(present, EMPTY_EXCLUDED_IDS, getCanvasBoundsFromCtx(ctxRef));
     },
-    [getCanvasBounds]
+    [ctxRef]
   );
 
   const getAxisConstrainState = useCallback(

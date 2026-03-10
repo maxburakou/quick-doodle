@@ -1,24 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ShapeBounds,
-  Stroke,
-  StrokePoint,
-  Tool,
-  TransformHandle,
-} from "@/types";
-import {
-  useSnapStore,
-  useToolStore,
-} from "@/store";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { Stroke, Tool, TransformHandle, StrokePoint } from "@/types";
+import { useSnapStore, useToolStore } from "@/store";
 import { useHistoryStore } from "@/store/useHistoryStore";
 import { useShapeEditorStore } from "@/store/useShapeEditorStore";
-import { useTextEditorStore } from "@/store/useTextEditorStore";
 import {
   clearCanvas,
-  drawSnapGuides,
-  drawGroupSelectionOverlay,
-  drawMarqueeOverlay,
-  drawShapeEditorOverlay,
   getCursorByHandle,
   resolveSelectCursor,
   resolveSelectTarget,
@@ -29,7 +15,6 @@ import { enterTextEdit } from "../utils/enterTextEdit";
 import {
   getAxisConstrainedByShift,
   getStrokeAABB,
-  strokeIntersectsMarquee,
   isLineLikeSnapTool,
   isShapeBoxSnapTool,
   getStrokeSnapAnchors,
@@ -41,29 +26,17 @@ import {
   getCachedSceneSnapContext,
   type SceneSnapContextCache,
 } from "../utils/snap/snapContext";
-import { drawStrokes, getTransformLayerFromSession } from "../utils";
+
+import { useMarqueeSelection } from "./useMarqueeSelection";
+import { useSelectModeOverlay } from "./useSelectModeOverlay";
+
+import { getCanvasBoundsFromCtx } from "../utils/getCanvasBounds";
 
 const TEXT_EDIT_SECOND_CLICK_INTERVAL_MS = 400;
-const MARQUEE_DRAG_THRESHOLD = 3;
 
 interface UseSelectModeParams {
   ctxRef: React.MutableRefObject<CanvasRenderingContext2D | null>;
 }
-
-const normalizeMarqueeBounds = (
-  start: StrokePoint,
-  current: StrokePoint
-): ShapeBounds => ({
-  x: Math.min(start.x, current.x),
-  y: Math.min(start.y, current.y),
-  width: Math.abs(current.x - start.x),
-  height: Math.abs(current.y - start.y),
-});
-
-const getStrokesInMarquee = (strokes: Stroke[], marqueeBounds: ShapeBounds) =>
-  strokes
-    .filter((stroke) => strokeIntersectsMarquee(stroke, marqueeBounds))
-    .map((stroke) => stroke.id);
 
 const getGroupBoundsAnchors = (
   strokes: Stroke[]
@@ -112,16 +85,17 @@ const canSnapSingleResize = (
 };
 
 /** Read current selection state snapshot from stores */
-const getSelectionSnapshot = () => {
+export const getSelectionSnapshot = () => {
   const {
     selectedStrokeIds,
+    selectedStrokeIdSet,
     primarySelectedStrokeId,
     session,
   } = useShapeEditorStore.getState();
   const { present } = useHistoryStore.getState();
 
   const selectedStrokes = present.filter((stroke) =>
-    selectedStrokeIds.includes(stroke.id)
+    selectedStrokeIdSet.has(stroke.id)
   );
   const primarySelectedStroke =
     present.find((stroke) => stroke.id === primarySelectedStrokeId) ?? null;
@@ -129,6 +103,7 @@ const getSelectionSnapshot = () => {
   return {
     present,
     selectedStrokeIds,
+    selectedStrokeIdSet,
     primarySelectedStrokeId,
     session,
     selectedStrokes,
@@ -144,35 +119,58 @@ export const useSelectMode = ({
 
   const prevToolRef = useRef<Tool>(tool);
   const lastTextBodyClickRef = useRef<{ strokeId: string; at: number } | null>(null);
-  const marqueeStartRef = useRef<StrokePoint | null>(null);
-  const marqueeShiftRef = useRef(false);
-  const marqueeActiveRef = useRef(false);
+  
   const pendingMoveRef = useRef<CanvasPointerPayload | null>(null);
   const rafMoveIdRef = useRef<number | null>(null);
   const sessionSnapCacheRef = useRef<SceneSnapContextCache | null>(null);
-  const [marqueeBounds, setMarqueeBounds] = useState<ShapeBounds | null>(null);
-  const [activeSnapGuides, setActiveSnapGuides] =
-    useState<SnapGuidesRenderData | null>(null);
-  const [cursor, setCursor] = useState<React.CSSProperties["cursor"]>("default");
+  const activeSnapGuidesRef = useRef<SnapGuidesRenderData | null>(null);
+  const cursorRef = useRef<React.CSSProperties["cursor"]>("default");
+  
+  // Shared state for marquee and overlay
+  const marqueeBoundsRef = useRef(null);
+  const renderOverlayRef = useRef<() => void>(() => {});
 
-  const textEditorMode = useTextEditorStore((state) => state.mode);
-
-  const getCanvasBounds = useCallback(() => {
-    const canvas = ctxRef.current?.canvas;
-    const width = canvas?.clientWidth ?? window.innerWidth;
-    const height = canvas?.clientHeight ?? window.innerHeight;
-
-    return { width, height };
+  const setCursor = useCallback((newCursor: React.CSSProperties["cursor"]) => {
+    if (cursorRef.current === newCursor) return;
+    cursorRef.current = newCursor;
+    if (ctxRef.current?.canvas) {
+      ctxRef.current.canvas.style.cursor = newCursor ?? "default";
+    }
   }, [ctxRef]);
 
   const clearSessionSnapCache = useCallback(() => {
     sessionSnapCacheRef.current = null;
   }, []);
 
+  // Hook 1: Overlay rendering
+  useSelectModeOverlay({
+    ctxRef,
+    tool,
+    isSnapEnabled,
+    marqueeBoundsRef,
+    activeSnapGuidesRef,
+    renderOverlayRef,
+  });
+
+  // Hook 2: Marquee selection
+  const {
+    marqueeStartRef,
+    startMarqueeSelection,
+    processMarqueeMove,
+    finalizeMarquee,
+    clearMarqueeState,
+  } = useMarqueeSelection({
+    clearSessionSnapCache,
+    marqueeBoundsRef,
+    activeSnapGuidesRef,
+    setCursor,
+    renderOverlay: () => renderOverlayRef.current(),
+  });
+
   const getSceneSnapData = useCallback(
     (excludedIds: string[]) => {
       const { present } = useHistoryStore.getState();
-      const canvasBounds = getCanvasBounds();
+      const canvasBounds = getCanvasBoundsFromCtx(ctxRef);
       return getCachedSceneSnapContext(
         sessionSnapCacheRef,
         present,
@@ -180,47 +178,7 @@ export const useSelectMode = ({
         canvasBounds
       );
     },
-    [getCanvasBounds]
-  );
-
-  const finalizeMarquee = useCallback(
-    (pointer: StrokePoint) => {
-      const start = marqueeStartRef.current;
-      if (!start) return;
-
-      const {
-        present,
-        selectedStrokeIds,
-      } = getSelectionSnapshot();
-      const {
-        clearSelection,
-        setSelection,
-      } = useShapeEditorStore.getState();
-
-      const shouldApplyMarquee = marqueeActiveRef.current;
-      if (!shouldApplyMarquee) {
-        if (!marqueeShiftRef.current) {
-          clearSelection();
-        }
-      } else {
-        const bounds = normalizeMarqueeBounds(start, pointer);
-        const hitIds = getStrokesInMarquee(present, bounds);
-        if (marqueeShiftRef.current) {
-          const nextSelection = Array.from(new Set([...selectedStrokeIds, ...hitIds]));
-          setSelection(nextSelection, nextSelection[nextSelection.length - 1] ?? null);
-        } else {
-          setSelection(hitIds, hitIds[hitIds.length - 1] ?? null);
-        }
-      }
-
-      marqueeStartRef.current = null;
-      marqueeActiveRef.current = false;
-      marqueeShiftRef.current = false;
-      clearSessionSnapCache();
-      setMarqueeBounds(null);
-      setActiveSnapGuides(null);
-    },
-    [clearSessionSnapCache]
+    [ctxRef]
   );
 
   const handlePointerDown = useCallback(
@@ -237,16 +195,6 @@ export const useSelectMode = ({
         startGroupMove,
       } = useShapeEditorStore.getState();
 
-      const startMarqueeSelection = () => {
-        clearSessionSnapCache();
-        marqueeStartRef.current = point;
-        marqueeShiftRef.current = shiftKey;
-        marqueeActiveRef.current = false;
-        setMarqueeBounds(null);
-        setActiveSnapGuides(null);
-        setCursor("default");
-      };
-
       const targetResult = resolveSelectTarget(
         point,
         present,
@@ -256,19 +204,20 @@ export const useSelectMode = ({
 
       if (!targetResult.targetStroke || !targetResult.nextHandle) {
         lastTextBodyClickRef.current = null;
-        startMarqueeSelection();
+        startMarqueeSelection(point, shiftKey);
         return;
       }
 
       const { targetStroke, nextHandle, targetKind, isBodyHit } = targetResult;
       if (shiftKey) {
         if (!isBodyHit) {
-          startMarqueeSelection();
+          startMarqueeSelection(point, shiftKey);
           return;
         }
         toggleSelection(targetStroke.id);
-        setActiveSnapGuides(null);
+        activeSnapGuidesRef.current = null;
         setCursor("default");
+        renderOverlayRef.current();
         return;
       }
 
@@ -292,8 +241,9 @@ export const useSelectMode = ({
 
         if (canEnterTextEdit) {
           enterTextEdit(targetStroke);
-          setActiveSnapGuides(null);
+          activeSnapGuidesRef.current = null;
           setCursor("default");
+          renderOverlayRef.current();
           return;
         }
       } else {
@@ -302,17 +252,19 @@ export const useSelectMode = ({
 
       if (selectedStrokes.length > 1 && targetKind === "selected-group-member") {
         startGroupMove({ strokes: selectedStrokes, pointer: point });
-        setActiveSnapGuides(null);
+        activeSnapGuidesRef.current = null;
         setCursor("grabbing");
+        renderOverlayRef.current();
         return;
       }
 
       setSelection([targetStroke.id], targetStroke.id);
       startTransform({ stroke: targetStroke, handle: nextHandle, pointer: point });
-      setActiveSnapGuides(null);
+      activeSnapGuidesRef.current = null;
       setCursor(nextHandle === "move" ? "grabbing" : getCursorByHandle(nextHandle));
+      renderOverlayRef.current();
     },
-    [clearSessionSnapCache]
+    [startMarqueeSelection, setCursor]
   );
 
   const processPointerMove = useCallback(
@@ -329,19 +281,7 @@ export const useSelectMode = ({
         updateGroupMove,
       } = useShapeEditorStore.getState();
 
-      if (marqueeStartRef.current) {
-        const start = marqueeStartRef.current;
-        const dx = Math.abs(point.x - start.x);
-        const dy = Math.abs(point.y - start.y);
-        if (!marqueeActiveRef.current && (dx > MARQUEE_DRAG_THRESHOLD || dy > MARQUEE_DRAG_THRESHOLD)) {
-          marqueeActiveRef.current = true;
-        }
-
-        if (marqueeActiveRef.current) {
-          setMarqueeBounds(normalizeMarqueeBounds(start, point));
-          setCursor("crosshair");
-        }
-        setActiveSnapGuides(null);
+      if (processMarqueeMove(point)) {
         return;
       }
 
@@ -349,7 +289,7 @@ export const useSelectMode = ({
         if (session.handle === "move") {
           if (!isSnapEnabled) {
             updateTransform(point, { shiftKey });
-            setActiveSnapGuides(null);
+            activeSnapGuidesRef.current = null;
           } else {
             const movingAnchors = getStrokeSnapAnchors(session.initialStroke);
             const initialCenter =
@@ -374,10 +314,10 @@ export const useSelectMode = ({
             });
 
             updateTransform(snap.point, { shiftKey });
-            setActiveSnapGuides({
+            activeSnapGuidesRef.current = {
               pointGuide: snap.pointTarget,
               axisGuides: snap.axisSnap,
-            });
+            };
           }
         } else if (
           isSnapEnabled &&
@@ -399,24 +339,25 @@ export const useSelectMode = ({
             segments
           );
           updateTransform(snap.point, { shiftKey });
-          setActiveSnapGuides({
+          activeSnapGuidesRef.current = {
             pointGuide: snap.pointTarget,
             axisGuides: snap.axisSnap,
-          });
+          };
         } else {
           updateTransform(point, { shiftKey });
-          setActiveSnapGuides(null);
+          activeSnapGuidesRef.current = null;
         }
         setCursor(
           session.handle === "move" ? "grabbing" : getCursorByHandle(session.handle)
         );
+        renderOverlayRef.current();
         return;
       }
 
       if (session?.type === "groupMove") {
         if (!isSnapEnabled) {
           updateGroupMove(point);
-          setActiveSnapGuides(null);
+          activeSnapGuidesRef.current = null;
         } else {
           const sessionStrokes = session.strokeIds
             .map((id) => session.initialStrokesById[id])
@@ -424,7 +365,7 @@ export const useSelectMode = ({
           const movingAnchors = getGroupBoundsAnchors(sessionStrokes);
           if (movingAnchors.length === 0) {
             updateGroupMove(point);
-            setActiveSnapGuides(null);
+            activeSnapGuidesRef.current = null;
           } else {
             const { anchors, segments, axisCandidates } = getSceneSnapData(
               session.strokeIds
@@ -439,20 +380,22 @@ export const useSelectMode = ({
               snapDistance: SNAP_DISTANCE_PX,
             });
             updateGroupMove(snap.point);
-            setActiveSnapGuides({
+            activeSnapGuidesRef.current = {
               pointGuide: snap.pointTarget,
               axisGuides: snap.axisSnap,
-            });
+            };
           }
         }
         setCursor("grabbing");
+        renderOverlayRef.current();
         return;
       }
 
-      setActiveSnapGuides(null);
+      activeSnapGuidesRef.current = null;
       setCursor(resolveSelectCursor(point, present, selectedStrokes, primarySelectedStroke));
+      renderOverlayRef.current();
     },
-    [isSnapEnabled, getSceneSnapData]
+    [isSnapEnabled, getSceneSnapData, setCursor, processMarqueeMove]
   );
 
   const flushPendingMove = useCallback(() => {
@@ -482,8 +425,7 @@ export const useSelectMode = ({
         rafMoveIdRef.current = null;
       }
       flushPendingMove();
-      if (marqueeStartRef.current) {
-        finalizeMarquee(point);
+      if (finalizeMarquee(point)) {
         return;
       }
 
@@ -495,19 +437,22 @@ export const useSelectMode = ({
 
       if (!session) {
         clearSessionSnapCache();
-        setActiveSnapGuides(null);
+        activeSnapGuidesRef.current = null;
+        renderOverlayRef.current();
         return;
       }
       if (session.type === "single") {
         commitTransform();
         clearSessionSnapCache();
-        setActiveSnapGuides(null);
+        activeSnapGuidesRef.current = null;
+        renderOverlayRef.current();
         return;
       }
 
       commitGroupMove();
       clearSessionSnapCache();
-      setActiveSnapGuides(null);
+      activeSnapGuidesRef.current = null;
+      renderOverlayRef.current();
     },
     [
       clearSessionSnapCache,
@@ -525,10 +470,11 @@ export const useSelectMode = ({
       }
       pendingMoveRef.current = null;
       clearSessionSnapCache();
-      setActiveSnapGuides(null);
+      activeSnapGuidesRef.current = null;
       setCursor("default");
+      renderOverlayRef.current();
     }
-  }, [clearSessionSnapCache]);
+  }, [clearSessionSnapCache, setCursor, marqueeStartRef]);
 
   // Clear snap cache when session ends
   useEffect(() => {
@@ -558,12 +504,11 @@ export const useSelectMode = ({
       }
 
       clearSelection();
-      marqueeStartRef.current = null;
-      marqueeActiveRef.current = false;
-      marqueeShiftRef.current = false;
+      clearMarqueeState();
+      
       clearSessionSnapCache();
-      setMarqueeBounds(null);
-      setActiveSnapGuides(null);
+      marqueeBoundsRef.current = null;
+      activeSnapGuidesRef.current = null;
       if (rafMoveIdRef.current !== null) {
         window.cancelAnimationFrame(rafMoveIdRef.current);
         rafMoveIdRef.current = null;
@@ -574,84 +519,7 @@ export const useSelectMode = ({
     }
 
     prevToolRef.current = tool;
-  }, [clearSessionSnapCache, ctxRef, tool]);
-
-  // Render overlay for selection/transform/marquee/snap
-  useEffect(() => {
-    const renderOverlay = () => {
-      if (textEditorMode === "edit") {
-        clearCanvas(ctxRef.current);
-        return;
-      }
-
-      if (tool !== Tool.Select) {
-        return;
-      }
-
-      const {
-        session,
-        selectedStrokeIds,
-        primarySelectedStrokeId,
-      } = useShapeEditorStore.getState();
-      const { present } = useHistoryStore.getState();
-
-      const selectedStrokes = present.filter((stroke) =>
-        selectedStrokeIds.includes(stroke.id)
-      );
-      const primarySelectedStroke =
-        present.find((stroke) => stroke.id === primarySelectedStrokeId) ?? null;
-
-      const transformLayer = getTransformLayerFromSession(session);
-
-      const ctx = ctxRef.current;
-      if (!ctx) return;
-
-      clearCanvas(ctx);
-      if (transformLayer.isTransforming) {
-        drawStrokes(transformLayer.activeStrokes, ctx);
-      }
-
-      if (session?.type === "single") {
-        drawShapeEditorOverlay(ctx, session.draftStroke);
-      } else if (session?.type === "groupMove") {
-        const draftStrokes = session.strokeIds
-          .map((id) => session.draftStrokesById[id])
-          .filter(Boolean);
-        drawGroupSelectionOverlay(ctx, draftStrokes);
-      } else if (selectedStrokes.length > 1) {
-        drawGroupSelectionOverlay(ctx, selectedStrokes);
-      } else if (primarySelectedStroke) {
-        drawShapeEditorOverlay(ctx, primarySelectedStroke);
-      }
-
-      if (marqueeBounds) {
-        drawMarqueeOverlay(ctx, marqueeBounds);
-      }
-
-      if (isSnapEnabled && activeSnapGuides) {
-        drawSnapGuides(ctx, activeSnapGuides);
-      }
-    };
-
-    // Render immediately to reflect current state
-    renderOverlay();
-
-    // Subscribe to store updates to trigger imperative redraws WITHOUT React renders
-    const unsubscribeShape = useShapeEditorStore.subscribe(renderOverlay);
-    const unsubscribeHistory = useHistoryStore.subscribe(renderOverlay);
-
-    return () => {
-      unsubscribeShape();
-      unsubscribeHistory();
-    };
-  }, [
-    activeSnapGuides,
-    ctxRef,
-    isSnapEnabled,
-    marqueeBounds,
-    textEditorMode,
-    tool,
-  ]);
+  }, [clearSessionSnapCache, ctxRef, tool, setCursor, clearMarqueeState, marqueeBoundsRef]);
 
   // Sync deleted strokes with selection
   useEffect(() => {
@@ -677,9 +545,10 @@ export const useSelectMode = ({
         return;
       }
 
-      const nextPrimary = nextSelection.includes(primarySelectedStrokeId ?? "")
-        ? primarySelectedStrokeId
-        : nextSelection[nextSelection.length - 1];
+      const nextPrimary =
+        primarySelectedStrokeId && existingIds.has(primarySelectedStrokeId)
+          ? primarySelectedStrokeId
+          : nextSelection[nextSelection.length - 1] ?? null;
       setSelection(nextSelection, nextPrimary);
     };
 
@@ -701,12 +570,12 @@ export const useSelectMode = ({
 
   return useMemo(
     () => ({
-      cursor,
+      cursor: cursorRef.current,
       handlePointerDown,
       handlePointerMove,
       handlePointerUp,
       handlePointerLeave,
     }),
-    [cursor, handlePointerDown, handlePointerMove, handlePointerUp, handlePointerLeave]
+    [handlePointerDown, handlePointerMove, handlePointerUp, handlePointerLeave]
   );
 };

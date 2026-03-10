@@ -8,7 +8,7 @@ export const useSelectedStrokes = () => {
   const { selectedStrokeIds } = useShapeEditorStore(
     useShallow((state) => ({
       selectedStrokeIds: state.selectedStrokeIds,
-    }))
+    })),
   );
 
   return getSelectedStrokes({

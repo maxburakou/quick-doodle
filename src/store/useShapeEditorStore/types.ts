@@ -7,6 +7,7 @@ import {
 
 export interface ShapeEditorState {
   selectedStrokeIds: string[];
+  selectedStrokeIdSet: Set<string>;
   primarySelectedStrokeId: string | null;
   session: ShapeEditorSession | null;
   setSelection: (ids: string[], primaryId?: string | null) => void;
