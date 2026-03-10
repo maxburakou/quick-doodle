@@ -25,8 +25,7 @@ import {
 } from "../helpers";
 import type { SnapGuidesRenderData } from "../helpers/drawSnapMarker";
 import { CanvasPointerPayload } from "./types";
-import { normalizeTextStroke } from "../utils/textGeometry";
-import { getCaretFromBoxStart } from "../utils/textLayout";
+import { enterTextEdit } from "../utils/enterTextEdit";
 import {
   getAxisConstrainedByShift,
   getStrokeAABB,
@@ -237,7 +236,6 @@ export const useSelectMode = ({
         startTransform,
         startGroupMove,
       } = useShapeEditorStore.getState();
-      const startTextEdit = useTextEditorStore.getState().startEdit;
 
       const startMarqueeSelection = () => {
         clearSessionSnapCache();
@@ -293,29 +291,7 @@ export const useSelectMode = ({
         lastTextBodyClickRef.current = { strokeId: targetStroke.id, at: now };
 
         if (canEnterTextEdit) {
-          const normalizedTextStroke = normalizeTextStroke(targetStroke);
-          const normalizedText = normalizedTextStroke.text ?? targetStroke.text!;
-          const boundsStart = normalizedTextStroke.points[0] ?? {
-            x: 0,
-            y: 0,
-            pressure: 0.5,
-          };
-          const caretPoint = getCaretFromBoxStart(
-            boundsStart,
-            normalizedText.fontSize
-          );
-          const startPoint = {
-            ...boundsStart,
-            ...caretPoint,
-          };
-
-          startTextEdit({
-            strokeId: normalizedTextStroke.id,
-            text: normalizedText.value,
-            startPoint,
-            fontSize: normalizedText.fontSize,
-            color: normalizedTextStroke.color,
-          });
+          enterTextEdit(targetStroke);
           setActiveSnapGuides(null);
           setCursor("default");
           return;
@@ -511,12 +487,11 @@ export const useSelectMode = ({
         return;
       }
 
-      const { present, session } = getSelectionSnapshot();
+      const { session } = getSelectionSnapshot();
       const {
         commitTransform,
         commitGroupMove,
       } = useShapeEditorStore.getState();
-      const { commitPresent } = useHistoryStore.getState();
 
       if (!session) {
         clearSessionSnapCache();
@@ -524,13 +499,13 @@ export const useSelectMode = ({
         return;
       }
       if (session.type === "single") {
-        commitTransform(present, commitPresent);
+        commitTransform();
         clearSessionSnapCache();
         setActiveSnapGuides(null);
         return;
       }
 
-      commitGroupMove(present, commitPresent);
+      commitGroupMove();
       clearSessionSnapCache();
       setActiveSnapGuides(null);
     },
@@ -575,13 +550,11 @@ export const useSelectMode = ({
 
     if (switchedFromSelect) {
       const { session, clearSelection } = useShapeEditorStore.getState();
-      const { present } = useHistoryStore.getState();
-      const { commitPresent } = useHistoryStore.getState();
 
       if (session?.type === "single") {
-        useShapeEditorStore.getState().commitTransform(present, commitPresent);
+        useShapeEditorStore.getState().commitTransform();
       } else if (session?.type === "groupMove") {
-        useShapeEditorStore.getState().commitGroupMove(present, commitPresent);
+        useShapeEditorStore.getState().commitGroupMove();
       }
 
       clearSelection();

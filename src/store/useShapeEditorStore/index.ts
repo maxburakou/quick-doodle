@@ -8,6 +8,7 @@ import {
   moveStrokeIdsToEnd,
   replaceStrokeById,
 } from "./helpers";
+import { useHistoryStore } from "../useHistoryStore";
 import { normalizeTextStroke } from "@/components/Canvas/utils/textGeometry";
 import { GroupMoveSession, Stroke } from "@/types";
 
@@ -160,9 +161,11 @@ export const useShapeEditorStore = create<ShapeEditorState>((set, get) => ({
     });
   },
 
-  commitTransform: (present, commitPresent) => {
+  commitTransform: () => {
     const { session } = get();
     if (!session || session.type !== "single") return;
+
+    const { present, commitPresent } = useHistoryStore.getState();
 
     if (hasStrokeTransformChanged(session.initialStroke, session.draftStroke)) {
       const replacedPresent = replaceStrokeById(present, session.draftStroke);
@@ -177,9 +180,11 @@ export const useShapeEditorStore = create<ShapeEditorState>((set, get) => ({
     });
   },
 
-  commitGroupMove: (present, commitPresent) => {
+  commitGroupMove: () => {
     const { session } = get();
     if (!session || session.type !== "groupMove") return;
+
+    const { present, commitPresent } = useHistoryStore.getState();
 
     const hasChanges = session.strokeIds.some((id) => {
       const initialStroke = session.initialStrokesById[id];

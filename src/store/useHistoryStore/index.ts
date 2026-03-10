@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { HistoryState } from "./types";
 
+export const MAX_UNDO_DEPTH = 50;
+
 export const useHistoryStore = create<HistoryState>((set, get) => ({
   past: [],
   present: [],
@@ -8,7 +10,7 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
 
   commitPresent: (nextPresent) =>
     set((state) => ({
-      past: [...state.past, state.present],
+      past: [...state.past, state.present].slice(-MAX_UNDO_DEPTH),
       present: nextPresent,
       future: [],
     })),
@@ -40,7 +42,7 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
       const nextFuture = state.future.slice(1);
 
       return {
-        past: [...state.past, state.present],
+        past: [...state.past, state.present].slice(-MAX_UNDO_DEPTH),
         present: nextPresent,
         future: nextFuture,
       };

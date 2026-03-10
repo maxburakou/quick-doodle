@@ -19,14 +19,8 @@ export interface ShapeEditorState {
   startGroupMove: (params: { strokes: Stroke[]; pointer: StrokePoint }) => void;
   updateTransform: (pointer: StrokePoint, options?: { shiftKey?: boolean }) => void;
   updateGroupMove: (pointer: StrokePoint) => void;
-  commitTransform: (
-    present: Stroke[],
-    commitPresent: (nextPresent: Stroke[]) => void
-  ) => void;
-  commitGroupMove: (
-    present: Stroke[],
-    commitPresent: (nextPresent: Stroke[]) => void
-  ) => void;
+  commitTransform: () => void;
+  commitGroupMove: () => void;
   cancelTransform: () => void;
   clearSelection: () => void;
 }

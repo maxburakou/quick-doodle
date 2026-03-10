@@ -98,4 +98,4 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
   hasData: () => get().strokesSnapshot.length > 0,
 }));
 
-export const useClipboardHasData = () => useClipboardStore((state) => state.hasData());
+export const useClipboardHasData = () => useClipboardStore((state) => state.strokesSnapshot.length > 0);
