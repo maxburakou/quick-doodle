@@ -1,13 +1,13 @@
 export enum Tool {
-  Pen = "1",
-  Highlighter = "2",
-  Arrow = "3",
-  Line = "4",
-  Rectangle = "5",
-  Diamond = "6",
-  Ellipse = "7",
-  Text = "8",
-  Select = "9",
+  Pen = "pen",
+  Highlighter = "highlighter",
+  Arrow = "arrow",
+  Line = "line",
+  Rectangle = "rectangle",
+  Diamond = "diamond",
+  Ellipse = "ellipse",
+  Text = "text",
+  Select = "select",
 }
 
 export interface StrokePoint {

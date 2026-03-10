@@ -16,15 +16,16 @@ export const ToolbarToolsList: React.FC<ToolbarToolsListProps> = ({
   onSelectTool,
   settingsSnapshot,
 }) => {
+  const toolsList = Object.values(Tool);
   const toolbarStyle = {
-    "--active-index": Number(activeTool) - 1,
+    "--active-index": toolsList.indexOf(activeTool),
   } as CSSProperties;
 
   return (
     <menu className="toolbar toolbar-capsule-enabled" style={toolbarStyle}>
       <div className="toolbar-active-capsule" aria-hidden />
       {/* TODO: switch to TOOL_ORDER when user-defined tool ordering is implemented. */}
-      {Object.values(Tool).map((toolValue) => {
+      {toolsList.map((toolValue) => {
         const { hotkeySlot, icon } = TOOL_CONFIG[toolValue];
         const isActive = toolValue === activeTool;
         const hotkey = resolveToolHotkeyLabel(settingsSnapshot, hotkeySlot);
