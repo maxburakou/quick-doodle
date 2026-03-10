@@ -20,7 +20,8 @@ import {
   finalizeStrokePoints,
 } from "../helpers";
 import { CanvasPointerPayload } from "./types";
-import { buildSceneSnapContext } from "../utils/snap/snapContext";
+import { SceneSnapContext, SceneSnapContextCache } from "../utils/snap/snapContext";
+import { getAsyncCachedSceneSnapContext } from "../utils/snap/snapWorkerManager";
 import { getCanvasBoundsFromCtx } from "../utils/getCanvasBounds";
 
 interface UseDrawModeParams {
@@ -63,13 +64,42 @@ export const useDrawMode = ({
   const tool = useToolStore((state) => state.tool);
   const isSnapEnabled = useSnapStore((state) => state.enabled);
 
-  const getSceneSnapContext = useCallback(
-    () => {
-      const { present } = useHistoryStore.getState();
-      return buildSceneSnapContext(present, EMPTY_EXCLUDED_IDS, getCanvasBoundsFromCtx(ctxRef));
-    },
-    [ctxRef]
+  const sessionSnapCacheRef = useRef<SceneSnapContextCache | null>(null);
+
+  const fallbackContext = useMemo<SceneSnapContext>(
+    () => ({
+      anchors: [],
+      segments: [],
+      axisCandidates: [],
+    }),
+    []
   );
+
+  useEffect(() => {
+    if (!isSnapEnabled) return;
+
+    const compute = async () => {
+      try {
+        const { present } = useHistoryStore.getState();
+        const canvasBounds = getCanvasBoundsFromCtx(ctxRef);
+        await getAsyncCachedSceneSnapContext(
+          sessionSnapCacheRef,
+          present,
+          EMPTY_EXCLUDED_IDS,
+          canvasBounds
+        );
+      } catch (err) {
+        console.error("Failed to precompute snap context:", err);
+      }
+    };
+
+    compute();
+    return useHistoryStore.subscribe(compute);
+  }, [ctxRef, isSnapEnabled]);
+
+  const getSceneSnapContext = useCallback(() => {
+    return sessionSnapCacheRef.current?.context ?? fallbackContext;
+  }, [fallbackContext]);
 
   const getAxisConstrainState = useCallback(
     (shiftKey: boolean) => getAxisConstrainedByShift(tool, shiftKey),

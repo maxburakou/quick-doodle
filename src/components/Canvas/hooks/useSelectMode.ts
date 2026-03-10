@@ -23,9 +23,10 @@ import {
 } from "@/store/useShapeEditorStore/helpers";
 import { SNAP_DISTANCE_PX } from "@/config/snapConfig";
 import {
-  getCachedSceneSnapContext,
   type SceneSnapContextCache,
+  type SceneSnapContext,
 } from "../utils/snap/snapContext";
+import { getAsyncCachedSceneSnapContext } from "../utils/snap/snapWorkerManager";
 
 import { useMarqueeSelection } from "./useMarqueeSelection";
 import { useSelectModeOverlay } from "./useSelectModeOverlay";
@@ -130,6 +131,15 @@ export const useSelectMode = ({
   const marqueeBoundsRef = useRef(null);
   const renderOverlayRef = useRef<() => void>(() => {});
 
+  const fallbackContext = useMemo<SceneSnapContext>(
+    () => ({
+      anchors: [],
+      segments: [],
+      axisCandidates: [],
+    }),
+    []
+  );
+
   const setCursor = useCallback((newCursor: React.CSSProperties["cursor"]) => {
     if (cursorRef.current === newCursor) return;
     cursorRef.current = newCursor;
@@ -168,18 +178,30 @@ export const useSelectMode = ({
   });
 
   const getSceneSnapData = useCallback(
-    (excludedIds: string[]) => {
-      const { present } = useHistoryStore.getState();
-      const canvasBounds = getCanvasBoundsFromCtx(ctxRef);
-      return getCachedSceneSnapContext(
-        sessionSnapCacheRef,
-        present,
-        excludedIds,
-        canvasBounds
-      );
+    () => {
+      return sessionSnapCacheRef.current?.context ?? fallbackContext;
     },
-    [ctxRef]
+    [fallbackContext]
   );
+
+  const precomputeSnapContext = useCallback((excludedIds: string[]) => {
+    if (!isSnapEnabled) return;
+    const compute = async () => {
+      try {
+        const { present } = useHistoryStore.getState();
+        const canvasBounds = getCanvasBoundsFromCtx(ctxRef);
+        await getAsyncCachedSceneSnapContext(
+          sessionSnapCacheRef,
+          present,
+          excludedIds,
+          canvasBounds
+        );
+      } catch (e) {
+        console.error("Failed to precompute snap context", e);
+      }
+    };
+    compute();
+  }, [ctxRef, isSnapEnabled]);
 
   const handlePointerDown = useCallback(
     ({ point, shiftKey }: CanvasPointerPayload) => {
@@ -252,6 +274,7 @@ export const useSelectMode = ({
 
       if (selectedStrokes.length > 1 && targetKind === "selected-group-member") {
         startGroupMove({ strokes: selectedStrokes, pointer: point });
+        precomputeSnapContext(selectedStrokes.map(s => s.id));
         activeSnapGuidesRef.current = null;
         setCursor("grabbing");
         renderOverlayRef.current();
@@ -260,18 +283,18 @@ export const useSelectMode = ({
 
       setSelection([targetStroke.id], targetStroke.id);
       startTransform({ stroke: targetStroke, handle: nextHandle, pointer: point });
+      precomputeSnapContext([targetStroke.id]);
       activeSnapGuidesRef.current = null;
       setCursor(nextHandle === "move" ? "grabbing" : getCursorByHandle(nextHandle));
       renderOverlayRef.current();
     },
-    [startMarqueeSelection, setCursor]
+    [startMarqueeSelection, setCursor, precomputeSnapContext]
   );
 
   const processPointerMove = useCallback(
     ({ point, shiftKey }: CanvasPointerPayload) => {
       const {
         present,
-        selectedStrokeIds,
         session,
         selectedStrokes,
         primarySelectedStroke,
@@ -299,9 +322,7 @@ export const useSelectMode = ({
                     x: session.initialBounds.x + session.initialBounds.width / 2,
                     y: session.initialBounds.y + session.initialBounds.height / 2,
                   };
-            const { anchors, segments, axisCandidates } = getSceneSnapData(
-              selectedStrokeIds
-            );
+            const { anchors, segments, axisCandidates } = getSceneSnapData();
             const snap = resolveMoveSnapPointer({
               pointer: point,
               startPointer: session.startPointer,
@@ -327,9 +348,7 @@ export const useSelectMode = ({
             shiftKey
           )
         ) {
-          const { anchors, segments, axisCandidates } = getSceneSnapData(
-            selectedStrokeIds
-          );
+          const { anchors, segments, axisCandidates } = getSceneSnapData();
           const snap = resolveLineEndpointSnap(
             point,
             anchors,
@@ -367,9 +386,7 @@ export const useSelectMode = ({
             updateGroupMove(point);
             activeSnapGuidesRef.current = null;
           } else {
-            const { anchors, segments, axisCandidates } = getSceneSnapData(
-              session.strokeIds
-            );
+            const { anchors, segments, axisCandidates } = getSceneSnapData();
             const snap = resolveMoveSnapPointer({
               pointer: point,
               startPointer: session.startPointer,
