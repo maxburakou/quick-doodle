@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { isFillableShapeTool, Stroke, StrokePoint, Tool } from "@/types";
 import { useSnapStore } from "@/store";
 import { createStrokeId } from "@/store/useShapeEditorStore/helpers";
@@ -51,6 +51,8 @@ export const useDrawMode = ({
   const isDrawingRef = useRef(false);
   const drawableSeedRef = useRef<number>(Date.now());
   const strokeIdRef = useRef<string>("");
+  const pendingMoveRef = useRef<CanvasPointerPayload | null>(null);
+  const rafMoveIdRef = useRef<number | null>(null);
   const getCanvasBounds = useCallback(() => {
     const canvas = ctxRef.current?.canvas;
     const width = canvas?.clientWidth ?? window.innerWidth;
@@ -206,7 +208,7 @@ export const useDrawMode = ({
     [color, thickness, tool, ctxRef, shapeFillData]
   );
 
-  const handlePointerMove = useCallback(
+  const processPointerMove = useCallback(
     ({ point, shiftKey }: CanvasPointerPayload) => {
       if (!isDrawingRef.current) return;
       const isAxisConstrained = getAxisConstrainState(shiftKey);
@@ -242,8 +244,33 @@ export const useDrawMode = ({
     ]
   );
 
+  const flushPendingMove = useCallback(() => {
+    const pending = pendingMoveRef.current;
+    if (!pending) return;
+    pendingMoveRef.current = null;
+    processPointerMove(pending);
+  }, [processPointerMove]);
+
+  const handlePointerMove = useCallback(
+    (payload: CanvasPointerPayload) => {
+      pendingMoveRef.current = payload;
+      if (rafMoveIdRef.current !== null) return;
+
+      rafMoveIdRef.current = window.requestAnimationFrame(() => {
+        rafMoveIdRef.current = null;
+        flushPendingMove();
+      });
+    },
+    [flushPendingMove]
+  );
+
   const handlePointerUp = useCallback(
     ({ shiftKey }: CanvasPointerPayload) => {
+      if (rafMoveIdRef.current !== null) {
+        window.cancelAnimationFrame(rafMoveIdRef.current);
+        rafMoveIdRef.current = null;
+      }
+      flushPendingMove();
       if (!isDrawingRef.current) return;
       const isAxisConstrained = getAxisConstrainState(shiftKey);
 
@@ -275,6 +302,7 @@ export const useDrawMode = ({
       addAction,
       color,
       ctxRef,
+      flushPendingMove,
       getAxisConstrainState,
       shapeFillData,
       thickness,
@@ -282,6 +310,16 @@ export const useDrawMode = ({
       withSnappedEndpoint,
     ]
   );
+
+  useEffect(() => {
+    return () => {
+      if (rafMoveIdRef.current !== null) {
+        window.cancelAnimationFrame(rafMoveIdRef.current);
+        rafMoveIdRef.current = null;
+      }
+      pendingMoveRef.current = null;
+    };
+  }, []);
 
   return useMemo(
     () => ({

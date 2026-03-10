@@ -166,6 +166,8 @@ export const useSelectMode = ({
   const marqueeStartRef = useRef<StrokePoint | null>(null);
   const marqueeShiftRef = useRef(false);
   const marqueeActiveRef = useRef(false);
+  const pendingMoveRef = useRef<CanvasPointerPayload | null>(null);
+  const rafMoveIdRef = useRef<number | null>(null);
   const sessionSnapCacheRef = useRef<SceneSnapContextCache | null>(null);
   const [marqueeBounds, setMarqueeBounds] = useState<ShapeBounds | null>(null);
   const [activeSnapGuides, setActiveSnapGuides] =
@@ -356,7 +358,7 @@ export const useSelectMode = ({
     ]
   );
 
-  const handlePointerMove = useCallback(
+  const processPointerMove = useCallback(
     ({ point, shiftKey }: CanvasPointerPayload) => {
       if (marqueeStartRef.current) {
         const start = marqueeStartRef.current;
@@ -494,8 +496,33 @@ export const useSelectMode = ({
     ]
   );
 
+  const flushPendingMove = useCallback(() => {
+    const pending = pendingMoveRef.current;
+    if (!pending) return;
+    pendingMoveRef.current = null;
+    processPointerMove(pending);
+  }, [processPointerMove]);
+
+  const handlePointerMove = useCallback(
+    (payload: CanvasPointerPayload) => {
+      pendingMoveRef.current = payload;
+      if (rafMoveIdRef.current !== null) return;
+
+      rafMoveIdRef.current = window.requestAnimationFrame(() => {
+        rafMoveIdRef.current = null;
+        flushPendingMove();
+      });
+    },
+    [flushPendingMove]
+  );
+
   const handlePointerUp = useCallback(
     ({ point }: CanvasPointerPayload) => {
+      if (rafMoveIdRef.current !== null) {
+        window.cancelAnimationFrame(rafMoveIdRef.current);
+        rafMoveIdRef.current = null;
+      }
+      flushPendingMove();
       if (marqueeStartRef.current) {
         finalizeMarquee(point);
         return;
@@ -522,6 +549,7 @@ export const useSelectMode = ({
       commitGroupMove,
       commitPresent,
       commitTransform,
+      flushPendingMove,
       finalizeMarquee,
       present,
       session,
@@ -530,6 +558,11 @@ export const useSelectMode = ({
 
   const handlePointerLeave = useCallback(() => {
     if (!session && !marqueeStartRef.current) {
+      if (rafMoveIdRef.current !== null) {
+        window.cancelAnimationFrame(rafMoveIdRef.current);
+        rafMoveIdRef.current = null;
+      }
+      pendingMoveRef.current = null;
       clearSessionSnapCache();
       setActiveSnapGuides(null);
       setCursor("default");
@@ -560,6 +593,11 @@ export const useSelectMode = ({
       clearSessionSnapCache();
       setMarqueeBounds(null);
       setActiveSnapGuides(null);
+      if (rafMoveIdRef.current !== null) {
+        window.cancelAnimationFrame(rafMoveIdRef.current);
+        rafMoveIdRef.current = null;
+      }
+      pendingMoveRef.current = null;
       clearCanvas(ctxRef.current);
       setCursor("default");
     }
@@ -654,6 +692,16 @@ export const useSelectMode = ({
     selectedStrokeIds,
     setSelection,
   ]);
+
+  useEffect(() => {
+    return () => {
+      if (rafMoveIdRef.current !== null) {
+        window.cancelAnimationFrame(rafMoveIdRef.current);
+        rafMoveIdRef.current = null;
+      }
+      pendingMoveRef.current = null;
+    };
+  }, []);
 
   return useMemo(
     () => ({
