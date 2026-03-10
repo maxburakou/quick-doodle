@@ -83,11 +83,6 @@ export const Canvas: React.FC = () => {
     tool,
     addAction,
   });
-  const {
-    handlePointerDown: handleDrawPointerDown,
-    handlePointerMove: handleDrawPointerMove,
-    handlePointerUp: handleDrawPointerUp,
-  } = drawMode;
 
   const selectMode = useSelectMode({
     tool,
@@ -110,18 +105,13 @@ export const Canvas: React.FC = () => {
   });
   const {
     cursor: selectCursor,
-    handlePointerDown: handleSelectPointerDown,
-    handlePointerMove: handleSelectPointerMove,
-    handlePointerUp: handleSelectPointerUp,
     handlePointerLeave: handleSelectPointerLeave,
   } = selectMode;
 
+  const activeMode = tool === Tool.Select ? selectMode : drawMode;
+
   const canvasCursor: React.CSSProperties["cursor"] =
-    tool === Tool.Select
-      ? selectCursor
-      : tool === Tool.Text
-        ? "text"
-        : "crosshair";
+    tool === Tool.Select ? selectCursor : tool === Tool.Text ? "text" : "crosshair";
 
   const getPointerPayloadFromEvent = (
     e?: React.PointerEvent<HTMLCanvasElement>
@@ -135,37 +125,18 @@ export const Canvas: React.FC = () => {
   });
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const payload = getPointerPayloadFromEvent(e);
-
-    if (tool === Tool.Select) {
-      handleSelectPointerDown(payload);
-      return;
-    }
-
-    handleDrawPointerDown(payload);
+    activeMode.handlePointerDown(getPointerPayloadFromEvent(e));
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const payload = getPointerPayloadFromEvent(e);
-
-    if (tool === Tool.Select) {
-      handleSelectPointerMove(payload);
-      return;
-    }
-
-    handleDrawPointerMove(payload);
+    activeMode.handlePointerMove(getPointerPayloadFromEvent(e));
   };
 
   const handlePointerUp = useCallback(
     (e?: React.PointerEvent<HTMLCanvasElement>) => {
-      if (tool === Tool.Select) {
-        handleSelectPointerUp(getPointerPayloadFromEvent(e));
-        return;
-      }
-
-      handleDrawPointerUp(getPointerPayloadFromEvent(e));
+      activeMode.handlePointerUp?.(getPointerPayloadFromEvent(e));
     },
-    [tool, handleSelectPointerUp, handleDrawPointerUp]
+    [activeMode]
   );
 
   usePointerEvents(handlePointerUp);
