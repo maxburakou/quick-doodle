@@ -376,7 +376,6 @@ export const applySingleSelectionSettings = ({
   let nextPresent: Stroke[] | null = null;
   let workingPresent = present;
 
-  // Apply color first, then shape/text-specific property.
   if (applyColor) {
     const colorResult = applyColorToStroke({
       present: workingPresent,

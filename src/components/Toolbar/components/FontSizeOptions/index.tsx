@@ -1,11 +1,8 @@
-//import { Popover } from "@/components";
 import { useFontSizes } from "@/store";
 import { useSelectionSettingsActions } from "@/components/Canvas/hooks/useSelectionSettingsActions";
 import { getFontSizeLabel } from "./helpers";
 import { useToolbarFontSizeContext } from "../../hooks/useToolbarFontSizeContext";
 import "./styles.css";
-//import { ToolbarFontSizePicker } from "../ToolbarFontSizePicker";
-//import { Settings } from "lucide-react";
 
 export const FontSizeOptions = () => {
   const { contextFontSize } = useToolbarFontSizeContext();
@@ -25,10 +22,6 @@ export const FontSizeOptions = () => {
           {getFontSizeLabel(index)}
         </button>
       ))}
-      {/* ToDo: Think about size picker for font size, maybe add it to the right of the buttons */}
-      {/* <Popover content={<ToolbarFontSizePicker />}>
-        <Settings className="settings-button" size={16} />
-      </Popover> */}
     </>
   );
 };

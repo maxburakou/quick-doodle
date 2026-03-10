@@ -42,7 +42,6 @@ export const Canvas: React.FC = () => {
     handlePointerLeave: handleSelectPointerLeave,
   } = selectMode;
 
-  // Use ref to keep handler references stable (Step 3)
   const activeModeRef = useRef(tool === Tool.Select ? selectMode : drawMode);
   activeModeRef.current = tool === Tool.Select ? selectMode : drawMode;
 

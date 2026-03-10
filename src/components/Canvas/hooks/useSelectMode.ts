@@ -85,7 +85,6 @@ const canSnapSingleResize = (
   return (handle === "nw" || handle === "se") && !isAxisConstrained;
 };
 
-/** Read current selection state snapshot from stores */
 export const getSelectionSnapshot = () => {
   const {
     selectedStrokeIds,
@@ -127,7 +126,6 @@ export const useSelectMode = ({
   const activeSnapGuidesRef = useRef<SnapGuidesRenderData | null>(null);
   const cursorRef = useRef<React.CSSProperties["cursor"]>("default");
   
-  // Shared state for marquee and overlay
   const marqueeBoundsRef = useRef(null);
   const renderOverlayRef = useRef<() => void>(() => {});
 
@@ -152,7 +150,6 @@ export const useSelectMode = ({
     sessionSnapCacheRef.current = null;
   }, []);
 
-  // Hook 1: Overlay rendering
   useSelectModeOverlay({
     ctxRef,
     tool,
@@ -162,7 +159,6 @@ export const useSelectMode = ({
     renderOverlayRef,
   });
 
-  // Hook 2: Marquee selection
   const {
     marqueeStartRef,
     startMarqueeSelection,
@@ -493,7 +489,6 @@ export const useSelectMode = ({
     }
   }, [clearSessionSnapCache, setCursor, marqueeStartRef]);
 
-  // Clear snap cache when session ends
   useEffect(() => {
     let prevSession = useShapeEditorStore.getState().session;
     const unsubscribe = useShapeEditorStore.subscribe((state) => {
@@ -506,7 +501,6 @@ export const useSelectMode = ({
     return unsubscribe;
   }, [clearSessionSnapCache]);
 
-  // Handle tool switching away from Select
   useEffect(() => {
     const prevTool = prevToolRef.current;
     const switchedFromSelect = prevTool === Tool.Select && tool !== Tool.Select;
@@ -538,7 +532,6 @@ export const useSelectMode = ({
     prevToolRef.current = tool;
   }, [clearSessionSnapCache, ctxRef, tool, setCursor, clearMarqueeState, marqueeBoundsRef]);
 
-  // Sync deleted strokes with selection
   useEffect(() => {
     const syncSelection = () => {
       const {
@@ -571,7 +564,6 @@ export const useSelectMode = ({
 
     syncSelection();
 
-    // Subscribe to history to trigger sync when present strokes change (e.g. deletion, undo)
     return useHistoryStore.subscribe(syncSelection);
   }, [ctxRef]);
 

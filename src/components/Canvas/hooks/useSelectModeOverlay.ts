@@ -32,7 +32,6 @@ export const useSelectModeOverlay = ({
 }: UseSelectModeOverlayParams) => {
   const textEditorMode = useTextEditorStore((state) => state.mode);
 
-  // Render overlay for selection/transform/marquee/snap
   useEffect(() => {
     renderOverlayRef.current = () => {
       if (textEditorMode === "edit") {
@@ -89,10 +88,8 @@ export const useSelectModeOverlay = ({
       }
     };
 
-    // Render immediately to reflect current state
     renderOverlayRef.current();
 
-    // Subscribe to store updates to trigger imperative redraws WITHOUT React renders
     const unsubscribeShape = useShapeEditorStore.subscribe(renderOverlayRef.current);
     const unsubscribeHistory = useHistoryStore.subscribe(renderOverlayRef.current);
 
