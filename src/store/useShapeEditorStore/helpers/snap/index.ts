@@ -501,8 +501,8 @@ export const resolveMoveSnapPointer = ({
   return {
     point: {
       ...pointer,
-      x: axisSnap.snappedX,
-      y: axisSnap.snappedY,
+      x: pointer.x + (axisSnap.snappedX - pointer.x),
+      y: pointer.y + (axisSnap.snappedY - pointer.y),
     },
     pointTarget: null,
     axisSnap,

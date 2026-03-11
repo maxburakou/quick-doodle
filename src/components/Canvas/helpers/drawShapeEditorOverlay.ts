@@ -1,6 +1,4 @@
 import { ShapeBounds, Stroke, StrokePoint, Tool } from "@/types";
-import { ACTIVE_ZONE_PX } from "@/config/selectionConfig";
-import { getHighlighterStrokeWidth } from "@/utils/highlighter";
 import {
   getBoundsCenter,
   getStrokeAABB,
@@ -10,6 +8,7 @@ import {
   getStrokeRotation,
   rotatePoint,
 } from "@/store/useShapeEditorStore/helpers";
+import { getStrokeContourSegments } from "@/store/useShapeEditorStore/helpers/geometry/contours";
 
 const SELECTION_OUTLINE_COLOR = "#0f62fe";
 const SELECTION_OUTLINE_COLOR_HOVER = "#0353e9";
@@ -58,20 +57,23 @@ const drawLineLikeSelectionOverlay = (
   ctx: CanvasRenderingContext2D,
   points: StrokePoint[],
   activeZoneWidth: number,
-  outlineColor: string
+  outlineColor: string,
+  drawFillArea: boolean = true
 ) => {
   if (points.length === 0) return;
   const pathPoints = points.length >= 2 ? points : [points[0], points[0]];
 
-  ctx.save();
-  ctx.setLineDash([]);
-  ctx.strokeStyle = SELECTION_FILL_COLOR;
-  ctx.lineWidth = activeZoneWidth;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  drawPolyline(ctx, pathPoints);
-  ctx.stroke();
-  ctx.restore();
+  if (drawFillArea) {
+    ctx.save();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = SELECTION_FILL_COLOR;
+    ctx.lineWidth = activeZoneWidth;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    drawPolyline(ctx, pathPoints);
+    ctx.stroke();
+    ctx.restore();
+  }
 
   ctx.strokeStyle = outlineColor;
   drawPolyline(ctx, pathPoints);
@@ -81,15 +83,9 @@ const drawLineLikeSelectionOverlay = (
 const getDefaultLineLikeOverlayWidth = (thickness: number) =>
   Math.max(thickness + 10, 12);
 
-const getHighlighterOverlayWidth = (thickness: number) =>
-  Math.max(
-    getDefaultLineLikeOverlayWidth(thickness),
-    getHighlighterStrokeWidth(thickness) + ACTIVE_ZONE_PX * 2
-  );
-
 const drawPolygonFromCorners = (
   ctx: CanvasRenderingContext2D,
-  corners: StrokePoint[]
+  corners: Array<Pick<StrokePoint, "x" | "y">>
 ) => {
   if (corners.length === 0) return;
 
@@ -162,13 +158,12 @@ export const drawShapeEditorOverlay = (
 
   switch (stroke.tool) {
     case Tool.Pen: {
-      const penPoints = stroke.points.length >= 2 ? stroke.points : [start, end];
-      drawLineLikeSelectionOverlay(
-        ctx,
-        penPoints,
-        getDefaultLineLikeOverlayWidth(stroke.thickness),
-        outlineColor
-      );
+      const segments = getStrokeContourSegments(stroke);
+      const penPoints = segments.map((s) => s.start);
+      if (penPoints.length === 0) break;
+
+      drawPolygonFromCorners(ctx, penPoints);
+      ctx.stroke();
       break;
     }
     case Tool.Line:
@@ -184,8 +179,9 @@ export const drawShapeEditorOverlay = (
       drawLineLikeSelectionOverlay(
         ctx,
         [start, end],
-        getHighlighterOverlayWidth(stroke.thickness),
-        outlineColor
+        0,
+        outlineColor,
+        false
       );
       break;
     default:

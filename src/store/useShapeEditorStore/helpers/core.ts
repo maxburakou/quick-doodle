@@ -9,7 +9,7 @@ import {
 import { constrainLineToAxis } from "@/components/Canvas/utils/constrainLineToAxis";
 import { constrainToSquareBounds } from "@/components/Canvas/utils/constrainToSquareBounds";
 import { normalizeTextStroke } from "@/components/Canvas/utils/textGeometry";
-import { getToolProfile } from "./toolProfile";
+import { getVisualStrokeBounds } from "@/components/Canvas/utils/visualBounds";
 
 const EDITABLE_SHAPE_TOOLS: EditableShapeTool[] = [
   Tool.Pen,
@@ -72,35 +72,7 @@ export const normalizeBoundsFromPoints = (
 });
 
 export const getStrokeBounds = (stroke: Stroke): ShapeBounds => {
-  const [start, end] = getStrokeEndpoints(stroke);
-  return normalizeBoundsFromPoints(start, end);
-};
-
-const getPenStrokeBounds = (stroke: Stroke): ShapeBounds => {
-  const firstPoint = stroke.points[0] ?? { x: 0, y: 0 };
-  let minX = firstPoint.x;
-  let maxX = firstPoint.x;
-  let minY = firstPoint.y;
-  let maxY = firstPoint.y;
-
-  stroke.points.forEach((point) => {
-    if (point.x < minX) minX = point.x;
-    if (point.x > maxX) maxX = point.x;
-    if (point.y < minY) minY = point.y;
-    if (point.y > maxY) maxY = point.y;
-  });
-
-  const padding = Math.max(
-    6,
-    getToolProfile(stroke.tool).aabbPadding(stroke.thickness)
-  );
-
-  return {
-    x: minX - padding,
-    y: minY - padding,
-    width: maxX - minX + padding * 2,
-    height: maxY - minY + padding * 2,
-  };
+  return getVisualStrokeBounds(stroke);
 };
 
 const getRotatedAABB = (bounds: ShapeBounds, rotation: number): ShapeBounds => {
@@ -131,10 +103,6 @@ const getRotatedAABB = (bounds: ShapeBounds, rotation: number): ShapeBounds => {
 };
 
 export const getStrokeAABB = (stroke: Stroke): ShapeBounds => {
-  if (stroke.tool === Tool.Pen || stroke.tool === Tool.Highlighter) {
-    return getPenStrokeBounds(stroke);
-  }
-
   const bounds = getStrokeBounds(stroke);
   return getRotatedAABB(bounds, getStrokeRotation(stroke));
 };

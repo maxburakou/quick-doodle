@@ -1,6 +1,12 @@
 import { StrokePoint } from "@/types";
-import { getHighlighterStrokeWidth } from "@/utils/highlighter";
 import { constrainLineToAxis } from "../constrainLineToAxis";
+import { HIGHLIGHTER_STROKE_WIDTH_MULTIPLIER } from "@/config";
+
+export const getHighlighterStrokeWidth = (thickness: number) =>
+  Math.max(1, thickness * HIGHLIGHTER_STROKE_WIDTH_MULTIPLIER);
+
+export const getHighlighterHitRadius = (thickness: number) =>
+  getHighlighterStrokeWidth(thickness) / 2;
 
 export const drawHighlighter = (
   ctx: CanvasRenderingContext2D,

@@ -4,13 +4,14 @@ import {
   PEN_MAX_CONTOUR_SEGMENTS,
 } from "@/config/contourConfig";
 import { Stroke, StrokePoint, Tool } from "@/types";
+import { getCachedPenPolygon } from "@/components/Canvas/utils/strokeShapeCache";
 import {
   getBoundsCenter,
-  getStrokeAABB,
   getStrokeBounds,
   getStrokeEndpoints,
   getStrokeRotation,
   rotatePoint,
+  distanceToSegment,
 } from "../core";
 import { isLineLikeGeometryTool } from "../toolProfile";
 
@@ -29,29 +30,53 @@ export interface StrokeContourPolicy {
 
 const contourSegmentsCache = new Map<string, ContourSegment[]>();
 
+const simplifyPoints = (
+  points: StrokePoint[],
+  epsilon: number
+): StrokePoint[] => {
+  if (points.length <= 2) return points;
+
+  let maxDistance = 0;
+  let index = 0;
+  const start = points[0];
+  const end = points[points.length - 1];
+
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const point = points[i];
+    if (!start || !end || !point) continue;
+    
+    const d = distanceToSegment(point, start, end);
+    if (d > maxDistance) {
+      index = i;
+      maxDistance = d;
+    }
+  }
+
+  if (maxDistance > epsilon) {
+    const returnPoints1 = simplifyPoints(points.slice(0, index + 1), epsilon);
+    const returnPoints2 = simplifyPoints(points.slice(index), epsilon);
+    return returnPoints1.slice(0, -1).concat(returnPoints2);
+  }
+
+  if (!start || !end) return points;
+  return [start, end];
+};
+
 const toPolylinePoints = (
   points: StrokePoint[],
   maxSegments: number
 ): StrokePoint[] => {
   if (points.length <= 2) return points;
-
-  const rawSegments = points.length - 1;
-  const stride = Math.max(1, Math.ceil(rawSegments / maxSegments));
-  const output: StrokePoint[] = [];
-
-  for (let index = 0; index < points.length; index += stride) {
-    const point = points[index];
-    if (!point) continue;
-    output.push(point);
+  
+  const epsilon = Math.max(0.5, points.length / (maxSegments * 2));
+  const simplified = simplifyPoints(points, epsilon);
+  
+  if (simplified.length > maxSegments + 1) {
+    const stride = Math.ceil(simplified.length / maxSegments);
+    return simplified.filter((_, i, arr) => i % stride === 0 || i === arr.length - 1);
   }
-
-  const last = points[points.length - 1];
-  const outLast = output[output.length - 1];
-  if (last && (!outLast || outLast.x !== last.x || outLast.y !== last.y)) {
-    output.push(last);
-  }
-
-  return output;
+  
+  return simplified;
 };
 
 const buildSegmentsFromOrderedPoints = (
@@ -135,7 +160,17 @@ export const getPenContourPoints = (
   maxSegments: number = PEN_MAX_CONTOUR_SEGMENTS
 ) => {
   if (stroke.points.length < 2) return [];
-  return toPolylinePoints(stroke.points, maxSegments);
+
+  const polygon = getCachedPenPolygon(stroke);
+  if (!polygon || polygon.length === 0) return [];
+
+  const polygonPoints: StrokePoint[] = polygon.map((p) => ({
+    x: p[0],
+    y: p[1],
+    pressure: 0.5,
+  }));
+
+  return toPolylinePoints(polygonPoints, maxSegments);
 };
 
 const toContourCacheKey = (stroke: Stroke, policy?: StrokeContourPolicy) => {
@@ -192,14 +227,6 @@ const computeStrokeContourSegments = (
     return buildSegmentsFromOrderedPoints(
       getPenContourPoints(stroke, maxSegments),
       "lineSegment",
-      false
-    );
-  }
-
-  if (stroke.tool === Tool.Rectangle || stroke.tool === Tool.Text) {
-    return buildSegmentsFromOrderedPoints(
-      getRectangleContourPoints(stroke),
-      "boxEdge",
       true
     );
   }
@@ -221,14 +248,11 @@ const computeStrokeContourSegments = (
     );
   }
 
-  const bounds = getStrokeAABB(stroke);
-  const points = [
-    { x: bounds.x, y: bounds.y },
-    { x: bounds.x + bounds.width, y: bounds.y },
-    { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
-    { x: bounds.x, y: bounds.y + bounds.height },
-  ];
-  return buildSegmentsFromOrderedPoints(points, "boxEdge", true);
+  return buildSegmentsFromOrderedPoints(
+    getRectangleContourPoints(stroke),
+    "boxEdge",
+    true
+  );
 };
 
 export const getStrokeContourSegments = (

@@ -11,3 +11,4 @@ export {
 } from "./selectionConfig";
 export { DEFAULT_STROKE_COLORS, DEFAULT_STROKE_WIDTH } from "./strokeConfig";
 export { DEFAULT_FONT_SIZE, DEFAULT_FONT_SIZE_LABELS } from "./textConfig";
+export { HIGHLIGHTER_STROKE_WIDTH_MULTIPLIER } from "./highlighterConfig";

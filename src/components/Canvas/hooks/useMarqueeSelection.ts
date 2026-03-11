@@ -72,7 +72,7 @@ export const useMarqueeSelection = ({
       }
       activeSnapGuidesRef.current = null;
       renderOverlay();
-      return true; // Indicates move was handled by marquee
+      return true; 
     },
     [setCursor, renderOverlay, marqueeBoundsRef, activeSnapGuidesRef]
   );
@@ -109,7 +109,7 @@ export const useMarqueeSelection = ({
       marqueeBoundsRef.current = null;
       activeSnapGuidesRef.current = null;
       renderOverlay();
-      return true; // Indicates pointerUp was handled
+      return true; 
     },
     [clearSessionSnapCache, renderOverlay, marqueeBoundsRef, activeSnapGuidesRef]
   );

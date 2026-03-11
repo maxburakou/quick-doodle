@@ -179,6 +179,7 @@ const buildEllipseAnchors = (
   return appendCenterAnchor(anchors, stroke, getStrokeBounds(stroke), centerMode);
 };
 
+
 const buildLineLikeAnchors = (stroke: Stroke): StrokeAnchorPoint[] => {
   const [start, end] = getStrokeEndpoints(stroke);
 
@@ -193,6 +194,22 @@ const buildLineLikeAnchors = (stroke: Stroke): StrokeAnchorPoint[] => {
       anchorGroup: "lineSegment",
     },
   ];
+};
+
+const buildPenAnchors = (stroke: Stroke): StrokeAnchorPoint[] => {
+  const points = getStrokeContourSegments(stroke).map(
+    (segment) => segment.start
+  );
+
+  if (points.length === 0) return [];
+  
+  return points.map((point) => ({
+    x: point.x,
+    y: point.y,
+    pressure: 0.5,
+    kind: "edgeMid",
+    anchorGroup: "boxEdge",
+  }));
 };
 
 const resolveStrokeAnchorMode = (
@@ -222,7 +239,7 @@ export const getStrokeAnchorPoints = (
   }
 
   if (stroke.tool === Tool.Pen) {
-    return buildRotatedBoxAnchors(getStrokeAABB(stroke), stroke, centerMode);
+    return buildPenAnchors(stroke);
   }
 
   if (stroke.tool === Tool.Text) {

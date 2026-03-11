@@ -16,3 +16,4 @@ export {
   normalizeTextStroke,
   getTextBounds,
 } from "./textGeometry";
+export { getVisualStrokeBounds } from "./visualBounds";

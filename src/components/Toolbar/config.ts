@@ -83,7 +83,7 @@ export const TOOL_CONFIG: Record<Tool, ToolbarToolConfig> = {
   },
 };
 
-// Placeholder for future user-defined toolbar tool order.
+// TODO: Placeholder for future user-defined toolbar tool order.
 export const TOOL_ORDER: Tool[] = [
   Tool.Pen,
   Tool.Highlighter,

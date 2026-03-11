@@ -14,6 +14,7 @@ self.onmessage = (e: MessageEvent<SnapWorkerRequest>) => {
     const context = buildSceneSnapContext(present, excludedIds, canvasBounds);
     self.postMessage({ jobId, context });
   } catch (err) {
+    console.error("Snap Worker Error!", err);
     self.postMessage({ jobId, error: String(err) });
   }
 };
