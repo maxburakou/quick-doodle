@@ -11,6 +11,7 @@ import {
 } from "@/store";
 import { useToolbarStore } from "@/store/useToolbarStore";
 import { Tool } from "@/types";
+import { TOOL_CONFIG } from "@/components/Toolbar/config";
 import { resolveCanvasShortcutAction } from "./shortcutMatcher";
 
 const { undo, redo, clear, reset } = useHistoryStore.getState();
@@ -23,8 +24,12 @@ const { toggleEnabled: toggleSnap } = useSnapStore.getState();
 const { toNextFontSize, toPrevFontSize } = useTextSettingsStore.getState();
 const { copySelection, cutSelection, pasteFromClipboard, hasData } =
   useClipboardStore.getState();
-const TOOL_VALUES = new Set(Object.values(Tool));
 const TOOL_ACTION_PREFIX = "canvas.tools.tool_";
+
+const SLOT_TO_TOOL_MAP = Object.entries(TOOL_CONFIG).reduce((acc, [tool, config]) => {
+  acc[(config as { hotkeySlot: number }).hotkeySlot] = tool as Tool;
+  return acc;
+}, {} as Record<number, Tool>);
 
 const ACTION_HANDLERS: Record<string, () => void> = {
   "canvas.history.undo": undo,
@@ -63,9 +68,11 @@ const applyShortcutAction = (actionId: string) => {
   }
 
   if (actionId.startsWith(TOOL_ACTION_PREFIX)) {
-    const slot = actionId.replace(TOOL_ACTION_PREFIX, "");
-    if (TOOL_VALUES.has(slot as Tool)) {
-      setTool(slot as Tool);
+    const slot = parseInt(actionId.replace(TOOL_ACTION_PREFIX, ""), 10);
+    const matchedTool = SLOT_TO_TOOL_MAP[slot];
+
+    if (matchedTool) {
+      setTool(matchedTool);
       return true;
     }
   }
