@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::settings_types::{Binding, SettingsSnapshot, ShortcutAction};
+use super::settings_types::{Binding, SettingsSnapshot, ShortcutAction, ShortcutScope};
 
 #[derive(Debug, Clone, Default)]
 pub struct CompiledShortcuts {
@@ -10,24 +10,18 @@ pub struct CompiledShortcuts {
 pub fn compile_shortcuts(snapshot: &SettingsSnapshot) -> CompiledShortcuts {
 	let mut actions: HashMap<String, Vec<Binding>> = HashMap::new();
 
-	for (action, value) in &snapshot.shortcuts.global.actions {
-		actions.insert(format!("global.{}", action), value.bindings.clone());
-	}
+	let scopes: &[(&str, &ShortcutScope)] = &[
+		("global", &snapshot.shortcuts.global),
+		("canvas.history", &snapshot.shortcuts.canvas.history),
+		("canvas.clipboard", &snapshot.shortcuts.canvas.clipboard),
+		("canvas.tools", &snapshot.shortcuts.canvas.tools),
+		("canvas.toggles", &snapshot.shortcuts.canvas.toggles),
+	];
 
-	for (action, value) in &snapshot.shortcuts.canvas.history.actions {
-		actions.insert(format!("canvas.history.{}", action), value.bindings.clone());
-	}
-
-	for (action, value) in &snapshot.shortcuts.canvas.clipboard.actions {
-		actions.insert(format!("canvas.clipboard.{}", action), value.bindings.clone());
-	}
-
-	for (action, value) in &snapshot.shortcuts.canvas.tools.actions {
-		actions.insert(format!("canvas.tools.{}", action), value.bindings.clone());
-	}
-
-	for (action, value) in &snapshot.shortcuts.canvas.toggles.actions {
-		actions.insert(format!("canvas.toggles.{}", action), value.bindings.clone());
+	for (prefix, scope) in scopes {
+		for (action, value) in &scope.actions {
+			actions.insert(format!("{}.{}", prefix, action), value.bindings.clone());
+		}
 	}
 
 	CompiledShortcuts { actions }

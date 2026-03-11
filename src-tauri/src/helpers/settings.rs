@@ -11,7 +11,7 @@ use super::{
 	shortcuts::{apply_compiled_to_runtime_state, reapply_global_shortcuts_with_rollback},
 	settings_store::save_settings,
 	settings_types::{SettingsSnapshot, ValidationIssue},
-	settings_validation::validate_shortcuts,
+	settings_validation::{validate_shortcuts, validate_shortcuts_with_compiled},
 	shortcuts_runtime::compile_shortcuts,
 	utils::toggle_window,
 	window_service,
@@ -97,15 +97,15 @@ pub fn settings_restore_defaults() -> Result<SettingsSnapshot, String> {
 
 #[tauri::command]
 pub fn settings_save(app: AppHandle, snapshot: SettingsSnapshot) -> Result<SettingsSnapshot, String> {
-	let issues = validate_shortcuts(&snapshot);
-	if !issues.is_empty() {
-		return Err(serde_json::to_string(&issues).map_err(|err| err.to_string())?);
-	}
-
 	let state = app.state::<AppSettingsState>();
 	let previous_snapshot = state.snapshot();
 	let compiled_old = compile_shortcuts(&previous_snapshot);
 	let compiled_new = compile_shortcuts(&snapshot);
+
+	let issues = validate_shortcuts_with_compiled(&compiled_new, &snapshot);
+	if !issues.is_empty() {
+		return Err(serde_json::to_string(&issues).map_err(|err| err.to_string())?);
+	}
 
 	let _registered = reapply_global_shortcuts_with_rollback(&app, &compiled_old, &compiled_new)?;
 
@@ -114,21 +114,35 @@ pub fn settings_save(app: AppHandle, snapshot: SettingsSnapshot) -> Result<Setti
 		return Err(format!("Failed to apply autostart: {}", err));
 	}
 
-	if let Some(menu_items) = app.state::<WindowState>().tray_menu_items() {
-		if let Err(err) = apply_tray_accelerators_from_settings(&menu_items, &snapshot) {
-			let _ = reapply_global_shortcuts_with_rollback(&app, &compiled_new, &compiled_old);
-			let _ = set_autostart_enabled(&app, previous_snapshot.autostart.enabled);
-			let _ = apply_tray_accelerators_from_settings(&menu_items, &previous_snapshot);
-			return Err(format!("Failed to apply tray accelerators: {}", err));
+	let window_state = app.state::<WindowState>();
+	let tray_result = window_state.with_tray_menu_items(|menu_items| {
+		if let Some(menu_items) = menu_items {
+			if let Err(err) = apply_tray_accelerators_from_settings(menu_items, &snapshot) {
+				return Err(err);
+			}
 		}
+		Ok(())
+	});
+
+	if let Err(err) = tray_result {
+		let _ = reapply_global_shortcuts_with_rollback(&app, &compiled_new, &compiled_old);
+		let _ = set_autostart_enabled(&app, previous_snapshot.autostart.enabled);
+		window_state.with_tray_menu_items(|menu_items| {
+			if let Some(menu_items) = menu_items {
+				let _ = apply_tray_accelerators_from_settings(menu_items, &previous_snapshot);
+			}
+		});
+		return Err(format!("Failed to apply tray accelerators: {}", err));
 	}
 
 	if let Err(err) = save_settings(&app, &snapshot) {
 		let _ = reapply_global_shortcuts_with_rollback(&app, &compiled_new, &compiled_old);
 		let _ = set_autostart_enabled(&app, previous_snapshot.autostart.enabled);
-		if let Some(menu_items) = app.state::<WindowState>().tray_menu_items() {
-			let _ = apply_tray_accelerators_from_settings(&menu_items, &previous_snapshot);
-		}
+		window_state.with_tray_menu_items(|menu_items| {
+			if let Some(menu_items) = menu_items {
+				let _ = apply_tray_accelerators_from_settings(menu_items, &previous_snapshot);
+			}
+		});
 		return Err(format!("Failed to persist settings: {}", err));
 	}
 

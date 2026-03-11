@@ -22,26 +22,18 @@ pub struct TrayMenuItems {
 }
 
 pub fn apply_visibility_to_tray_menu(items: &TrayMenuItems, visibility: bool) {
-	if let Err(err) = items.undo.set_enabled(visibility) {
-		warn!("Failed to update 'undo' menu state: {:?}", err);
-	}
-	if let Err(err) = items.redo.set_enabled(visibility) {
-		warn!("Failed to update 'redo' menu state: {:?}", err);
-	}
-	if let Err(err) = items.clear.set_enabled(visibility) {
-		warn!("Failed to update 'clear' menu state: {:?}", err);
-	}
-	if let Err(err) = items.reset.set_enabled(visibility) {
-		warn!("Failed to update 'reset' menu state: {:?}", err);
-	}
-	if let Err(err) = items.toolbar.set_enabled(visibility) {
-		warn!("Failed to update 'toolbar' menu state: {:?}", err);
-	}
-	if let Err(err) = items.background.set_enabled(visibility) {
-		warn!("Failed to update 'background' menu state: {:?}", err);
-	}
-	if let Err(err) = items.snap.set_enabled(visibility) {
-		warn!("Failed to update 'snap' menu state: {:?}", err);
+	for (name, item) in [
+		("undo", &items.undo),
+		("redo", &items.redo),
+		("clear", &items.clear),
+		("reset", &items.reset),
+		("toolbar", &items.toolbar),
+		("background", &items.background),
+		("snap", &items.snap),
+	] {
+		if let Err(err) = item.set_enabled(visibility) {
+			warn!("Failed to update '{}' menu state: {:?}", name, err);
+		}
 	}
 	if let Err(err) = items.hide_canvas.set_text(if visibility {
 		"Hide Drawing Canvas"

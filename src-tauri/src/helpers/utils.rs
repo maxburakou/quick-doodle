@@ -136,7 +136,6 @@ pub fn toggle_window(app: &AppHandle) -> ToggleOutcome {
 	let tray_start = std::time::Instant::now();
 
 	let icon = get_cached_or_load_tray_icon(app, new_visibility);
-	let tray_menu_items = state.tray_menu_items();
 
 	state.with_tray_icon(|tray| {
 		if let Some(tray) = tray {
@@ -150,11 +149,13 @@ pub fn toggle_window(app: &AppHandle) -> ToggleOutcome {
 			}
 		}
 	});
-	if let Some(items) = tray_menu_items {
-		apply_visibility_to_tray_menu(&items, new_visibility);
-	} else {
-		warn!("Tray menu item handles are not initialized.");
-	}
+	state.with_tray_menu_items(|items| {
+		if let Some(items) = items {
+			apply_visibility_to_tray_menu(items, new_visibility);
+		} else {
+			warn!("Tray menu item handles are not initialized.");
+		}
+	});
 
 	#[cfg(debug_assertions)]
 	{

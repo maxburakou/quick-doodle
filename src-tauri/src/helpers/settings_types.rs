@@ -194,143 +194,25 @@ impl SettingsSnapshot {
 					},
 					clipboard: default_canvas_clipboard_scope(),
 					tools: ShortcutScope {
-						actions: HashMap::from([
-							(
-								"tool_1".to_string(),
-								ShortcutAction {
-									bindings: vec![
-										Binding {
-											code: "Digit1".to_string(),
-											modifiers: vec![],
-										},
-										Binding {
-											code: "Numpad1".to_string(),
-											modifiers: vec![],
-										},
-									],
-								},
-							),
-							(
-								"tool_2".to_string(),
-								ShortcutAction {
-									bindings: vec![
-										Binding {
-											code: "Digit2".to_string(),
-											modifiers: vec![],
-										},
-										Binding {
-											code: "Numpad2".to_string(),
-											modifiers: vec![],
-										},
-									],
-								},
-							),
-							(
-								"tool_3".to_string(),
-								ShortcutAction {
-									bindings: vec![
-										Binding {
-											code: "Digit3".to_string(),
-											modifiers: vec![],
-										},
-										Binding {
-											code: "Numpad3".to_string(),
-											modifiers: vec![],
-										},
-									],
-								},
-							),
-							(
-								"tool_4".to_string(),
-								ShortcutAction {
-									bindings: vec![
-										Binding {
-											code: "Digit4".to_string(),
-											modifiers: vec![],
-										},
-										Binding {
-											code: "Numpad4".to_string(),
-											modifiers: vec![],
-										},
-									],
-								},
-							),
-							(
-								"tool_5".to_string(),
-								ShortcutAction {
-									bindings: vec![
-										Binding {
-											code: "Digit5".to_string(),
-											modifiers: vec![],
-										},
-										Binding {
-											code: "Numpad5".to_string(),
-											modifiers: vec![],
-										},
-									],
-								},
-							),
-							(
-								"tool_6".to_string(),
-								ShortcutAction {
-									bindings: vec![
-										Binding {
-											code: "Digit6".to_string(),
-											modifiers: vec![],
-										},
-										Binding {
-											code: "Numpad6".to_string(),
-											modifiers: vec![],
-										},
-									],
-								},
-							),
-							(
-								"tool_7".to_string(),
-								ShortcutAction {
-									bindings: vec![
-										Binding {
-											code: "Digit7".to_string(),
-											modifiers: vec![],
-										},
-										Binding {
-											code: "Numpad7".to_string(),
-											modifiers: vec![],
-										},
-									],
-								},
-							),
-							(
-								"tool_8".to_string(),
-								ShortcutAction {
-									bindings: vec![
-										Binding {
-											code: "Digit8".to_string(),
-											modifiers: vec![],
-										},
-										Binding {
-											code: "Numpad8".to_string(),
-											modifiers: vec![],
-										},
-									],
-								},
-							),
-							(
-								"tool_9".to_string(),
-								ShortcutAction {
-									bindings: vec![
-										Binding {
-											code: "Digit9".to_string(),
-											modifiers: vec![],
-										},
-										Binding {
-											code: "Numpad9".to_string(),
-											modifiers: vec![],
-										},
-									],
-								},
-							),
-						]),
+						actions: (1..=9)
+							.map(|i| {
+								(
+									format!("tool_{}", i),
+									ShortcutAction {
+										bindings: vec![
+											Binding {
+												code: format!("Digit{}", i),
+												modifiers: vec![],
+											},
+											Binding {
+												code: format!("Numpad{}", i),
+												modifiers: vec![],
+											},
+										],
+									},
+								)
+							})
+							.collect(),
 					},
 					toggles: ShortcutScope {
 						actions: HashMap::from([

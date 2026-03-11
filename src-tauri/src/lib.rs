@@ -130,10 +130,17 @@ pub fn run() {
 				state.set_tray_menu_items(tray_menu_items);
 			}
 
-			if let Some(menu_items) = app.state::<WindowState>().tray_menu_items() {
-				if let Err(err) = apply_tray_accelerators_from_settings(&menu_items, &snapshot) {
-					warn!("Failed to apply initial tray accelerators: {}", err);
-				}
+			if let Err(err) = app
+				.state::<WindowState>()
+				.with_tray_menu_items(|menu_items| {
+					if let Some(menu_items) = menu_items {
+						apply_tray_accelerators_from_settings(menu_items, &snapshot)
+					} else {
+						Ok(())
+					}
+				})
+			{
+				warn!("Failed to apply initial tray accelerators: {}", err);
 			}
 
 			init_global_shortcuts(app.app_handle());

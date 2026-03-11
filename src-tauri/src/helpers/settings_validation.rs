@@ -3,19 +3,26 @@ use std::collections::{HashMap, HashSet};
 use super::{
 	shortcuts::is_supported_global_code,
 	settings_types::{Binding, SettingsSnapshot, ValidationIssue},
-	shortcuts_runtime::{canonical_combo_key, compile_shortcuts, normalize_modifier},
+	shortcuts_runtime::{canonical_combo_key, compile_shortcuts, normalize_modifier, CompiledShortcuts},
 };
 
 pub fn validate_shortcuts(snapshot: &SettingsSnapshot) -> Vec<ValidationIssue> {
-	let mut issues: Vec<ValidationIssue> = Vec::new();
 	let compiled = compile_shortcuts(snapshot);
+	validate_shortcuts_with_compiled(&compiled, snapshot)
+}
+
+pub fn validate_shortcuts_with_compiled(
+	compiled: &CompiledShortcuts,
+	snapshot: &SettingsSnapshot,
+) -> Vec<ValidationIssue> {
+	let mut issues: Vec<ValidationIssue> = Vec::new();
 	let mut combo_to_paths: HashMap<String, Vec<String>> = HashMap::new();
 	let reserved_combo = canonical_combo_key(&Binding {
 		code: "KeyQ".to_string(),
 		modifiers: vec!["Primary".to_string()],
 	});
 
-	for (action_id, bindings) in compiled.actions {
+	for (action_id, bindings) in &compiled.actions {
 		for (idx, binding) in bindings.iter().enumerate() {
 			let path = binding_path_from_action(&action_id, idx);
 
