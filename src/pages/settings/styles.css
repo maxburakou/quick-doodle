@@ -49,7 +49,7 @@ body {
     --settings-control-bg-hover: linear-gradient(180deg, #444447 0%, #39393c 100%);
     --settings-control-bg-active: #2e2e31;
     --settings-focus-ring: 0 0 0 3px rgba(10, 132, 255, 0.34);
-    --settings-shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.02), 0 10px 24px rgba(0, 0, 0, 0.24);
+    --settings-shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.02), 0 8px 18px rgba(0, 0, 0, 0.2);
   }
 }
 
@@ -65,4 +65,14 @@ body {
   min-height: 0;
   overflow: auto;
   padding: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-footer__button,
+  .shortcut-row__record-button,
+  .shortcut-row__reset-button,
+  .autostart-section__toggle,
+  .autostart-section__toggle::after {
+    transition: none !important;
+  }
 }
