@@ -23,7 +23,17 @@
   --app-control-inset-highlight: rgba(255, 255, 255, 0.7);
   --app-input-invalid: var(--app-danger);
   --app-textarea-outline: var(--app-text-primary);
-  --app-custom-color-mixed: linear-gradient(135deg, #ffd662 0 50%, #00539c 50% 100%);
+  --app-custom-color-mixed: conic-gradient(
+    from 16deg,
+    #ff3b30 0deg,
+    #ff9500 58deg,
+    #ffd60a 108deg,
+    #32d74b 164deg,
+    #64d2ff 220deg,
+    #0a84ff 274deg,
+    #bf5af2 322deg,
+    #ff375f 360deg
+  );
 
   --app-radius-sm: 4px;
   --app-radius-md: 7px;
@@ -75,6 +85,16 @@
     --app-control-hover-bg: #3a3a3c;
     --app-control-border-active: #d0d0d4;
     --app-control-inset-highlight: rgba(255, 255, 255, 0.24);
-    --app-custom-color-mixed: linear-gradient(135deg, #ffd662 0 50%, #0a84ff 50% 100%);
+    --app-custom-color-mixed: conic-gradient(
+      from 16deg,
+      #ff453a 0deg,
+      #ff9f0a 58deg,
+      #ffd60a 108deg,
+      #30d158 164deg,
+      #64d2ff 220deg,
+      #0a84ff 274deg,
+      #bf5af2 322deg,
+      #ff375f 360deg
+    );
   }
 }
