@@ -1,8 +1,11 @@
+body {
+  font-family: -apple-system, system-ui, Inter, sans-serif;
+}
+
 .app-container {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  font-family: 'JetBrains Mono', monospace;
   opacity: 1;
   transform: translateY(0);
   transition:

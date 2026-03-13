@@ -1,10 +1,13 @@
+body {
+  color: #444444;
+  font-family: -apple-system, system-ui, Inter, sans-serif;
+}
+
 .settings-page {
   height: 100vh;
   display: flex;
   flex-direction: column;
   background: #ffffff;
-  color: #444444;
-  font-family: "JetBrains Mono", monospace;
 }
 
 .settings-page__content {
