@@ -1,0 +1,49 @@
+.fontsize-picker {
+  width: 40px;
+}
+
+.fontsize-input {
+  width: 100%;
+  padding: 4px 8px;
+  margin-top: 4px;
+  font-size: 12px;
+  text-align: center;
+  border: 1px solid #dcdcdc;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.fontsize-picker .fontsize-input {
+  margin-top: 0;
+  padding: 4px;
+}
+
+.fontsize-input.--invalid {
+  border-color: red;
+}
+
+.fontsize-arrows {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  transform: translateY(-50%);
+}
+
+.fontsize-picker .fontsize-arrows button {
+  all: unset;
+  cursor: pointer;
+  font-size: 8px;
+  line-height: 1;
+  padding: 2px;
+  user-select: none;
+  color: #dcdcdc;
+  transition: color 0.2s;
+}
+
+.fontsize-picker .fontsize-arrows button:hover {
+  color: #444444;
+}

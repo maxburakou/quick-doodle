@@ -9,6 +9,10 @@ canvas {
   z-index: 1;
 }
 
+.drawing-canvas.--select {
+  cursor: default;
+}
+
 .canvas-wrapper {
   position: relative;
 }

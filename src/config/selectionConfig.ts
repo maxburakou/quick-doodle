@@ -1,0 +1,3 @@
+export const ACTIVE_ZONE_PX = 10;
+export const MARQUEE_SAMPLING_STEP_PX = 8;
+export const MARQUEE_MAX_SAMPLING_POINTS = 256;

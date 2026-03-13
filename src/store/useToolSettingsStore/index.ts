@@ -7,8 +7,10 @@ export const useToolSettingsStore = create<ToolSettingsState>((set, get) => ({
   colors: DEFAULT_STROKE_COLORS,
   thickness: DEFAULT_STROKE_WIDTH[1],
   thicknesses: DEFAULT_STROKE_WIDTH,
+  shapeFill: false,
   setColor: (color) => set({ color }),
   setThickness: (thickness) => set({ thickness }),
+  setShapeFill: (shapeFill) => set({ shapeFill }),
   updateColor: (newColor: string) =>
     set(({ colors, color }) => {
       if (newColor === color || colors.includes(newColor)) return {};
@@ -57,10 +59,14 @@ export const useToolThickness = () =>
   useToolSettingsStore((state) => state.thickness);
 export const useToolThicknesses = () =>
   useToolSettingsStore((state) => state.thicknesses);
+export const useToolShapeFill = () =>
+  useToolSettingsStore((state) => state.shapeFill);
 export const useSetToolColor = () =>
   useToolSettingsStore((state) => state.setColor);
 export const useSetToolThickness = () =>
   useToolSettingsStore((state) => state.setThickness);
+export const useSetToolShapeFill = () =>
+  useToolSettingsStore((state) => state.setShapeFill);
 export const useUpdateToolColor = () =>
   useToolSettingsStore((state) => state.updateColor);
 export const useToNextToolColor = () =>

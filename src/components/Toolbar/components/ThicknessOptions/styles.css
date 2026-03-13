@@ -1,0 +1,17 @@
+.thickness-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thickness-button.--active {
+  border: none;
+}
+
+.thickness-button > svg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}

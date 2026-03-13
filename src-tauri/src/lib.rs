@@ -1,13 +1,25 @@
 mod components;
 mod helpers;
+mod ids;
 mod state;
-use components::tray::create_tray_menu;
+
+use components::tray::{apply_tray_accelerators_from_settings, create_tray_menu};
 use helpers::{
-	autostart::toggle_autostart,
-	shortcuts::register_global_shortcuts,
-	utils::{get_icon_path, handle_event, setup_macos_window_config, toggle_window},
+	autostart::{get_autostart_enabled, set_autostart_enabled},
+	macos_panel::setup_macos_window_config,
+	settings::{
+		emit_settings_updated, open_settings_window, register_settings_close_handler,
+		settings_get_snapshot, settings_hide_window, settings_restore_defaults, settings_save,
+		settings_validate_shortcuts,
+	},
+	settings_store::load_settings,
+	shortcuts::{init_global_shortcuts, reapply_global_shortcuts_with_rollback},
+	shortcuts_runtime::{compile_shortcuts, CompiledShortcuts},
+	utils::{get_icon_path, handle_event, toggle_window, warm_tray_icon_cache, ToggleOutcome},
 };
-use state::WindowState;
+use ids::{events, menu_ids};
+use log::warn;
+use state::{AppSettingsState, WindowState};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 use tauri::{
 	image::Image,
@@ -20,13 +32,21 @@ use tauri_plugin_store;
 pub fn run() {
 	tauri::Builder::default()
 		.plugin(tauri_plugin_store::Builder::new().build())
+		.invoke_handler(tauri::generate_handler![
+			settings_get_snapshot,
+			settings_validate_shortcuts,
+			settings_save,
+			settings_restore_defaults,
+			settings_hide_window
+		])
 		.setup(|app| {
 			#[cfg(target_os = "macos")]
 			setup_macos_window_config(app.handle());
 
-			// Initialize state
-			let state = WindowState::new();
-			app.manage(state);
+			let window_state = WindowState::new();
+			app.manage(window_state);
+			warm_tray_icon_cache(app.app_handle());
+			register_settings_close_handler(app.app_handle());
 
 			if cfg!(debug_assertions) {
 				app.handle().plugin(
@@ -37,32 +57,52 @@ pub fn run() {
 			}
 
 			#[cfg(desktop)]
-			let _ = app.handle().plugin(tauri_plugin_autostart::init(
+			if let Err(err) = app.handle().plugin(tauri_plugin_autostart::init(
 				MacosLauncher::LaunchAgent,
 				Some(vec!["--flag1", "--flag2"]),
-			));
+			)) {
+				warn!("Failed to initialize autostart plugin: {:?}", err);
+			}
 
-			// Tray menu items
-			let tray_menu = create_tray_menu(app.app_handle(), false)?;
+			let snapshot = load_settings(app.app_handle())?;
+			if let Ok(enabled) = get_autostart_enabled(app.app_handle()) {
+				if enabled != snapshot.autostart.enabled {
+					warn!(
+						"Autostart state differs from settings (os={}, settings={}), syncing.",
+						enabled, snapshot.autostart.enabled
+					);
+				}
+			}
+			if let Err(err) = set_autostart_enabled(app.app_handle(), snapshot.autostart.enabled) {
+				warn!("Failed to sync autostart status on setup: {}", err);
+			}
 
-			// Create tray icon
+			let compiled = compile_shortcuts(&snapshot);
+			app.manage(AppSettingsState::new(snapshot.clone(), compiled.clone()));
+
+			let (tray_menu, tray_menu_items) = create_tray_menu(app.app_handle(), false)?;
+
 			let tray_icon = TrayIconBuilder::new()
 				.menu(&tray_menu)
 				.show_menu_on_left_click(false)
 				.on_menu_event(|app, event| match event.id.as_ref() {
-					"quit" => app.exit(0),
-					"reset" => handle_event(app, "reset-canvas"),
-					"clear" => handle_event(app, "clear-canvas"),
-					"undo" => handle_event(app, "undo-canvas"),
-					"redo" => handle_event(app, "redo-canvas"),
-					"hide_canvas" => toggle_window(app),
-					"quit_canvas" => {
-						toggle_window(app);
-						handle_event(app, "reset-canvas");
+					menu_ids::QUIT => app.exit(0),
+					menu_ids::RESET => handle_event(app, events::RESET_CANVAS),
+					menu_ids::CLEAR => handle_event(app, events::CLEAR_CANVAS),
+					menu_ids::UNDO => handle_event(app, events::UNDO_CANVAS),
+					menu_ids::REDO => handle_event(app, events::REDO_CANVAS),
+					menu_ids::HIDE_CANVAS => {
+						let _ = toggle_window(app);
 					}
-					"autostart" => toggle_autostart(app),
-					"background" => handle_event(app, "toggle-background-canvas"),
-					"toolbar" => handle_event(app, "toggle-toolbar-canvas"),
+					menu_ids::QUIT_CANVAS => {
+						if let ToggleOutcome::Toggled(_) = toggle_window(app) {
+							handle_event(app, events::RESET_CANVAS);
+						}
+					}
+					menu_ids::SETTINGS => open_settings_window(app),
+					menu_ids::BACKGROUND => handle_event(app, events::TOGGLE_BACKGROUND_CANVAS),
+					menu_ids::TOOLBAR => handle_event(app, events::TOGGLE_TOOLBAR_CANVAS),
+					menu_ids::SNAP => handle_event(app, events::TOGGLE_SNAP_CANVAS),
 					&_ => {}
 				})
 				.icon(Image::from_path(get_icon_path(
@@ -77,24 +117,44 @@ pub fn run() {
 						..
 					} = event
 					{
-						toggle_window(&tray.app_handle());
-						handle_event(&tray.app_handle(), "reset-canvas");
+						if let ToggleOutcome::Toggled(_) = toggle_window(&tray.app_handle()) {
+							handle_event(&tray.app_handle(), events::RESET_CANVAS);
+						}
 					}
 				})
 				.build(app)?;
 
-			// Store tray icon in state
 			{
 				let state = app.state::<WindowState>();
-				let mut tray_lock = state.tray_icon.lock().unwrap();
-				*tray_lock = Some(tray_icon);
+				state.set_tray_icon(tray_icon);
+				state.set_tray_menu_items(tray_menu_items);
 			}
 
-			register_global_shortcuts(app.app_handle());
+			if let Err(err) = app
+				.state::<WindowState>()
+				.with_tray_menu_items(|menu_items| {
+					if let Some(menu_items) = menu_items {
+						apply_tray_accelerators_from_settings(menu_items, &snapshot)
+					} else {
+						Ok(())
+					}
+				})
+			{
+				warn!("Failed to apply initial tray accelerators: {}", err);
+			}
+
+			init_global_shortcuts(app.app_handle());
+			let empty_compiled = CompiledShortcuts::default();
+			if let Err(err) =
+				reapply_global_shortcuts_with_rollback(app.app_handle(), &empty_compiled, &compiled)
+			{
+				warn!("Failed to apply initial global shortcuts: {}", err);
+			}
+
+			emit_settings_updated(app.app_handle(), &snapshot);
 
 			Ok(())
 		})
-		.plugin(tauri_plugin_store::Builder::default().build())
 		.run(tauri::generate_context!())
 		.expect("error while running tauri application");
 }

@@ -1,0 +1,29 @@
+.shortcut-table__wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.shortcut-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+}
+
+.shortcut-table th,
+.shortcut-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #dcdcdc;
+  color: #444444;
+  font-size: 13px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.shortcut-table th {
+  font-weight: 600;
+  background: #ffffff;
+}
+
+.shortcut-table tbody tr:last-child td {
+  border-bottom: none;
+}

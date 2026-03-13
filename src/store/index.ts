@@ -3,6 +3,7 @@ export {
   usePast,
   usePresent,
   useFuture,
+  useCommitPresent,
   useAddRecord,
   useUndo,
   useRedo,
@@ -13,8 +14,10 @@ export {
   useToolSettingsStore,
   useToolColor,
   useToolThickness,
+  useToolShapeFill,
   useSetToolColor,
   useSetToolThickness,
+  useSetToolShapeFill,
   useToolColors,
   useToolThicknesses,
   useUpdateToolColor,
@@ -36,10 +39,17 @@ export {
 } from "./useToolbarStore";
 export {
   useTextEditorStore,
+  useTextEditorMode,
+  useTextEditorEditingStrokeId,
+  useStartTextEditorCreate,
+  useStartTextEditorEdit,
   useSetTextEditorInputText,
   useSetTextEditorStartPoint,
   useTextEditorInputText,
+  useTextEditorFontSizeSnapshot,
   useTextEditorStartPoint,
+  useFinishTextEditor,
+  useCancelTextEditor,
   useResetTextEditorState,
 } from "./useTextEditorStore";
 export {
@@ -51,3 +61,22 @@ export {
   useToPrevFontSize,
   useUpdateFontSize,
 } from "./tools/useTextSettingsStore";
+export {
+  useShapeEditorStore,
+  useSelectedStrokeIds,
+  usePrimarySelectedStrokeId,
+  useShapeTransformSession,
+  useSetShapeSelection,
+  useToggleShapeSelection,
+  useStartShapeTransform,
+  useStartShapeGroupMove,
+  useUpdateShapeTransform,
+  useUpdateShapeGroupMove,
+  useCommitShapeTransform,
+  useCommitShapeGroupMove,
+  useCancelShapeTransform,
+  useClearShapeSelection,
+} from "./useShapeEditorStore";
+export { useSnapStore, useSnapEnabled, useToggleSnapEnabled } from "./useSnapStore";
+export { useSettingsStore } from "./useSettingsStore";
+export { useClipboardStore, useClipboardHasData } from "./useClipboardStore";

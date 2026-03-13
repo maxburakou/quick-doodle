@@ -1,0 +1,16 @@
+.shortcut-section {
+  border: 1px solid #dcdcdc;
+  border-radius: 10px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.shortcut-section__title {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #444444;
+  border-bottom: 1px solid #dcdcdc;
+  background: #f9f9f9;
+}

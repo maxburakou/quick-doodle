@@ -1,0 +1,124 @@
+.toolbar {
+  display: flex;
+  gap: var(--toolbar-tool-gap);
+  margin: 0;
+  padding: 0;
+}
+
+.toolbar .toolbar-item {
+  display: flex;
+}
+
+.toolbar .toolbar-tool-button {
+  width: var(--toolbar-tool-size);
+  height: var(--toolbar-tool-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--toolbar-tool-radius);
+  cursor: pointer;
+  background: transparent;
+  color: #444444;
+  transition:
+    transform 360ms cubic-bezier(0.22, 0.82, 0.24, 1),
+    color 180ms ease-out,
+    background-color 0.2s ease;
+  position: relative;
+}
+
+.toolbar .toolbar-tool-button:hover {
+  background: #dcdcdc;
+}
+
+.toolbar .toolbar-hotkey {
+  position: absolute;
+  bottom: var(--toolbar-hotkey-offset);
+  right: var(--toolbar-hotkey-offset);
+  font-size: var(--toolbar-hotkey-font-size);
+  color: #444444;
+  width: var(--toolbar-hotkey-size);
+  height: var(--toolbar-hotkey-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+}
+
+.toolbar-capsule-enabled {
+  --tool-size: var(--toolbar-tool-size);
+  --tool-gap: var(--toolbar-tool-gap);
+  --capsule-width: var(--tool-size);
+  --capsule-height: var(--tool-size);
+  --capsule-x-shift: 0px;
+  --capsule-bg: #007aff;
+  --active-index: 0;
+  position: relative;
+}
+
+.toolbar-capsule-enabled .toolbar-item,
+.toolbar-capsule-enabled .toolbar-tool-button {
+  position: relative;
+  z-index: 1;
+}
+
+.toolbar-capsule-enabled .toolbar-hotkey {
+  z-index: 1;
+}
+
+.toolbar-active-capsule {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: var(--capsule-width);
+  height: var(--capsule-height);
+  border-radius: var(--toolbar-tool-radius);
+  pointer-events: none;
+  background: var(--capsule-bg);
+  border: none;
+  box-shadow: none;
+  transform: translate3d(
+    calc(
+      var(--active-index) * (var(--tool-size) + var(--tool-gap)) +
+        var(--capsule-x-shift)
+    ),
+    -50%,
+    0
+  );
+  opacity: 1;
+  transition:
+    transform 360ms cubic-bezier(0.22, 0.82, 0.24, 1),
+    opacity 120ms ease-out;
+  will-change: transform, opacity;
+  z-index: 0;
+}
+
+.toolbar-capsule-enabled .toolbar-tool-button.--capsule-active {
+  color: #ffffff;
+  transform: scale(1.04);
+  transform-origin: center;
+}
+
+.toolbar-capsule-enabled .toolbar-tool-button:hover,
+.toolbar-capsule-enabled .toolbar-tool-button:focus-visible {
+  background: transparent;
+}
+
+.toolbar-capsule-enabled .toolbar-hotkey.--capsule-active {
+  color: #ffffff;
+}
+
+.toolbar-capsule-enabled .toolbar-tool-button svg {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toolbar-active-capsule,
+  .toolbar-capsule-enabled .toolbar-tool-button {
+    transition: none;
+  }
+
+  .toolbar-capsule-enabled .toolbar-tool-button.--capsule-active {
+    transform: none;
+  }
+}

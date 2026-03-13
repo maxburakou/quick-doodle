@@ -1,13 +1,15 @@
 use tauri::AppHandle;
 use tauri_plugin_autostart::ManagerExt;
 
-pub fn toggle_autostart(app: &AppHandle) {
-	let autostart_manager = app.autolaunch();
-	let is_autostart_enabled = autostart_manager.is_enabled().unwrap();
+pub fn get_autostart_enabled(app: &AppHandle) -> Result<bool, String> {
+	app.autolaunch().is_enabled().map_err(|err| err.to_string())
+}
 
-	if is_autostart_enabled {
-		let _ = autostart_manager.disable();
+pub fn set_autostart_enabled(app: &AppHandle, enabled: bool) -> Result<(), String> {
+	let autostart_manager = app.autolaunch();
+	if enabled {
+		autostart_manager.enable().map_err(|err| err.to_string())
 	} else {
-		let _ = autostart_manager.enable();
+		autostart_manager.disable().map_err(|err| err.to_string())
 	}
 }

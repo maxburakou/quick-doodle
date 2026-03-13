@@ -30,6 +30,8 @@ export const drawStrokes = (
       drawableSeed,
       isShiftPressed,
       text,
+      rotation,
+      shapeFill,
     }) => {
       const hasMinimumPoints = points.length >= 2;
 
@@ -83,8 +85,10 @@ export const drawStrokes = (
           points[points.length - 1],
           color,
           thickness,
+          shapeFill,
           drawableSeed,
-          isShiftPressed
+          isShiftPressed,
+          rotation
         );
         return;
       }
@@ -96,8 +100,10 @@ export const drawStrokes = (
           points[points.length - 1],
           color,
           thickness,
+          shapeFill,
           drawableSeed,
-          isShiftPressed
+          isShiftPressed,
+          rotation
         );
         return;
       }
@@ -109,14 +115,16 @@ export const drawStrokes = (
           points[points.length - 1],
           color,
           thickness,
+          shapeFill,
           drawableSeed,
-          isShiftPressed
+          isShiftPressed,
+          rotation
         );
         return;
       }
 
       if (tool === Tool.Text && text) {
-        drawText(ctx, points, color, text);
+        drawText(ctx, points, color, text, rotation);
         return;
       }
     }

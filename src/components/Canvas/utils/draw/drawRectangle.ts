@@ -1,9 +1,5 @@
-import { Options } from "roughjs/bin/core";
-import { RoughShape, StrokePoint } from "@/types";
-import { generateRoughShape } from "../generateRoughShape";
-import rough from "roughjs";
-import { getRoughOptions } from "../getRoughOptions";
-import { constrainToSquareBounds } from "../constrainToSquareBounds";
+import { RoughShape, ShapeFill, StrokePoint } from "@/types";
+import { drawBoxLikeShape } from "./drawBoxLikeShape";
 
 export const drawRectangle = (
   ctx: CanvasRenderingContext2D,
@@ -11,27 +7,13 @@ export const drawRectangle = (
   end: StrokePoint,
   color: string,
   thickness: number,
+  shapeFill?: ShapeFill,
   drawableSeed?: number,
-  isShiftPressed?: boolean
+  isShiftPressed?: boolean,
+  rotation: number = 0
 ) => {
-  const roughCanvas = rough.canvas(ctx.canvas);
-
-  const adjustedEnd = isShiftPressed
-    ? constrainToSquareBounds(start, end)
-    : end;
-
-  const options: Options = getRoughOptions({
-    stroke: color,
-    strokeWidth: thickness / 1.5,
-    seed: drawableSeed,
-  });
-
-  const rectangle = generateRoughShape(
-    RoughShape.Rectangle,
-    start,
-    adjustedEnd,
-    options
+  drawBoxLikeShape(
+    ctx, RoughShape.Rectangle, start, end,
+    color, thickness, shapeFill, drawableSeed, isShiftPressed, rotation
   );
-
-  if (rectangle) roughCanvas.draw(rectangle);
 };

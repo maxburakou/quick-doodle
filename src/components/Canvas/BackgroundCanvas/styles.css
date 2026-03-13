@@ -1,4 +1,29 @@
 .background-canvas {
   pointer-events: none;
-  transition: background 0.2s;
+  transition:
+    background-color 0.2s ease,
+    background-image 0.2s ease;
+}
+
+.background-canvas.--transparent {
+  background: transparent;
+}
+
+.background-canvas.--light {
+  background-color: #f8f9fb;
+  background-image:
+    linear-gradient(
+      to right,
+      transparent calc(50% - 0.5px),
+      rgba(0, 0, 0, 0.045) calc(50% - 0.5px) calc(50% + 0.5px),
+      transparent calc(50% + 0.5px)
+    ),
+    linear-gradient(
+      to bottom,
+      transparent calc(50% - 0.5px),
+      rgba(0, 0, 0, 0.045) calc(50% - 0.5px) calc(50% + 0.5px),
+      transparent calc(50% + 0.5px)
+    );
+  background-size: 16px 16px;
+  background-position: center center;
 }

@@ -1,0 +1,31 @@
+.settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-content__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-content__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #444444;
+}
+
+.settings-content__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-content__divider {
+  height: 1px;
+  width: 100%;
+  background: #dcdcdc;
+  margin: 4px 0;
+}

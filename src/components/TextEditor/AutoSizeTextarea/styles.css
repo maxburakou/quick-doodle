@@ -32,16 +32,16 @@ textarea {
   width: auto;
   grid-area: 1 / 2;
   font: inherit;
+  line-height: inherit;
   margin: 0;
   resize: none;
   background: none;
   appearance: none;
   border: none;
-  line-height: 1.1;
 }
 
 .input-sizer::after {
-  content: attr(data-value) " ";
+  content: attr(data-value);
   visibility: hidden;
   white-space: pre;
 }
