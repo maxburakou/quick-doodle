@@ -8,10 +8,12 @@
   margin-top: 4px;
   font-size: 12px;
   text-align: center;
-  border: 1px solid #dcdcdc;
-  border-radius: 4px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-sm);
+  background: var(--app-surface);
+  color: var(--app-text-primary);
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color var(--app-duration-medium) var(--app-ease-standard);
 }
 
 .fontsize-picker .fontsize-input {
@@ -20,7 +22,7 @@
 }
 
 .fontsize-input.--invalid {
-  border-color: red;
+  border-color: var(--app-input-invalid);
 }
 
 .fontsize-arrows {
@@ -40,10 +42,10 @@
   line-height: 1;
   padding: 2px;
   user-select: none;
-  color: #dcdcdc;
-  transition: color 0.2s;
+  color: var(--app-border);
+  transition: color var(--app-duration-medium) var(--app-ease-standard);
 }
 
 .fontsize-picker .fontsize-arrows button:hover {
-  color: #444444;
+  color: var(--app-text-primary);
 }

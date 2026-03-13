@@ -1,8 +1,8 @@
 .background-canvas {
   pointer-events: none;
   transition:
-    background-color 0.2s ease,
-    background-image 0.2s ease;
+    background-color var(--app-duration-medium) var(--app-ease-standard),
+    background-image var(--app-duration-medium) var(--app-ease-standard);
 }
 
 .background-canvas.--transparent {
@@ -10,18 +10,18 @@
 }
 
 .background-canvas.--light {
-  background-color: #f8f9fb;
+  background-color: var(--app-canvas-bg);
   background-image:
     linear-gradient(
       to right,
       transparent calc(50% - 0.5px),
-      rgba(0, 0, 0, 0.045) calc(50% - 0.5px) calc(50% + 0.5px),
+      var(--app-grid-line) calc(50% - 0.5px) calc(50% + 0.5px),
       transparent calc(50% + 0.5px)
     ),
     linear-gradient(
       to bottom,
       transparent calc(50% - 0.5px),
-      rgba(0, 0, 0, 0.045) calc(50% - 0.5px) calc(50% + 0.5px),
+      var(--app-grid-line) calc(50% - 0.5px) calc(50% + 0.5px),
       transparent calc(50% + 0.5px)
     );
   background-size: 16px 16px;

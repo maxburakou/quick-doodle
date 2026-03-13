@@ -19,16 +19,16 @@
   border-radius: var(--toolbar-tool-radius);
   cursor: pointer;
   background: transparent;
-  color: #444444;
+  color: var(--app-text-primary);
   transition:
-    transform 360ms cubic-bezier(0.22, 0.82, 0.24, 1),
-    color 180ms ease-out,
-    background-color 0.2s ease;
+    transform var(--app-duration-toolbar) var(--app-ease-capsule),
+    color var(--app-duration-color) var(--app-ease-out),
+    background-color var(--app-duration-medium) var(--app-ease-standard);
   position: relative;
 }
 
 .toolbar .toolbar-tool-button:hover {
-  background: #dcdcdc;
+  background: var(--app-control-hover-bg);
 }
 
 .toolbar .toolbar-hotkey {
@@ -36,7 +36,7 @@
   bottom: var(--toolbar-hotkey-offset);
   right: var(--toolbar-hotkey-offset);
   font-size: var(--toolbar-hotkey-font-size);
-  color: #444444;
+  color: var(--app-text-primary);
   width: var(--toolbar-hotkey-size);
   height: var(--toolbar-hotkey-size);
   display: flex;
@@ -51,7 +51,7 @@
   --capsule-width: var(--tool-size);
   --capsule-height: var(--tool-size);
   --capsule-x-shift: 0px;
-  --capsule-bg: #007aff;
+  --capsule-bg: var(--app-accent);
   --active-index: 0;
   position: relative;
 }
@@ -87,14 +87,14 @@
   );
   opacity: 1;
   transition:
-    transform 360ms cubic-bezier(0.22, 0.82, 0.24, 1),
-    opacity 120ms ease-out;
+    transform var(--app-duration-toolbar) var(--app-ease-capsule),
+    opacity var(--app-duration-toolbar-fade) var(--app-ease-out);
   will-change: transform, opacity;
   z-index: 0;
 }
 
 .toolbar-capsule-enabled .toolbar-tool-button.--capsule-active {
-  color: #ffffff;
+  color: var(--app-text-on-accent);
   transform: scale(1.04);
   transform-origin: center;
 }
@@ -105,7 +105,7 @@
 }
 
 .toolbar-capsule-enabled .toolbar-hotkey.--capsule-active {
-  color: #ffffff;
+  color: var(--app-text-on-accent);
 }
 
 .toolbar-capsule-enabled .toolbar-tool-button svg {

@@ -1,29 +1,27 @@
 .toolbar-container {
-  --toolbar-tool-size: 28px;
-  --toolbar-tool-gap: 3px;
-  --toolbar-tool-radius: 7px;
-  --toolbar-hotkey-size: 14px;
-  --toolbar-hotkey-font-size: 9px;
-  --toolbar-hotkey-offset: -2px;
+  --toolbar-tool-size: var(--app-toolbar-tool-size);
+  --toolbar-tool-gap: var(--app-toolbar-tool-gap);
+  --toolbar-tool-radius: var(--app-radius-md);
+  --toolbar-hotkey-size: var(--app-toolbar-hotkey-size);
+  --toolbar-hotkey-font-size: var(--app-toolbar-hotkey-font-size);
+  --toolbar-hotkey-offset: var(--app-toolbar-hotkey-offset);
   display: flex;
   align-items: center;
   position: fixed;
   top: 0;
   right: 0;
-  background: #ffffff;
-  border: 1px solid #dcdcdc;
-  border-radius: 10px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
   list-style: none;
   z-index: 10;
   cursor: pointer;
   user-select: none;
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.15),
-    0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--app-shadow-floating);
   opacity: 1;
   transition:
-    opacity 0.2s ease,
-    display 0.2s ease allow-discrete;
+    opacity var(--app-duration-medium) var(--app-ease-standard),
+    display var(--app-duration-medium) var(--app-ease-standard) var(--app-ease-discrete);
 }
 
 .toolbar-container.--hidden {
@@ -44,21 +42,21 @@
   display: flex;
   justify-content: center;
   flex-direction: column;
-  padding: 3px;
+  padding: var(--app-toolbar-padding);
 }
 
 .react-draggable-dragging {
-  opacity: 0.8;
+  opacity: var(--app-dragging-opacity);
 }
 
 .grip-container {
-  margin: 3px 0;
-  width: 14px;
-  min-width: 14px;
+  margin: var(--app-toolbar-grip-margin-y) 0;
+  width: var(--app-toolbar-grip-width);
+  min-width: var(--app-toolbar-grip-width);
   align-self: stretch;
   position: relative;
   cursor: move;
-  border-radius: 10px;
+  border-radius: var(--app-radius-lg);
   overflow: hidden;
 }
 
@@ -69,8 +67,12 @@
   right: 0;
   bottom: 0;
   left: 0;
-  background-image: radial-gradient(circle, #dcdcdc 1px, transparent 1px);
-  background-size: 4px 4px;
+  background-image: radial-gradient(
+    circle,
+    var(--app-border) var(--app-toolbar-grip-dot-size),
+    transparent var(--app-toolbar-grip-dot-size)
+  );
+  background-size: var(--app-toolbar-grip-dot-grid-size) var(--app-toolbar-grip-dot-grid-size);
   background-repeat: repeat;
   background-position: center;
   pointer-events: none;

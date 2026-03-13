@@ -1,0 +1,80 @@
+:root {
+  --app-font-family-sans: -apple-system, system-ui, Inter, sans-serif;
+  --app-font-family-mono: "JetBrains Mono", monospace;
+
+  --app-surface: #ffffff;
+  --app-surface-subtle: #f8f9fb;
+  --app-border: #dcdcdc;
+  --app-text-primary: #444444;
+  --app-text-on-accent: #ffffff;
+  --app-accent: #007aff;
+  --app-danger: #ff3b30;
+
+  --app-shadow-floating:
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    0 1px 3px rgba(0, 0, 0, 0.1);
+
+  --app-grid-line: rgba(0, 0, 0, 0.045);
+  --app-canvas-bg: var(--app-surface-subtle);
+  --app-dragging-opacity: 0.8;
+
+  --app-control-hover-bg: var(--app-border);
+  --app-control-border-active: var(--app-text-primary);
+  --app-control-inset-highlight: rgba(255, 255, 255, 0.7);
+  --app-input-invalid: var(--app-danger);
+  --app-textarea-outline: var(--app-text-primary);
+  --app-custom-color-mixed: linear-gradient(135deg, #ffd662 0 50%, #00539c 50% 100%);
+
+  --app-radius-sm: 4px;
+  --app-radius-md: 7px;
+  --app-radius-lg: 10px;
+  --app-radius-round: 50%;
+
+  --app-toolbar-tool-size: 28px;
+  --app-toolbar-tool-gap: 3px;
+  --app-toolbar-hotkey-size: 14px;
+  --app-toolbar-hotkey-font-size: 9px;
+  --app-toolbar-hotkey-offset: -2px;
+  --app-toolbar-grip-width: 14px;
+  --app-toolbar-grip-dot-size: 1px;
+  --app-toolbar-grip-dot-grid-size: 4px;
+  --app-toolbar-padding: 3px;
+  --app-toolbar-grip-margin-y: 3px;
+  --app-toolbar-divider-margin-y: 2px;
+  --app-toolbar-divider-margin-x: 2px;
+
+  --app-duration-fast: 170ms;
+  --app-duration-color: 180ms;
+  --app-duration-medium: 200ms;
+  --app-duration-toolbar: 360ms;
+  --app-duration-toolbar-fade: 120ms;
+  --app-ease-out: ease-out;
+  --app-ease-standard: ease;
+  --app-ease-capsule: cubic-bezier(0.22, 0.82, 0.24, 1);
+  --app-ease-entry: cubic-bezier(0.22, 1, 0.36, 1);
+  --app-ease-discrete: allow-discrete;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --app-surface: #2c2c2e;
+    --app-surface-subtle: #1c1c1e;
+    --app-border: #47474b;
+    --app-text-primary: #f5f5f7;
+    --app-text-on-accent: #ffffff;
+    --app-accent: #0a84ff;
+    --app-danger: #ff6961;
+
+    --app-shadow-floating:
+      0 1px 0 rgba(255, 255, 255, 0.02),
+      0 8px 18px rgba(0, 0, 0, 0.2);
+
+    --app-grid-line: rgba(255, 255, 255, 0.08);
+    --app-canvas-bg: #1c1c1e;
+
+    --app-control-hover-bg: #3a3a3c;
+    --app-control-border-active: #d0d0d4;
+    --app-control-inset-highlight: rgba(255, 255, 255, 0.24);
+    --app-custom-color-mixed: linear-gradient(135deg, #ffd662 0 50%, #0a84ff 50% 100%);
+  }
+}

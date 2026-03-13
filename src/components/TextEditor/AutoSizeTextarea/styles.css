@@ -14,7 +14,7 @@ textarea {
   position: absolute;
   padding: 0;
   margin: 0;
-  outline: dotted 1px #444444;
+  outline: dotted 1px var(--app-textarea-outline);
   width: min-content;
 }
 

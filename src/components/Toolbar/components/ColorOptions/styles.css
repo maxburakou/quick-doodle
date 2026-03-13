@@ -9,24 +9,24 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border: 1px solid #dcdcdc;
-  border-radius: 50%;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-round);
   cursor: pointer;
   background: transparent;
-  color: #444444;
-  transition: all 0.2s;
+  color: var(--app-text-primary);
+  transition: all var(--app-duration-medium) var(--app-ease-standard);
   position: relative;
 }
 
 .options-button:hover {
   transform: scale(1.1);
-  background: #dcdcdc;
+  background: var(--app-control-hover-bg);
 }
 
 .options-button.--active {
-  border-color: #444444;
-  background: #007aff;
-  color: #ffffff;
+  border-color: var(--app-control-border-active);
+  background: var(--app-accent);
+  color: var(--app-text-on-accent);
 }
 
 .color-button.--active::after {
@@ -44,18 +44,18 @@
 }
 
 .custom-color-button {
-  border: 1px solid #dcdcdc;
-  border-radius: 4px;
-  transition: transform 0.2s;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-sm);
+  transition: transform var(--app-duration-medium) var(--app-ease-standard);
 }
 
 .custom-color-button.--mixed {
-  background-image: linear-gradient(135deg, #FFD662 0 50%, #00539C 50% 100%);
+  background-image: var(--app-custom-color-mixed);
 }
 
 .custom-color-button.--active {
-  border-color: #444444;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+  border-color: var(--app-control-border-active);
+  box-shadow: inset 0 0 0 1px var(--app-control-inset-highlight);
 }
 
 .popover-trigger:hover .custom-color-button {

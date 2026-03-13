@@ -1,5 +1,5 @@
 body {
-  font-family: -apple-system, system-ui, Inter, sans-serif;
+  font-family: var(--app-font-family-sans);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -10,8 +10,8 @@ body {
   opacity: 1;
   transform: translateY(0);
   transition:
-    opacity 170ms ease-out,
-    transform 170ms cubic-bezier(0.22, 1, 0.36, 1);
+    opacity var(--app-duration-fast) var(--app-ease-out),
+    transform var(--app-duration-fast) var(--app-ease-entry);
 }
 
 .app-container.--hidden {
