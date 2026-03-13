@@ -14,7 +14,8 @@
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #444444;
+  color: var(--settings-text-primary);
+  letter-spacing: -0.01em;
 }
 
 .settings-content__sections {
@@ -26,6 +27,6 @@
 .settings-content__divider {
   height: 1px;
   width: 100%;
-  background: #dcdcdc;
+  background: var(--settings-divider);
   margin: 4px 0;
 }

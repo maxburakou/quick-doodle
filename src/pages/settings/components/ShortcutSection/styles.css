@@ -1,7 +1,8 @@
 .shortcut-section {
-  border: 1px solid #dcdcdc;
-  border-radius: 10px;
-  background: #ffffff;
+  border: 1px solid var(--settings-border);
+  border-radius: 12px;
+  background: var(--settings-surface);
+  box-shadow: var(--settings-shadow-panel);
   overflow: hidden;
 }
 
@@ -10,7 +11,8 @@
   padding: 10px 12px;
   font-size: 14px;
   font-weight: 600;
-  color: #444444;
-  border-bottom: 1px solid #dcdcdc;
-  background: #f9f9f9;
+  color: var(--settings-text-primary);
+  border-bottom: 1px solid var(--settings-border-soft);
+  background: var(--settings-surface-subtle);
+  letter-spacing: -0.01em;
 }

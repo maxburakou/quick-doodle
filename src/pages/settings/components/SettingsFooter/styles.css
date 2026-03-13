@@ -4,8 +4,9 @@
   justify-content: space-between;
   gap: 12px;
   padding: 12px 16px;
-  border-top: 1px solid #dcdcdc;
-  background: #ffffff;
+  border-top: 1px solid var(--settings-border);
+  background: color-mix(in srgb, var(--settings-surface) 92%, transparent);
+  backdrop-filter: saturate(130%) blur(16px);
 }
 
 .settings-footer__actions {
@@ -18,16 +19,26 @@
   height: 30px;
   padding: 0 12px;
   border-radius: 7px;
-  border: 1px solid #dcdcdc;
-  background: #ffffff;
-  color: #444444;
+  border: 1px solid var(--settings-border);
+  background: var(--settings-control-bg);
+  color: var(--settings-text-primary);
   font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .settings-footer__button:hover:not(:disabled) {
-  background: #f2f2f2;
+  background: var(--settings-control-bg-hover);
+}
+
+.settings-footer__button:active:not(:disabled) {
+  background: var(--settings-control-bg-active);
+}
+
+.settings-footer__button:focus-visible {
+  outline: none;
+  box-shadow: var(--settings-focus-ring);
 }
 
 .settings-footer__button:disabled {
@@ -36,11 +47,16 @@
 }
 
 .settings-footer__button--primary {
-  background: #007aff;
-  color: #ffffff;
-  border-color: #007aff;
+  background: var(--settings-accent);
+  color: var(--settings-accent-foreground);
+  border-color: var(--settings-accent);
 }
 
 .settings-footer__button--primary:hover:not(:disabled) {
-  background: #0064d1;
+  background: var(--settings-accent-pressed);
+  border-color: var(--settings-accent-pressed);
+}
+
+.settings-footer__button--primary:active:not(:disabled) {
+  filter: saturate(0.94) brightness(0.96);
 }

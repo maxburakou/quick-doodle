@@ -1,13 +1,63 @@
 body {
-  color: #444444;
+  color: var(--settings-text-primary);
   font-family: -apple-system, system-ui, Inter, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: var(--settings-bg);
+}
+
+:root {
+  --settings-bg: #f5f5f7;
+  --settings-surface: #ffffff;
+  --settings-surface-subtle: #f6f6f8;
+  --settings-border: #d2d2d7;
+  --settings-border-soft: #e5e5ea;
+  --settings-divider: #dddddf;
+  --settings-text-primary: #1d1d1f;
+  --settings-text-secondary: #5a5a5f;
+  --settings-text-tertiary: #77777d;
+  --settings-accent: #007aff;
+  --settings-accent-pressed: #0063ce;
+  --settings-accent-foreground: #ffffff;
+  --settings-danger: #b42318;
+  --settings-danger-bg: #fff5f5;
+  --settings-danger-bg-hover: #ffecec;
+  --settings-control-bg: linear-gradient(180deg, #ffffff 0%, #f6f6f8 100%);
+  --settings-control-bg-hover: linear-gradient(180deg, #ffffff 0%, #efeff2 100%);
+  --settings-control-bg-active: #e9e9ed;
+  --settings-focus-ring: 0 0 0 3px rgba(0, 122, 255, 0.26);
+  --settings-shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.85), 0 10px 26px rgba(0, 0, 0, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --settings-bg: #1c1c1e;
+    --settings-surface: #2c2c2e;
+    --settings-surface-subtle: #3a3a3c;
+    --settings-border: #47474b;
+    --settings-border-soft: #3f3f43;
+    --settings-divider: #505055;
+    --settings-text-primary: #f5f5f7;
+    --settings-text-secondary: #d0d0d4;
+    --settings-text-tertiary: #a9a9b0;
+    --settings-accent: #0a84ff;
+    --settings-accent-pressed: #5aa9ff;
+    --settings-accent-foreground: #ffffff;
+    --settings-danger: #ff6961;
+    --settings-danger-bg: rgba(255, 105, 97, 0.12);
+    --settings-danger-bg-hover: rgba(255, 105, 97, 0.18);
+    --settings-control-bg: linear-gradient(180deg, #3b3b3e 0%, #323235 100%);
+    --settings-control-bg-hover: linear-gradient(180deg, #444447 0%, #39393c 100%);
+    --settings-control-bg-active: #2e2e31;
+    --settings-focus-ring: 0 0 0 3px rgba(10, 132, 255, 0.34);
+    --settings-shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.02), 0 10px 24px rgba(0, 0, 0, 0.24);
+  }
 }
 
 .settings-page {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
+  background: var(--settings-bg);
 }
 
 .settings-page__content {

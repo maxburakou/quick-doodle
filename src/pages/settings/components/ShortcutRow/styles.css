@@ -1,13 +1,13 @@
 .shortcut-row:hover {
-  background: #f8f8f8;
+  background: var(--settings-surface-subtle);
 }
 
 .shortcut-row--error {
-  background: #fff8f8;
+  background: var(--settings-danger-bg);
 }
 
 .shortcut-row--error:hover {
-  background: #ffeaea;
+  background: var(--settings-danger-bg-hover);
 }
 
 .shortcut-row__binding {
@@ -16,19 +16,22 @@
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  border: 1px solid #dcdcdc;
-  border-radius: 6px;
-  background: #ffffff;
+  border: 1px solid var(--settings-border);
+  border-radius: 7px;
+  background: var(--settings-control-bg);
+  color: var(--settings-text-primary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 
 .shortcut-row__binding--recording {
-  border-color: #007aff;
-  color: #007aff;
+  border-color: var(--settings-accent);
+  color: var(--settings-accent);
+  box-shadow: var(--settings-focus-ring);
 }
 
 .shortcut-row__issue {
   margin-top: 8px;
-  color: #c1121f;
+  color: var(--settings-danger);
   font-size: 12px;
 }
 
@@ -37,20 +40,32 @@
   min-width: 88px;
   height: 28px;
   border-radius: 7px;
-  border: 1px solid #dcdcdc;
-  background: #ffffff;
-  color: #444444;
+  border: 1px solid var(--settings-border);
+  background: var(--settings-control-bg);
+  color: var(--settings-text-primary);
   font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .shortcut-row__record-button:hover,
 .shortcut-row__reset-button:hover {
-  background: #f2f2f2;
+  background: var(--settings-control-bg-hover);
+}
+
+.shortcut-row__record-button:active,
+.shortcut-row__reset-button:active {
+  background: var(--settings-control-bg-active);
+}
+
+.shortcut-row__record-button:focus-visible,
+.shortcut-row__reset-button:focus-visible {
+  outline: none;
+  box-shadow: var(--settings-focus-ring);
 }
 
 .shortcut-row__record-button--active {
-  border-color: #007aff;
-  color: #007aff;
+  border-color: var(--settings-accent);
+  color: var(--settings-accent);
 }
