@@ -1,8 +1,10 @@
+import { CSSProperties } from "react";
 import { useSetTool, useTool } from "@/store";
 import "./styles.css";
 import Draggable from "react-draggable";
 import { useToolbarVisibility } from "@/store/useToolbarStore";
 import { useSettingsStore } from "@/store";
+import { TOOL_ORDER } from "./config";
 import { ToolbarSettingsPanel, ToolbarToolsList } from "./components";
 import { useToolbarSettingsContext } from "./hooks";
 
@@ -12,10 +14,18 @@ export const Toolbar: React.FC = () => {
   const isVisible = useToolbarVisibility();
   const settingsSnapshot = useSettingsStore((state) => state.snapshot);
   const { visibleSettings } = useToolbarSettingsContext();
+  const activeIndex = Math.max(TOOL_ORDER.indexOf(activeTool), 0);
+
+  const toolbarStyle = {
+    "--active-index": activeIndex,
+  } as CSSProperties;
 
   return (
     <Draggable bounds="parent" handle=".toolbar-drag-hit-area" scale={1}>
-      <div className={`toolbar-container ${!isVisible ? "--hidden" : ""}`}>
+      <div
+        className={`toolbar-container ${!isVisible ? "--hidden" : ""}`}
+        style={toolbarStyle}
+      >
         <div className="toolbar-content">
           <ToolbarToolsList
             activeTool={activeTool}

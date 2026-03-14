@@ -1,4 +1,3 @@
-import { CSSProperties } from "react";
 import { resolveToolHotkeyLabel } from "@/components/Canvas/helpers/shortcutMatcher";
 import { Tool } from "@/types";
 import { SettingsSnapshot } from "@/types/settings";
@@ -18,13 +17,8 @@ export const ToolbarToolsList: React.FC<ToolbarToolsListProps> = ({
   onSelectTool,
   settingsSnapshot,
 }) => {
-  const activeIndex = TOOLS_LIST.indexOf(activeTool);
-  const toolbarStyle = {
-    "--active-index": activeIndex,
-  } as CSSProperties;
-
   return (
-    <menu className="toolbar toolbar-capsule-enabled" style={toolbarStyle}>
+    <menu className="toolbar toolbar-capsule-enabled">
       <div className="toolbar-active-capsule" aria-hidden />
       {/* TODO: switch to TOOL_ORDER when user-defined tool ordering is implemented. */}
       {TOOLS_LIST.map((toolValue) => {
