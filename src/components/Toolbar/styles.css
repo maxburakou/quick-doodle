@@ -1,8 +1,9 @@
 .toolbar-container {
   --active-index: 0;
-  --grip-pattern-shift-step: var(--app-toolbar-grip-dot-grid-size);
-  --toolbar-motion-duration: 520ms;
-  --toolbar-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --grip-tick-period: calc(var(--app-toolbar-grip-dot-grid-size) * 1.25);
+  --grip-tick-shift-step: calc(var(--app-toolbar-grip-dot-grid-size) * 0.42);
+  --toolbar-motion-duration: 620ms;
+  --toolbar-motion-ease: cubic-bezier(0.2, 0.9, 0.24, 1);
   --toolbar-tool-size: var(--app-toolbar-tool-size);
   --toolbar-tool-gap: var(--app-toolbar-tool-gap);
   --toolbar-tool-radius: var(--app-radius-md);
@@ -111,21 +112,20 @@
 .grip-container::before {
   content: "";
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  background-image: radial-gradient(
-    circle,
-    var(--app-toolbar-grip-dot-color) var(--app-toolbar-grip-dot-size),
-    transparent var(--app-toolbar-grip-dot-size)
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  left: 1px;
+  background-image: repeating-linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--app-toolbar-grip-tick-main) 86%, transparent) 0 1px,
+    transparent 1px var(--grip-tick-period)
   );
-  background-size: var(--app-toolbar-grip-dot-grid-size) var(--app-toolbar-grip-dot-grid-size);
-  background-repeat: repeat;
-  background-position:
-    50%
-    calc(50% + (var(--active-index) * var(--grip-pattern-shift-step)));
+  background-size: 68% var(--grip-tick-period);
+  background-repeat: repeat-y;
+  background-position: 50% calc(var(--active-index) * var(--grip-tick-shift-step));
   transition: background-position var(--toolbar-motion-duration) var(--toolbar-motion-ease);
+  opacity: 0.48;
   pointer-events: none;
 }
 

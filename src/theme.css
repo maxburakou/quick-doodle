@@ -49,6 +49,11 @@
   --app-toolbar-grip-dot-size: 1px;
   --app-toolbar-grip-dot-grid-size: 5px;
   --app-toolbar-grip-dot-color: rgba(60, 60, 67, 0.16);
+  --app-toolbar-grip-rim: rgba(60, 60, 67, 0.1);
+  --app-toolbar-grip-highlight: rgba(255, 255, 255, 0.56);
+  --app-toolbar-grip-shadow: rgba(35, 35, 38, 0.08);
+  --app-toolbar-grip-tick-main: rgba(60, 60, 67, 0.52);
+  --app-toolbar-grip-tick-soft: rgba(60, 60, 67, 0.28);
   --app-toolbar-padding: 3px;
   --app-toolbar-container-padding: 4px;
   --app-toolbar-grip-margin-y: 3px;
@@ -124,6 +129,11 @@
     --app-toolbar-shell-bg: #1f1f21;
     --app-toolbar-section-bg: #36363b;
     --app-toolbar-grip-dot-color: rgba(255, 255, 255, 0.1);
+    --app-toolbar-grip-rim: rgba(255, 255, 255, 0.08);
+    --app-toolbar-grip-highlight: rgba(255, 255, 255, 0.13);
+    --app-toolbar-grip-shadow: rgba(0, 0, 0, 0.28);
+    --app-toolbar-grip-tick-main: rgba(255, 255, 255, 0.6);
+    --app-toolbar-grip-tick-soft: rgba(255, 255, 255, 0.32);
     --app-toolbar-tools-bg: #3b3b40;
     --app-toolbar-settings-bg: #242426;
     --app-toolbar-border-soft: rgba(255, 255, 255, 0.08);
