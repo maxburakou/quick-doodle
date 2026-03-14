@@ -3,15 +3,45 @@
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.thickness-button.--active {
-  border: none;
+  border-radius: var(--app-radius-round);
+  --thickness-dot-size: 4px;
 }
 
 .thickness-button > svg {
   position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.thickness-button::before {
+  content: "";
+  position: absolute;
   top: 50%;
   left: 50%;
+  display: block;
+  width: var(--thickness-dot-size);
+  height: var(--thickness-dot-size);
+  aspect-ratio: 1 / 1;
   transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.76;
+}
+
+.thickness-button:has(svg[stroke-width="2"]) {
+  --thickness-dot-size: 3px;
+}
+
+.thickness-button:has(svg[stroke-width="4"]) {
+  --thickness-dot-size: 5px;
+}
+
+.thickness-button:has(svg[stroke-width="6"]) {
+  --thickness-dot-size: 7px;
+}
+
+.thickness-button:has(svg[stroke-width="8"]) {
+  --thickness-dot-size: 9px;
 }

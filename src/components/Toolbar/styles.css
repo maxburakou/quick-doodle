@@ -5,19 +5,30 @@
   --toolbar-hotkey-size: var(--app-toolbar-hotkey-size);
   --toolbar-hotkey-font-size: var(--app-toolbar-hotkey-font-size);
   --toolbar-hotkey-offset: var(--app-toolbar-hotkey-offset);
-  display: flex;
-  align-items: center;
+  --toolbar-group-space: var(--app-toolbar-padding);
+  --toolbar-container-padding: var(--app-toolbar-container-padding);
+  --toolbar-border-width: 1px;
+  --toolbar-shell-radius: 14px;
+  display: grid;
+  grid-template-columns: auto var(--app-toolbar-grip-width);
+  column-gap: var(--toolbar-group-space);
+  align-items: stretch;
   position: fixed;
   top: 0;
   right: 0;
-  background: var(--app-surface);
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-lg);
+  padding: var(--toolbar-container-padding);
+  background: var(--app-toolbar-shell-bg);
+  border: var(--toolbar-border-width) solid var(--app-toolbar-border-soft);
+  border-radius: var(--toolbar-shell-radius);
   list-style: none;
   z-index: 10;
   cursor: pointer;
   user-select: none;
-  box-shadow: var(--app-shadow-floating);
+  box-shadow:
+    0 16px 40px rgba(15, 23, 42, 0.12),
+    0 4px 10px rgba(15, 23, 42, 0.08);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   opacity: 1;
   transition:
     opacity var(--app-duration-medium) var(--app-ease-standard),
@@ -39,24 +50,57 @@
 }
 
 .toolbar-content {
-  display: flex;
-  justify-content: center;
-  flex-direction: column;
-  padding: var(--app-toolbar-padding);
+  display: grid;
+  grid-template-rows: auto auto;
+  row-gap: 0;
+}
+
+.toolbar-content:has(.toolbar-settings-section.--open) {
+  row-gap: var(--toolbar-group-space);
 }
 
 .react-draggable-dragging {
   opacity: var(--app-dragging-opacity);
 }
 
-.grip-container {
-  margin: var(--app-toolbar-grip-margin-y) 0;
-  width: var(--app-toolbar-grip-width);
-  min-width: var(--app-toolbar-grip-width);
-  align-self: stretch;
+.grip-container-wrapper {
+  grid-column: 2;
+  grid-row: 1 / -1;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
   position: relative;
+}
+
+.toolbar-drag-hit-area {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(100% + (var(--toolbar-group-space) + var(--toolbar-border-width)) * 2);
+  height: calc(100% + (var(--toolbar-group-space) + var(--toolbar-border-width)) * 2);
+  transform: translate(-50%, -50%);
+  background: transparent;
   cursor: move;
-  border-radius: var(--app-radius-lg);
+  z-index: 2;
+  border-radius: calc(
+    var(--toolbar-shell-radius) + var(--toolbar-group-space) + var(--toolbar-border-width)
+  );
+}
+
+.toolbar-container.react-draggable-dragging .toolbar-drag-hit-area {
+  cursor: grabbing;
+}
+
+.grip-container {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  background: var(--app-toolbar-settings-strip-bg);
+  border: none;
+  box-shadow: none;
+  border-radius: 999px;
   overflow: hidden;
 }
 
@@ -69,7 +113,7 @@
   left: 0;
   background-image: radial-gradient(
     circle,
-    var(--app-border) var(--app-toolbar-grip-dot-size),
+    var(--app-toolbar-grip-dot-color) var(--app-toolbar-grip-dot-size),
     transparent var(--app-toolbar-grip-dot-size)
   );
   background-size: var(--app-toolbar-grip-dot-grid-size) var(--app-toolbar-grip-dot-grid-size);

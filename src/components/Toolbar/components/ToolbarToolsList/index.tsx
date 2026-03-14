@@ -11,21 +11,23 @@ interface ToolbarToolsListProps {
   settingsSnapshot: SettingsSnapshot | null;
 }
 
+const TOOLS_LIST = Object.values(Tool);
+
 export const ToolbarToolsList: React.FC<ToolbarToolsListProps> = ({
   activeTool,
   onSelectTool,
   settingsSnapshot,
 }) => {
-  const toolsList = Object.values(Tool);
+  const activeIndex = TOOLS_LIST.indexOf(activeTool);
   const toolbarStyle = {
-    "--active-index": toolsList.indexOf(activeTool),
+    "--active-index": activeIndex,
   } as CSSProperties;
 
   return (
     <menu className="toolbar toolbar-capsule-enabled" style={toolbarStyle}>
       <div className="toolbar-active-capsule" aria-hidden />
       {/* TODO: switch to TOOL_ORDER when user-defined tool ordering is implemented. */}
-      {toolsList.map((toolValue) => {
+      {TOOLS_LIST.map((toolValue) => {
         const { hotkeySlot, icon } = TOOL_CONFIG[toolValue];
         const isActive = toolValue === activeTool;
         const hotkey = resolveToolHotkeyLabel(settingsSnapshot, hotkeySlot);

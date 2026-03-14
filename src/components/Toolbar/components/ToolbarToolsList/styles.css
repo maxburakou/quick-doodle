@@ -1,8 +1,14 @@
 .toolbar {
+  --toolbar-tools-radius: 12px;
+  --toolbar-tools-padding: 2px;
   display: flex;
   gap: var(--toolbar-tool-gap);
   margin: 0;
-  padding: 0;
+  padding: var(--toolbar-tools-padding);
+  background: var(--app-toolbar-tools-bg);
+  border: 1px solid color-mix(in srgb, var(--app-toolbar-settings-border) 76%, transparent);
+  border-radius: var(--toolbar-tools-radius);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
 .toolbar .toolbar-item {
@@ -15,11 +21,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
+  line-height: 1;
   border: none;
   border-radius: var(--toolbar-tool-radius);
   cursor: pointer;
   background: transparent;
-  color: var(--app-text-primary);
+  color: var(--app-toolbar-tool-idle-ink);
   transition:
     transform var(--app-duration-toolbar) var(--app-ease-capsule),
     color var(--app-duration-color) var(--app-ease-out),
@@ -28,32 +36,33 @@
 }
 
 .toolbar .toolbar-tool-button:hover {
-  background: var(--app-control-hover-bg);
+  background: var(--app-toolbar-tool-hover-bg);
+  color: var(--app-text-primary);
 }
 
 .toolbar .toolbar-hotkey {
   position: absolute;
-  bottom: var(--toolbar-hotkey-offset);
-  right: var(--toolbar-hotkey-offset);
-  font-size: var(--toolbar-hotkey-font-size);
+  bottom: 0;
+  right: 0;
+  font-size: 7px;
   color: var(--app-text-primary);
-  width: var(--toolbar-hotkey-size);
-  height: var(--toolbar-hotkey-size);
+  width: 11px;
+  height: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 500;
+  font-weight: 600;
+  opacity: 0.82;
+  pointer-events: none;
 }
 
 .toolbar-capsule-enabled {
-  --tool-size: var(--toolbar-tool-size);
-  --tool-gap: var(--toolbar-tool-gap);
-  --capsule-width: var(--tool-size);
-  --capsule-height: var(--tool-size);
-  --capsule-x-shift: 0px;
-  --capsule-bg: var(--app-accent);
+  --capsule-size: calc(var(--toolbar-tool-size) + var(--toolbar-tools-padding) * 2);
+  --slot-size: var(--capsule-size);
   --active-index: 0;
   position: relative;
+  gap: 0;
+  padding: 0;
 }
 
 .toolbar-capsule-enabled .toolbar-item,
@@ -62,7 +71,15 @@
   z-index: 1;
 }
 
+.toolbar-capsule-enabled .toolbar-tool-button {
+  width: var(--capsule-size);
+  height: var(--capsule-size);
+  border-radius: var(--toolbar-tools-radius);
+}
+
 .toolbar-capsule-enabled .toolbar-hotkey {
+  right: var(--toolbar-tools-padding);
+  bottom: var(--toolbar-tools-padding);
   z-index: 1;
 }
 
@@ -70,18 +87,17 @@
   position: absolute;
   top: 50%;
   left: 0;
-  width: var(--capsule-width);
-  height: var(--capsule-height);
-  border-radius: var(--toolbar-tool-radius);
+  width: var(--capsule-size);
+  height: var(--capsule-size);
+  border-radius: var(--toolbar-tools-radius);
   pointer-events: none;
-  background: var(--capsule-bg);
+  background: var(--app-toolbar-capsule-bg);
   border: none;
-  box-shadow: none;
+  box-shadow:
+    var(--app-toolbar-capsule-shadow),
+    var(--app-toolbar-capsule-glow);
   transform: translate3d(
-    calc(
-      var(--active-index) * (var(--tool-size) + var(--tool-gap)) +
-        var(--capsule-x-shift)
-    ),
+    calc(var(--active-index) * var(--slot-size)),
     -50%,
     0
   );
@@ -95,7 +111,7 @@
 
 .toolbar-capsule-enabled .toolbar-tool-button.--capsule-active {
   color: var(--app-text-on-accent);
-  transform: scale(1.04);
+  transform: none;
   transform-origin: center;
 }
 

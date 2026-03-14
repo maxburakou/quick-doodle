@@ -14,7 +14,7 @@ export const Toolbar: React.FC = () => {
   const { visibleSettings } = useToolbarSettingsContext();
 
   return (
-    <Draggable bounds="parent" handle=".grip-container" scale={1}>
+    <Draggable bounds="parent" handle=".toolbar-drag-hit-area" scale={1}>
       <div className={`toolbar-container ${!isVisible ? "--hidden" : ""}`}>
         <div className="toolbar-content">
           <ToolbarToolsList
@@ -24,7 +24,10 @@ export const Toolbar: React.FC = () => {
           />
           <ToolbarSettingsPanel visibleSettings={visibleSettings} />
         </div>
-        <div className="grip-container" aria-hidden />
+        <div className="grip-container-wrapper" aria-hidden>
+          <div className="toolbar-drag-hit-area" />
+          <div className="grip-container" />
+        </div>
       </div>
     </Draggable>
   );

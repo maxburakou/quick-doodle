@@ -21,6 +21,7 @@ export const ColorOptions = () => {
       {colors.map((color, index) => (
         <button
           key={index}
+          type="button"
           onClick={() => setColor(color)}
           className={`options-button color-button ${
             color === contextColor ? "--active" : ""
@@ -30,6 +31,7 @@ export const ColorOptions = () => {
       ))}
       <Popover content={<ToolbarColorPicker />}>
         <button
+          type="button"
           className={`options-button custom-color-button ${
             isMixedGroupColor ? "--mixed" : ""
           } ${isCustomButtonActive ? "--active" : ""}`.trim()}

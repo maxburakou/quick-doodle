@@ -1,63 +1,60 @@
-.options-button,
-.custom-color-button {
-  width: 16px;
-  height: 16px;
-}
-
 .options-button {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
   overflow: hidden;
-  border: 1px solid var(--app-border);
+  width: var(--app-toolbar-setting-button-size);
+  height: var(--app-toolbar-setting-button-size);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: var(--app-radius-round);
+  appearance: none;
+  -webkit-appearance: none;
   cursor: pointer;
   background: transparent;
   color: var(--app-text-primary);
-  transition: all var(--app-duration-medium) var(--app-ease-standard);
+  transition:
+    transform var(--app-duration-medium) var(--app-ease-standard),
+    box-shadow var(--app-duration-medium) var(--app-ease-standard),
+    border-color var(--app-duration-medium) var(--app-ease-standard);
+  box-shadow:
+    0 0 0 0 var(--app-accent),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.44),
+    0 1px 2px rgba(15, 23, 42, 0.08);
   position: relative;
 }
 
-.options-button:hover {
-  transform: scale(1.1);
-  background: var(--app-control-hover-bg);
+.options-button::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--app-control-inset-highlight) 78%, transparent) 0%,
+    color-mix(in srgb, var(--app-control-inset-highlight) 28%, transparent) 48%,
+    transparent 74%
+  );
+  opacity: 0.52;
 }
 
 .options-button.--active {
-  border-color: var(--app-control-border-active);
-  background: var(--app-accent);
-  color: var(--app-text-on-accent);
+  border-color: rgba(255, 255, 255, 0.88);
+  box-shadow:
+    0 0 0 2px var(--app-accent),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.72),
+    0 1px 2px rgba(15, 23, 42, 0.08);
 }
 
-.color-button.--active::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 40%;
-  height: 40%;
-  border-radius: 50%;
-  background: inherit;
-  -webkit-filter: invert(1) grayscale(100%) contrast(2000%);
-  filter: invert(1) grayscale(100%) contrast(2000%);
+.color-button {
+  border-radius: var(--app-radius-round);
 }
 
 .custom-color-button {
-  border: 1px solid var(--app-border);
   border-radius: var(--app-radius-sm);
-  transition: transform var(--app-duration-medium) var(--app-ease-standard);
 }
 
 .custom-color-button.--mixed {
   background-image: var(--app-custom-color-mixed);
-}
-
-.custom-color-button.--active {
-  border-color: var(--app-control-border-active);
-  box-shadow: inset 0 0 0 1px var(--app-control-inset-highlight);
-}
-
-.popover-trigger:hover .custom-color-button {
-  transform: scale(1.1);
 }

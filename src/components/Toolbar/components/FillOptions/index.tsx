@@ -8,12 +8,15 @@ export const FillOptions = () => {
 
   return (
     <button
+      type="button"
       onClick={() => setShapeFill(!contextShapeFill)}
       className={`options-button fill-button ${contextShapeFill ? "--active" : ""}`}
       aria-pressed={contextShapeFill}
       aria-label="Toggle shape fill"
     >
-      F
+      <span className="fill-glyph" aria-hidden="true">
+        <span className="fill-water" />
+      </span>
     </button>
   );
 };

@@ -1,15 +1,26 @@
 .toolbar-settings {
   display: flex;
-  justify-content: space-around;
+  justify-content: space-between;
   align-items: center;
+  gap: 3px;
+  width: 100%;
   position: relative;
   opacity: 0;
-  transition: opacity 0s linear;
+  transform: translateY(-1px);
+  transition:
+    opacity var(--app-duration-fast) var(--app-ease-out),
+    transform var(--app-duration-fast) var(--app-ease-out);
+  background: var(--app-toolbar-settings-strip-bg);
+  border: none;
+  border-radius: 999px;
+  padding: 3px 8px;
+  box-shadow: none;
 }
 
 .toolbar-settings-section.--open .toolbar-settings {
   opacity: 1;
-  transition-delay: 55ms;
+  transform: translateY(0);
+  transition-delay: 36ms;
 }
 
 .toolbar-settings-section:not(.--open) .toolbar-settings {
@@ -30,7 +41,8 @@
 
 .toolbar-settings-section-inner {
   min-height: 0;
-  border-radius: var(--app-radius-lg);
+  width: 100%;
+  border-radius: 999px;
   overflow: visible;
 }
 
@@ -40,16 +52,16 @@
 
 .toolbar-settings-section .toolbar-divider {
   display: block;
-  margin: var(--app-toolbar-divider-margin-y) 0;
+  margin: 0 1px;
   border: none;
-  height: 1px;
-  background: var(--app-border);
+  width: 1px;
+  align-self: stretch;
+  background: color-mix(in srgb, var(--app-toolbar-settings-border) 42%, transparent);
 }
 
 .toolbar-settings-section .toolbar-divider.--vertical {
   width: 1px;
-  margin: 0 var(--app-toolbar-divider-margin-x);
-  align-self: stretch;
+  margin: 1px 2px;
   height: auto;
 }
 

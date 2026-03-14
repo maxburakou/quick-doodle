@@ -1,6 +1,6 @@
 .color-picker .react-colorful {
-  width: 100px;
-  height: 100px;
+  width: 124px;
+  height: 124px;
 }
 
 .color-picker .react-colorful__hue {
@@ -15,16 +15,20 @@
 
 .hex-input {
   width: 100%;
-  padding: 4px 8px;
-  margin-top: 4px;
+  height: 30px;
+  padding: 0 10px;
+  margin-top: 8px;
   font-size: 12px;
   text-align: center;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-sm);
-  background: var(--app-surface);
+  border: 1px solid var(--app-toolbar-control-border);
+  border-radius: var(--app-toolbar-control-radius);
+  background: var(--app-toolbar-control-bg);
   color: var(--app-text-primary);
   outline: none;
-  transition: border-color var(--app-duration-medium) var(--app-ease-standard);
+  box-shadow: var(--app-toolbar-control-shadow);
+  transition:
+    border-color var(--app-duration-medium) var(--app-ease-standard),
+    box-shadow var(--app-duration-medium) var(--app-ease-standard);
 }
 
 .hex-input.--invalid {

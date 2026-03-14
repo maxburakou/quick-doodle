@@ -14,6 +14,7 @@ export const FontSizeOptions = () => {
       {fontSizes.map((fontSize, index) => (
         <button
           key={index}
+          type="button"
           onClick={() => setFontSize(fontSize)}
           className={`options-button fontsize-button ${
             fontSize === contextFontSize ? "--active" : ""
