@@ -21,6 +21,16 @@
     border-color var(--app-duration-medium) var(--app-ease-standard),
     outline-color var(--app-duration-medium) var(--app-ease-standard);
   position: relative;
+  border-color: rgba(15, 23, 42, 0.28);
+}
+
+.options-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
 
 .options-button.--active {
@@ -38,4 +48,14 @@
 .custom-color-button.--mixed {
   background-image: var(--app-custom-color-mixed);
   background-clip: padding-box;
+}
+
+@media (prefers-color-scheme: dark) {
+  .options-button {
+    border-color: rgba(255, 255, 255, 0.24);
+  }
+
+  .options-button::after {
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.16);
+  }
 }

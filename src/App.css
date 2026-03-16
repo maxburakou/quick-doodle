@@ -8,21 +8,28 @@ body {
   height: 100vh;
   overflow: hidden;
   opacity: 1;
-  transform: translateY(0);
-  transition:
-    opacity var(--app-duration-fast) var(--app-ease-out),
-    transform var(--app-duration-fast) var(--app-ease-entry);
 }
 
 .app-container.--hidden {
   opacity: 0;
-  transform: translateY(clamp(10px, 1.6vh, 18px));
   pointer-events: none;
 }
 
+.app-container:not(.--hidden) {
+  animation: app-main-window-enter var(--app-duration-fast) var(--app-ease-out) both;
+}
+
+@keyframes app-main-window-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .app-container {
-    transition: none;
-    transform: none;
+  .app-container:not(.--hidden) {
+    animation: none;
   }
 }

@@ -37,7 +37,7 @@
 
 .toolbar .toolbar-tool-button:hover {
   background: var(--app-toolbar-tool-hover-bg);
-  color: var(--app-text-primary);
+  color: var(--app-toolbar-tool-hover-ink);
 }
 
 .toolbar .toolbar-hotkey {
