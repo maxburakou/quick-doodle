@@ -42,9 +42,6 @@
 
   --app-toolbar-tool-size: 28px;
   --app-toolbar-tool-gap: 3px;
-  --app-toolbar-hotkey-size: 14px;
-  --app-toolbar-hotkey-font-size: 9px;
-  --app-toolbar-hotkey-offset: -2px;
   --app-toolbar-grip-width: 14px;
   --app-toolbar-grip-dot-size: 1px;
   --app-toolbar-grip-dot-grid-size: 5px;
@@ -60,39 +57,39 @@
   --app-toolbar-divider-margin-y: 2px;
   --app-toolbar-divider-margin-x: 2px;
   --app-toolbar-setting-button-size: 16px;
-  --app-toolbar-shell-bg: #ffffff;
-  --app-toolbar-section-bg: #f2f4f8;
-  --app-toolbar-tools-bg: #f5f7fb;
-  --app-toolbar-settings-bg: #f4f5f7;
-  --app-toolbar-border-soft: rgba(60, 60, 67, 0.14);
-  --app-toolbar-settings-border: rgba(60, 60, 67, 0.1);
+  --app-toolbar-shell-bg: #fcfcfd;
+  --app-toolbar-section-bg: #f6f7f9;
+  --app-toolbar-tools-bg: var(--app-toolbar-section-bg);
+  --app-toolbar-settings-bg: var(--app-toolbar-section-bg);
+  --app-toolbar-border-soft: rgba(17, 24, 39, 0.14);
+  --app-toolbar-settings-border: rgba(17, 24, 39, 0.09);
   --app-toolbar-settings-strip-bg: var(--app-toolbar-section-bg);
-  --app-toolbar-settings-strip-border: rgba(60, 60, 67, 0.08);
-  --app-toolbar-tool-idle-ink: rgba(60, 60, 67, 0.72);
-  --app-toolbar-tool-hover-bg: rgba(255, 255, 255, 0.26);
+  --app-toolbar-settings-strip-border: rgba(17, 24, 39, 0.07);
+  --app-toolbar-tool-idle-ink: rgba(17, 24, 39, 0.72);
+  --app-toolbar-tool-hover-bg: rgba(17, 24, 39, 0.06);
   --app-toolbar-capsule-bg: var(--app-accent);
   --app-toolbar-capsule-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    0 3px 8px rgba(0, 122, 255, 0.14);
-  --app-toolbar-capsule-glow: 0 0 10px rgba(0, 122, 255, 0.16);
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 2px 6px rgba(0, 122, 255, 0.16);
+  --app-toolbar-capsule-glow: 0 0 0 rgba(0, 122, 255, 0);
   --app-toolbar-control-height: 28px;
   --app-toolbar-control-radius: 9px;
   --app-toolbar-control-padding-x: 9px;
-  --app-toolbar-control-bg: rgba(255, 255, 255, 0.84);
-  --app-toolbar-control-bg-hover: rgba(255, 255, 255, 0.98);
-  --app-toolbar-control-bg-active: rgba(0, 122, 255, 0.1);
-  --app-toolbar-control-border: rgba(60, 60, 67, 0.12);
-  --app-toolbar-control-border-active: rgba(0, 122, 255, 0.3);
+  --app-toolbar-control-bg: rgba(255, 255, 255, 0.94);
+  --app-toolbar-control-bg-hover: #ffffff;
+  --app-toolbar-control-bg-active: rgba(0, 122, 255, 0.08);
+  --app-toolbar-control-border: rgba(17, 24, 39, 0.14);
+  --app-toolbar-control-border-active: rgba(0, 122, 255, 0.34);
   --app-toolbar-control-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.74),
-    0 1px 2px rgba(16, 24, 40, 0.05);
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 1px 2px rgba(16, 24, 40, 0.04);
   --app-toolbar-control-shadow-active:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    0 0 0 1px rgba(0, 122, 255, 0.1);
-  --app-toolbar-control-text-muted: rgba(60, 60, 67, 0.66);
-  --app-toolbar-hotkey-bg: rgba(255, 255, 255, 0.52);
-  --app-toolbar-hotkey-border: rgba(60, 60, 67, 0.12);
-  --app-toolbar-hotkey-text: rgba(60, 60, 67, 0.62);
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 0 0 1px rgba(0, 122, 255, 0.14);
+  --app-toolbar-control-text-muted: rgba(17, 24, 39, 0.6);
+  --app-toolbar-hotkey-bg: rgba(255, 255, 255, 0.78);
+  --app-toolbar-hotkey-border: rgba(17, 24, 39, 0.12);
+  --app-toolbar-hotkey-text: rgba(17, 24, 39, 0.56);
 
   --app-duration-fast: 170ms;
   --app-duration-color: 180ms;
@@ -125,43 +122,43 @@
 
     --app-control-hover-bg: #3a3a3c;
     --app-control-border-active: #d0d0d4;
-    --app-control-inset-highlight: rgba(255, 255, 255, 0.24);
-    --app-toolbar-shell-bg: #1f1f21;
-    --app-toolbar-section-bg: #36363b;
+    --app-control-inset-highlight: rgba(255, 255, 255, 0.34);
+    --app-toolbar-shell-bg: #1d1e21;
+    --app-toolbar-section-bg: #2b2d32;
     --app-toolbar-grip-dot-color: rgba(255, 255, 255, 0.1);
     --app-toolbar-grip-rim: rgba(255, 255, 255, 0.08);
     --app-toolbar-grip-highlight: rgba(255, 255, 255, 0.13);
     --app-toolbar-grip-shadow: rgba(0, 0, 0, 0.28);
     --app-toolbar-grip-tick-main: rgba(255, 255, 255, 0.6);
     --app-toolbar-grip-tick-soft: rgba(255, 255, 255, 0.32);
-    --app-toolbar-tools-bg: #3b3b40;
-    --app-toolbar-settings-bg: #242426;
-    --app-toolbar-border-soft: rgba(255, 255, 255, 0.08);
-    --app-toolbar-settings-border: rgba(255, 255, 255, 0.06);
+    --app-toolbar-tools-bg: var(--app-toolbar-section-bg);
+    --app-toolbar-settings-bg: var(--app-toolbar-section-bg);
+    --app-toolbar-border-soft: rgba(255, 255, 255, 0.12);
+    --app-toolbar-settings-border: rgba(255, 255, 255, 0.1);
     --app-toolbar-settings-strip-bg: var(--app-toolbar-section-bg);
-    --app-toolbar-settings-strip-border: rgba(255, 255, 255, 0.05);
+    --app-toolbar-settings-strip-border: rgba(255, 255, 255, 0.07);
     --app-toolbar-tool-idle-ink: rgba(235, 235, 245, 0.72);
     --app-toolbar-tool-hover-bg: rgba(255, 255, 255, 0.12);
     --app-toolbar-capsule-bg: var(--app-accent);
     --app-toolbar-capsule-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.12),
-      0 3px 8px rgba(0, 0, 0, 0.22);
-    --app-toolbar-capsule-glow: 0 0 10px rgba(10, 132, 255, 0.16);
-    --app-toolbar-control-bg: rgba(58, 58, 60, 0.86);
-    --app-toolbar-control-bg-hover: rgba(72, 72, 74, 0.98);
-    --app-toolbar-control-bg-active: rgba(10, 132, 255, 0.18);
-    --app-toolbar-control-border: rgba(255, 255, 255, 0.08);
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 2px 6px rgba(0, 0, 0, 0.2);
+    --app-toolbar-capsule-glow: 0 0 0 rgba(10, 132, 255, 0);
+    --app-toolbar-control-bg: rgba(58, 58, 60, 0.94);
+    --app-toolbar-control-bg-hover: rgba(72, 72, 74, 1);
+    --app-toolbar-control-bg-active: rgba(10, 132, 255, 0.14);
+    --app-toolbar-control-border: rgba(255, 255, 255, 0.1);
     --app-toolbar-control-border-active: rgba(10, 132, 255, 0.34);
     --app-toolbar-control-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.04),
-      0 1px 2px rgba(0, 0, 0, 0.22);
+      inset 0 1px 0 rgba(255, 255, 255, 0.03),
+      0 1px 2px rgba(0, 0, 0, 0.2);
     --app-toolbar-control-shadow-active:
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      0 0 0 1px rgba(10, 132, 255, 0.16);
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 0 0 1px rgba(10, 132, 255, 0.2);
     --app-toolbar-control-text-muted: rgba(235, 235, 245, 0.62);
-    --app-toolbar-hotkey-bg: rgba(58, 58, 60, 0.62);
-    --app-toolbar-hotkey-border: rgba(255, 255, 255, 0.08);
-    --app-toolbar-hotkey-text: rgba(235, 235, 245, 0.65);
+    --app-toolbar-hotkey-bg: rgba(58, 58, 60, 0.76);
+    --app-toolbar-hotkey-border: rgba(255, 255, 255, 0.1);
+    --app-toolbar-hotkey-text: rgba(235, 235, 245, 0.62);
     --app-custom-color-mixed: conic-gradient(
       from 16deg,
       #ff453a 0deg,

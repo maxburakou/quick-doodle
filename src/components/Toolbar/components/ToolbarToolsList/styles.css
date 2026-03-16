@@ -6,9 +6,9 @@
   margin: 0;
   padding: var(--toolbar-tools-padding);
   background: var(--app-toolbar-tools-bg);
-  border: 1px solid color-mix(in srgb, var(--app-toolbar-settings-border) 76%, transparent);
+  border: 1px solid var(--app-toolbar-settings-border);
   border-radius: var(--toolbar-tools-radius);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  box-shadow: none;
 }
 
 .toolbar .toolbar-item {
@@ -45,14 +45,14 @@
   bottom: 0;
   right: 0;
   font-size: 7px;
-  color: var(--app-text-primary);
+  color: var(--app-toolbar-hotkey-text);
   width: 11px;
   height: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  opacity: 0.82;
+  opacity: 0.78;
   pointer-events: none;
 }
 
@@ -91,7 +91,7 @@
   border-radius: var(--toolbar-tools-radius);
   pointer-events: none;
   background: var(--app-toolbar-capsule-bg);
-  border: none;
+  border: 1px solid color-mix(in srgb, var(--app-toolbar-control-border-active) 84%, transparent);
   box-shadow:
     var(--app-toolbar-capsule-shadow),
     var(--app-toolbar-capsule-glow);
@@ -111,8 +111,6 @@
 
 .toolbar-capsule-enabled .toolbar-tool-button.--capsule-active {
   color: var(--app-text-on-accent);
-  transform: none;
-  transform-origin: center;
 }
 
 .toolbar-capsule-enabled .toolbar-tool-button:hover,
@@ -132,9 +130,5 @@
   .toolbar-active-capsule,
   .toolbar-capsule-enabled .toolbar-tool-button {
     transition: none;
-  }
-
-  .toolbar-capsule-enabled .toolbar-tool-button.--capsule-active {
-    transform: none;
   }
 }

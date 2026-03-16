@@ -27,8 +27,18 @@
   outline: none;
   box-shadow: var(--app-toolbar-control-shadow);
   transition:
+    background-color var(--app-duration-medium) var(--app-ease-standard),
     border-color var(--app-duration-medium) var(--app-ease-standard),
     box-shadow var(--app-duration-medium) var(--app-ease-standard);
+}
+
+.hex-input:hover {
+  background: var(--app-toolbar-control-bg-hover);
+}
+
+.hex-input:focus-visible {
+  border-color: var(--app-toolbar-control-border-active);
+  box-shadow: var(--app-toolbar-control-shadow-active);
 }
 
 .hex-input.--invalid {

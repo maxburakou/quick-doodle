@@ -8,12 +8,16 @@
   margin-top: 4px;
   font-size: 12px;
   text-align: center;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--app-toolbar-control-border);
   border-radius: var(--app-radius-sm);
-  background: var(--app-surface);
+  background: var(--app-toolbar-control-bg);
   color: var(--app-text-primary);
   outline: none;
-  transition: border-color var(--app-duration-medium) var(--app-ease-standard);
+  box-shadow: var(--app-toolbar-control-shadow);
+  transition:
+    background-color var(--app-duration-medium) var(--app-ease-standard),
+    border-color var(--app-duration-medium) var(--app-ease-standard),
+    box-shadow var(--app-duration-medium) var(--app-ease-standard);
 }
 
 .fontsize-picker .fontsize-input {
@@ -23,6 +27,15 @@
 
 .fontsize-input.--invalid {
   border-color: var(--app-input-invalid);
+}
+
+.fontsize-input:hover {
+  background: var(--app-toolbar-control-bg-hover);
+}
+
+.fontsize-input:focus-visible {
+  border-color: var(--app-toolbar-control-border-active);
+  box-shadow: var(--app-toolbar-control-shadow-active);
 }
 
 .fontsize-arrows {
@@ -42,7 +55,7 @@
   line-height: 1;
   padding: 2px;
   user-select: none;
-  color: var(--app-border);
+  color: var(--app-toolbar-control-text-muted);
   transition: color var(--app-duration-medium) var(--app-ease-standard);
 }
 
