@@ -1,5 +1,5 @@
 .shortcut-row:hover {
-  background: var(--settings-surface-subtle);
+  background: color-mix(in srgb, var(--app-toolbar-tool-hover-bg) 55%, var(--settings-surface-subtle));
 }
 
 .shortcut-row--error {
@@ -16,15 +16,16 @@
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  border: 1px solid var(--settings-border);
-  border-radius: 7px;
+  border: 1px solid var(--settings-control-border);
+  border-radius: var(--settings-radius-control);
   background: var(--settings-control-bg);
   color: var(--settings-text-primary);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  box-shadow: var(--app-toolbar-control-shadow);
 }
 
 .shortcut-row__binding--recording {
-  border-color: var(--settings-accent);
+  border-color: var(--settings-control-border-active);
+  background: var(--settings-control-bg-active);
   color: var(--settings-accent);
   box-shadow: var(--settings-focus-ring);
 }
@@ -38,15 +39,20 @@
 .shortcut-row__record-button,
 .shortcut-row__reset-button {
   min-width: 88px;
-  height: 28px;
-  border-radius: 7px;
-  border: 1px solid var(--settings-border);
+  height: var(--app-toolbar-control-height);
+  border-radius: var(--settings-radius-control);
+  border: 1px solid var(--settings-control-border);
   background: var(--settings-control-bg);
   color: var(--settings-text-primary);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  box-shadow: var(--app-toolbar-control-shadow);
+  transition:
+    background var(--app-duration-color) var(--app-ease-standard),
+    border-color var(--app-duration-color) var(--app-ease-standard),
+    box-shadow var(--app-duration-color) var(--app-ease-standard),
+    color var(--app-duration-color) var(--app-ease-standard);
 }
 
 .shortcut-row__record-button:hover,
@@ -57,6 +63,7 @@
 .shortcut-row__record-button:active,
 .shortcut-row__reset-button:active {
   background: var(--settings-control-bg-active);
+  box-shadow: var(--app-toolbar-control-shadow-active);
 }
 
 .shortcut-row__record-button:focus-visible,
@@ -66,6 +73,8 @@
 }
 
 .shortcut-row__record-button--active {
-  border-color: var(--settings-accent);
+  border-color: var(--settings-control-border-active);
+  background: var(--settings-control-bg-active);
   color: var(--settings-accent);
+  box-shadow: var(--app-toolbar-control-shadow-active);
 }

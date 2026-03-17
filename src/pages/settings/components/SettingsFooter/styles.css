@@ -4,9 +4,10 @@
   justify-content: space-between;
   gap: 12px;
   padding: 12px 16px;
-  border-top: 1px solid var(--settings-border);
-  background: color-mix(in srgb, var(--settings-surface) 92%, transparent);
-  backdrop-filter: saturate(130%) blur(16px);
+  border-top: 1px solid var(--settings-border-soft);
+  background: color-mix(in srgb, var(--settings-surface) 90%, transparent);
+  backdrop-filter: saturate(145%) blur(16px);
+  -webkit-backdrop-filter: saturate(145%) blur(16px);
 }
 
 .settings-footer__actions {
@@ -16,16 +17,21 @@
 }
 
 .settings-footer__button {
-  height: 30px;
+  height: var(--app-toolbar-control-height);
   padding: 0 12px;
-  border-radius: 7px;
-  border: 1px solid var(--settings-border);
+  border-radius: var(--settings-radius-control);
+  border: 1px solid var(--settings-control-border);
   background: var(--settings-control-bg);
   color: var(--settings-text-primary);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  box-shadow: var(--app-toolbar-control-shadow);
+  transition:
+    background var(--app-duration-color) var(--app-ease-standard),
+    border-color var(--app-duration-color) var(--app-ease-standard),
+    box-shadow var(--app-duration-color) var(--app-ease-standard),
+    color var(--app-duration-color) var(--app-ease-standard);
 }
 
 .settings-footer__button:hover:not(:disabled) {
@@ -34,6 +40,7 @@
 
 .settings-footer__button:active:not(:disabled) {
   background: var(--settings-control-bg-active);
+  box-shadow: var(--app-toolbar-control-shadow-active);
 }
 
 .settings-footer__button:focus-visible {
@@ -50,6 +57,7 @@
   background: var(--settings-accent);
   color: var(--settings-accent-foreground);
   border-color: var(--settings-accent);
+  box-shadow: var(--app-toolbar-capsule-shadow);
 }
 
 .settings-footer__button--primary:hover:not(:disabled) {

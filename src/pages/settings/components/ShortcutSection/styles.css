@@ -1,6 +1,6 @@
 .shortcut-section {
   border: 1px solid var(--settings-border);
-  border-radius: 12px;
+  border-radius: var(--settings-radius-panel);
   background: var(--settings-surface);
   box-shadow: var(--settings-shadow-panel);
   overflow: hidden;
@@ -8,11 +8,11 @@
 
 .shortcut-section__title {
   margin: 0;
-  padding: 10px 12px;
+  padding: 11px 14px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 650;
   color: var(--settings-text-primary);
   border-bottom: 1px solid var(--settings-border-soft);
-  background: var(--settings-surface-subtle);
+  background: color-mix(in srgb, var(--settings-surface-subtle) 86%, transparent);
   letter-spacing: -0.01em;
 }

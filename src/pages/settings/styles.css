@@ -1,56 +1,40 @@
+@import "../../theme.css";
+
 body {
   color: var(--settings-text-primary);
-  font-family: -apple-system, system-ui, Inter, sans-serif;
+  font-family: var(--app-font-family-sans);
   -webkit-font-smoothing: antialiased;
   background: var(--settings-bg);
 }
 
 :root {
-  --settings-bg: #f5f5f7;
-  --settings-surface: #ffffff;
-  --settings-surface-subtle: #f6f6f8;
-  --settings-border: #d2d2d7;
-  --settings-border-soft: #e5e5ea;
-  --settings-divider: #dddddf;
-  --settings-text-primary: #1d1d1f;
-  --settings-text-secondary: #5a5a5f;
-  --settings-text-tertiary: #77777d;
-  --settings-accent: #007aff;
-  --settings-accent-pressed: #0063ce;
-  --settings-accent-foreground: #ffffff;
-  --settings-danger: #b42318;
-  --settings-danger-bg: #fff5f5;
-  --settings-danger-bg-hover: #ffecec;
-  --settings-control-bg: linear-gradient(180deg, #ffffff 0%, #f6f6f8 100%);
-  --settings-control-bg-hover: linear-gradient(180deg, #ffffff 0%, #efeff2 100%);
-  --settings-control-bg-active: #e9e9ed;
-  --settings-focus-ring: 0 0 0 3px rgba(0, 122, 255, 0.26);
-  --settings-shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.85), 0 10px 26px rgba(0, 0, 0, 0.05);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --settings-bg: #1c1c1e;
-    --settings-surface: #2c2c2e;
-    --settings-surface-subtle: #3a3a3c;
-    --settings-border: #47474b;
-    --settings-border-soft: #3f3f43;
-    --settings-divider: #505055;
-    --settings-text-primary: #f5f5f7;
-    --settings-text-secondary: #d0d0d4;
-    --settings-text-tertiary: #a9a9b0;
-    --settings-accent: #0a84ff;
-    --settings-accent-pressed: #5aa9ff;
-    --settings-accent-foreground: #ffffff;
-    --settings-danger: #ff6961;
-    --settings-danger-bg: rgba(255, 105, 97, 0.12);
-    --settings-danger-bg-hover: rgba(255, 105, 97, 0.18);
-    --settings-control-bg: linear-gradient(180deg, #3b3b3e 0%, #323235 100%);
-    --settings-control-bg-hover: linear-gradient(180deg, #444447 0%, #39393c 100%);
-    --settings-control-bg-active: #2e2e31;
-    --settings-focus-ring: 0 0 0 3px rgba(10, 132, 255, 0.34);
-    --settings-shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.02), 0 8px 18px rgba(0, 0, 0, 0.2);
-  }
+  --settings-bg: color-mix(in srgb, var(--app-surface-subtle) 78%, var(--app-toolbar-shell-bg));
+  --settings-surface: color-mix(in srgb, var(--app-surface) 74%, var(--app-toolbar-shell-bg));
+  --settings-surface-subtle: var(--app-toolbar-section-bg);
+  --settings-border: var(--app-toolbar-border-soft);
+  --settings-border-soft: var(--app-toolbar-settings-border);
+  --settings-divider: color-mix(in srgb, var(--app-toolbar-settings-border) 84%, transparent);
+  --settings-text-primary: var(--app-toolbar-tool-hover-ink);
+  --settings-text-secondary: var(--app-toolbar-tool-idle-ink);
+  --settings-text-tertiary: var(--app-toolbar-control-text-muted);
+  --settings-accent: var(--app-accent);
+  --settings-accent-pressed: color-mix(in srgb, var(--app-accent) 88%, black 12%);
+  --settings-accent-foreground: var(--app-text-on-accent);
+  --settings-danger: var(--app-danger);
+  --settings-danger-bg: color-mix(in srgb, var(--app-danger) 11%, var(--settings-surface));
+  --settings-danger-bg-hover: color-mix(in srgb, var(--app-danger) 18%, var(--settings-surface));
+  --settings-control-bg: var(--app-toolbar-control-bg);
+  --settings-control-bg-hover: var(--app-toolbar-control-bg-hover);
+  --settings-control-bg-active: var(--app-toolbar-control-bg-active);
+  --settings-control-border: var(--app-toolbar-control-border);
+  --settings-control-border-active: var(--app-toolbar-control-border-active);
+  --settings-focus-ring: 0 0 0 3px color-mix(in srgb, var(--app-accent) 28%, transparent);
+  --settings-shadow-panel:
+    0 10px 24px rgba(15, 23, 42, 0.1),
+    0 2px 6px rgba(15, 23, 42, 0.06);
+  --settings-radius-panel: 14px;
+  --settings-radius-control: 9px;
+  --settings-layout-max: 860px;
 }
 
 .settings-page {
@@ -64,7 +48,14 @@ body {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 16px 18px;
+}
+
+.settings-page__content > * {
+  width: min(100%, var(--settings-layout-max));
 }
 
 @media (prefers-reduced-motion: reduce) {

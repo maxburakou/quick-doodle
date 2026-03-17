@@ -1,7 +1,8 @@
 .settings-content {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
+  width: 100%;
 }
 
 .settings-content__header {
@@ -12,21 +13,21 @@
 
 .settings-content__title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 650;
   color: var(--settings-text-primary);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 .settings-content__sections {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .settings-content__divider {
   height: 1px;
   width: 100%;
-  background: var(--settings-divider);
+  background: color-mix(in srgb, var(--settings-divider) 80%, transparent);
   margin: 4px 0;
 }

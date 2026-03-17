@@ -1,6 +1,6 @@
 .autostart-section {
   border: 1px solid var(--settings-border);
-  border-radius: 12px;
+  border-radius: var(--settings-radius-panel);
   background: var(--settings-surface);
   box-shadow: var(--settings-shadow-panel);
   overflow: hidden;
@@ -8,12 +8,12 @@
 
 .autostart-section__title {
   margin: 0;
-  padding: 10px 12px;
+  padding: 11px 14px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 650;
   color: var(--settings-text-primary);
   border-bottom: 1px solid var(--settings-border-soft);
-  background: var(--settings-surface-subtle);
+  background: color-mix(in srgb, var(--settings-surface-subtle) 86%, transparent);
   letter-spacing: -0.01em;
 }
 
@@ -22,7 +22,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px;
+  padding: 12px 14px;
 }
 
 .autostart-section__copy {
@@ -47,10 +47,14 @@
   width: 36px;
   height: 22px;
   border-radius: 999px;
-  border: 1px solid var(--settings-border);
+  border: 1px solid var(--settings-control-border);
   background: var(--settings-control-bg);
+  box-shadow: var(--app-toolbar-control-shadow);
   position: relative;
-  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  transition:
+    background var(--app-duration-color) var(--app-ease-standard),
+    border-color var(--app-duration-color) var(--app-ease-standard),
+    box-shadow var(--app-duration-color) var(--app-ease-standard);
   cursor: pointer;
 }
 
@@ -63,13 +67,14 @@
   top: 2px;
   border-radius: 50%;
   background: var(--settings-surface);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.24);
-  transition: transform 0.18s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  transition: transform var(--app-duration-color) var(--app-ease-standard);
 }
 
 .autostart-section__toggle:checked {
   background: var(--settings-accent);
   border-color: var(--settings-accent);
+  box-shadow: var(--app-toolbar-capsule-shadow);
 }
 
 .autostart-section__toggle:checked::after {
