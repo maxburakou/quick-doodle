@@ -10,20 +10,12 @@
 }
 
 .background-canvas.--light {
-  background-color: var(--app-canvas-bg);
-  background-image:
-    linear-gradient(
-      to right,
-      transparent calc(50% - 0.5px),
-      var(--app-grid-line) calc(50% - 0.5px) calc(50% + 0.5px),
-      transparent calc(50% + 0.5px)
-    ),
-    linear-gradient(
-      to bottom,
-      transparent calc(50% - 0.5px),
-      var(--app-grid-line) calc(50% - 0.5px) calc(50% + 0.5px),
-      transparent calc(50% + 0.5px)
-    );
-  background-size: 16px 16px;
-  background-position: center center;
+  background:
+    var(--app-canvas-bg)
+    radial-gradient(
+      circle at center,
+      color-mix(in srgb, var(--app-canvas-pattern-line) 86%, transparent) 0.8px,
+      transparent 1.25px
+    )
+    center / 12px 12px repeat;
 }
