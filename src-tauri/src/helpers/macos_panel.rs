@@ -87,7 +87,7 @@ pub fn setup_macos_window_config(app: &AppHandle) {
 		}
 	}));
 
-	const NS_FLOAT_WINDOW_LEVEL: i32 = 21;
+	const NS_FLOAT_WINDOW_LEVEL: i32 = 2;
 	panel.set_level(NS_FLOAT_WINDOW_LEVEL);
 
 	const NS_WINDOW_STYLE_MASK: i32 = 1 << 7;
