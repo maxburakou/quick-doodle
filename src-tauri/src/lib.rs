@@ -120,9 +120,7 @@ pub fn run() {
 						..
 					} = event
 					{
-						if let ToggleOutcome::Toggled(_) = toggle_window(&tray.app_handle()) {
-							handle_event(&tray.app_handle(), events::RESET_CANVAS);
-						}
+						let _ = toggle_window(&tray.app_handle());
 					}
 				})
 				.build(app)?;
