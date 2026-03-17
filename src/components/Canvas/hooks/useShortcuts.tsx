@@ -4,6 +4,7 @@ import {
   handleKeyDownEvent,
   updateCanvasShortcutMatcher,
 } from "../helpers";
+import { toggleThemeMode } from "@/helpers/toggleThemeMode";
 import { useCanvasStore, useHistoryStore, useSettingsStore, useSnapStore } from "@/store";
 import { useToolbarStore } from "@/store/useToolbarStore";
 import { listen } from "@tauri-apps/api/event";
@@ -56,6 +57,7 @@ export const useShortcuts = () => {
       toggleToolbar
     );
     const unsubscribeToggleSnap = handleCanvasEvent("toggle-snap-canvas", toggleSnap);
+    const unsubscribeToggleTheme = handleCanvasEvent("toggle-theme-canvas", toggleThemeMode);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDownEvent);
@@ -67,6 +69,7 @@ export const useShortcuts = () => {
       unsubscribeToggleCanvas.then((_) => _());
       unsubscribeToggleToolbar.then((_) => _());
       unsubscribeToggleSnap.then((_) => _());
+      unsubscribeToggleTheme.then((_) => _());
       unsubscribeSettings.then((_) => _());
     };
   }, []);

@@ -8,6 +8,7 @@ import {
   useTextEditorEditingStrokeId,
   useTextEditorMode,
 } from "@/store";
+import { useThemeStore } from "@/store/useThemeStore";
 import { CanvasBackground } from "@/types";
 import { getRenderLayers } from "../utils";
 import "./styles.css";
@@ -16,6 +17,7 @@ const Canvas = () => {
   const background = useCanvasBackground();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const effectiveTheme = useThemeStore((state) => state.effectiveTheme);
 
   const present = usePresent();
   const activeStrokeIdsStr = useShapeEditorStore((state) => {
@@ -47,7 +49,7 @@ const Canvas = () => {
 
   useEffect(() => {
     drawCanvas(renderStrokes, ctxRef.current);
-  }, [renderStrokes]);
+  }, [renderStrokes, effectiveTheme]);
 
   return (
     <canvas

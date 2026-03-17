@@ -1,43 +1,35 @@
 import { Options } from "roughjs/bin/core";
+import { useThemeStore } from "@/store/useThemeStore";
 
 const FALLBACK_SHAPE_FILL_COLOR = "#ffffff";
 const SHAPE_FILL_VAR_NAME = "--app-shape-fill";
-
-let cachedShapeFillColor = "";
-let isThemeListenerAttached = false;
-
-const clearShapeFillCache = () => {
-  cachedShapeFillColor = "";
-};
-
-const attachThemeListener = () => {
-  if (isThemeListenerAttached || typeof window === "undefined" || !window.matchMedia) {
-    return;
-  }
-
-  window
-    .matchMedia("(prefers-color-scheme: dark)")
-    .addEventListener("change", clearShapeFillCache);
-  isThemeListenerAttached = true;
-};
+let cachedShapeFill:
+  | {
+      key: string;
+      color: string;
+    }
+  | null = null;
 
 const resolveShapeFillColor = (): string => {
-  if (cachedShapeFillColor) {
-    return cachedShapeFillColor;
-  }
   if (typeof document === "undefined") return FALLBACK_SHAPE_FILL_COLOR;
 
-  attachThemeListener();
+  const key = useThemeStore.getState().effectiveTheme;
+  if (cachedShapeFill?.key === key) {
+    return cachedShapeFill.color;
+  }
 
-  cachedShapeFillColor =
+  const color =
     getComputedStyle(document.documentElement)
-    .getPropertyValue(SHAPE_FILL_VAR_NAME)
-    .trim() || FALLBACK_SHAPE_FILL_COLOR;
+      .getPropertyValue(SHAPE_FILL_VAR_NAME)
+      .trim() || FALLBACK_SHAPE_FILL_COLOR;
 
-  return cachedShapeFillColor;
+  cachedShapeFill = { key, color };
+  return color;
 };
 
-export const getShapeFillOptions = (hasFill: boolean): Partial<Options> => {
+export const getShapeFillOptions = (
+  hasFill: boolean
+): Partial<Options> => {
   if (!hasFill) return {};
 
   return {

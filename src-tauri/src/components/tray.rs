@@ -1,12 +1,12 @@
+use log::warn;
 use tauri::{
 	menu::{Menu, MenuItem, PredefinedMenuItem},
 	AppHandle, Result, Wry,
 };
-use log::warn;
 
-use crate::ids::menu_ids;
+use crate::helpers::settings_types::{SettingsSnapshot, ThemeMode};
 use crate::helpers::shortcuts_runtime::{action_primary_binding, binding_to_accelerator};
-use crate::helpers::settings_types::SettingsSnapshot;
+use crate::ids::menu_ids;
 
 #[derive(Clone)]
 pub struct TrayMenuItems {
@@ -17,8 +17,23 @@ pub struct TrayMenuItems {
 	pub toolbar: MenuItem<Wry>,
 	pub background: MenuItem<Wry>,
 	pub snap: MenuItem<Wry>,
+	pub cycle_theme_mode: MenuItem<Wry>,
 	pub hide_canvas: MenuItem<Wry>,
 	pub quit_canvas: MenuItem<Wry>,
+}
+
+fn theme_mode_label(mode: ThemeMode) -> &'static str {
+	match mode {
+		ThemeMode::Light => "Toggle Theme: Light",
+		ThemeMode::Dark => "Toggle Theme: Dark",
+		ThemeMode::System => "Toggle Theme: System",
+	}
+}
+
+pub fn apply_theme_mode_to_tray_menu(items: &TrayMenuItems, mode: ThemeMode) {
+	if let Err(err) = items.cycle_theme_mode.set_text(theme_mode_label(mode)) {
+		warn!("Failed to update 'cycle_theme_mode' menu text: {:?}", err);
+	}
 }
 
 pub fn apply_visibility_to_tray_menu(items: &TrayMenuItems, visibility: bool) {
@@ -30,6 +45,7 @@ pub fn apply_visibility_to_tray_menu(items: &TrayMenuItems, visibility: bool) {
 		("toolbar", &items.toolbar),
 		("background", &items.background),
 		("snap", &items.snap),
+		("cycle_theme_mode", &items.cycle_theme_mode),
 	] {
 		if let Err(err) = item.set_enabled(visibility) {
 			warn!("Failed to update '{}' menu state: {:?}", name, err);
@@ -51,15 +67,34 @@ pub fn apply_visibility_to_tray_menu(items: &TrayMenuItems, visibility: bool) {
 	}
 }
 
-pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<(Menu<Wry>, TrayMenuItems)> {
+pub fn create_tray_menu(
+	app: &AppHandle,
+	visibility: bool,
+	theme_mode: ThemeMode,
+) -> Result<(Menu<Wry>, TrayMenuItems)> {
 	let menu_item_undo =
 		MenuItem::with_id(app, menu_ids::UNDO, "Undo", visibility, Some("CmdOrCtrl+Z"))?;
-	let menu_item_redo =
-		MenuItem::with_id(app, menu_ids::REDO, "Redo", visibility, Some("Shift+CmdOrCtrl+Z"))?;
-	let menu_item_clear =
-		MenuItem::with_id(app, menu_ids::CLEAR, "Clear", visibility, Some("Shift+CmdOrCtrl+C"))?;
-	let menu_item_reset =
-		MenuItem::with_id(app, menu_ids::RESET, "Reset", visibility, Some("CmdOrCtrl+R"))?;
+	let menu_item_redo = MenuItem::with_id(
+		app,
+		menu_ids::REDO,
+		"Redo",
+		visibility,
+		Some("Shift+CmdOrCtrl+Z"),
+	)?;
+	let menu_item_clear = MenuItem::with_id(
+		app,
+		menu_ids::CLEAR,
+		"Clear",
+		visibility,
+		Some("Shift+CmdOrCtrl+C"),
+	)?;
+	let menu_item_reset = MenuItem::with_id(
+		app,
+		menu_ids::RESET,
+		"Reset",
+		visibility,
+		Some("CmdOrCtrl+R"),
+	)?;
 	let menu_item_quit = MenuItem::with_id(app, menu_ids::QUIT, "Quit", true, Some("CmdOrCtrl+Q"))?;
 	let menu_item_quit_canvas = MenuItem::with_id(
 		app,
@@ -84,13 +119,8 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<(Menu<Wry>,
 		Some("Shift+CmdOrCtrl+S"),
 	)?;
 	let menu_item_separator = PredefinedMenuItem::separator(app)?;
-	let menu_item_settings = MenuItem::with_id(
-		app,
-		menu_ids::SETTINGS,
-		"Settings",
-		true,
-		None::<&str>,
-	)?;
+	let menu_item_settings =
+		MenuItem::with_id(app, menu_ids::SETTINGS, "Settings", true, None::<&str>)?;
 	let menu_item_background = MenuItem::with_id(
 		app,
 		menu_ids::BACKGROUND,
@@ -112,6 +142,13 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<(Menu<Wry>,
 		visibility,
 		Some("CmdOrCtrl+E"),
 	)?;
+	let menu_item_cycle_theme_mode = MenuItem::with_id(
+		app,
+		menu_ids::CYCLE_THEME_MODE,
+		theme_mode_label(theme_mode),
+		visibility,
+		Some("Shift+CmdOrCtrl+M"),
+	)?;
 
 	let menu = Menu::with_items(
 		app,
@@ -124,6 +161,7 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<(Menu<Wry>,
 			&menu_item_toolbar,
 			&menu_item_background,
 			&menu_item_snap,
+			&menu_item_cycle_theme_mode,
 			&menu_item_separator,
 			&menu_item_hide_canvas,
 			&menu_item_quit_canvas,
@@ -141,6 +179,7 @@ pub fn create_tray_menu(app: &AppHandle, visibility: bool) -> Result<(Menu<Wry>,
 		toolbar: menu_item_toolbar,
 		background: menu_item_background,
 		snap: menu_item_snap,
+		cycle_theme_mode: menu_item_cycle_theme_mode,
 		hide_canvas: menu_item_hide_canvas,
 		quit_canvas: menu_item_quit_canvas,
 	};
@@ -157,15 +196,37 @@ pub fn apply_tray_accelerators_from_settings(
 	let toggle_actions = &settings.shortcuts.canvas.toggles.actions;
 
 	let updates = [
-		(&items.hide_canvas, action_primary_binding(global_actions, "toggle_canvas")),
-		(&items.quit_canvas, action_primary_binding(global_actions, "new_canvas")),
+		(
+			&items.hide_canvas,
+			action_primary_binding(global_actions, "toggle_canvas"),
+		),
+		(
+			&items.quit_canvas,
+			action_primary_binding(global_actions, "new_canvas"),
+		),
 		(&items.undo, action_primary_binding(history_actions, "undo")),
 		(&items.redo, action_primary_binding(history_actions, "redo")),
-		(&items.clear, action_primary_binding(history_actions, "clear")),
-		(&items.reset, action_primary_binding(history_actions, "reset")),
-		(&items.toolbar, action_primary_binding(toggle_actions, "toolbar")),
-		(&items.background, action_primary_binding(toggle_actions, "background")),
+		(
+			&items.clear,
+			action_primary_binding(history_actions, "clear"),
+		),
+		(
+			&items.reset,
+			action_primary_binding(history_actions, "reset"),
+		),
+		(
+			&items.toolbar,
+			action_primary_binding(toggle_actions, "toolbar"),
+		),
+		(
+			&items.background,
+			action_primary_binding(toggle_actions, "background"),
+		),
 		(&items.snap, action_primary_binding(toggle_actions, "snap")),
+		(
+			&items.cycle_theme_mode,
+			action_primary_binding(toggle_actions, "toggle_theme_mode"),
+		),
 	];
 
 	let mut errors: Vec<String> = Vec::new();

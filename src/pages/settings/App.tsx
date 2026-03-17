@@ -4,10 +4,12 @@ import { useShortcutRecordingCapture } from "./hooks/useShortcutRecordingCapture
 import { useSettingsSnapshotSync } from "./hooks/useSettingsSnapshotSync";
 import { ErrorSection, SettingsContent, SettingsFooter } from "./components";
 import { useSettingsPageStore } from "./store";
+import { useThemeBootstrap } from "@/hooks/useThemeBootstrap";
 import "./styles.css";
 
 const SettingsApp = () => {
-  const { load, draft, applySnapshot } = useSettingsStore();
+  const { load, draft, applySnapshot, snapshot } = useSettingsStore();
+  useThemeBootstrap(snapshot?.theme?.mode);
 
   const setRuntimeErrorFromUnknown = useSettingsPageStore(
     (state) => state.setRuntimeErrorFromUnknown

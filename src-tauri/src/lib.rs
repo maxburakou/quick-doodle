@@ -10,7 +10,7 @@ use helpers::{
 	settings::{
 		emit_settings_updated, open_settings_window, register_settings_close_handler,
 		settings_get_snapshot, settings_hide_window, settings_restore_defaults, settings_save,
-		settings_validate_shortcuts,
+		settings_set_theme_mode, settings_validate_shortcuts,
 	},
 	settings_store::load_settings,
 	shortcuts::{init_global_shortcuts, reapply_global_shortcuts_with_rollback},
@@ -35,6 +35,7 @@ pub fn run() {
 		.invoke_handler(tauri::generate_handler![
 			settings_get_snapshot,
 			settings_validate_shortcuts,
+			settings_set_theme_mode,
 			settings_save,
 			settings_restore_defaults,
 			settings_hide_window
@@ -80,7 +81,8 @@ pub fn run() {
 			let compiled = compile_shortcuts(&snapshot);
 			app.manage(AppSettingsState::new(snapshot.clone(), compiled.clone()));
 
-			let (tray_menu, tray_menu_items) = create_tray_menu(app.app_handle(), false)?;
+			let (tray_menu, tray_menu_items) =
+				create_tray_menu(app.app_handle(), false, snapshot.theme.mode)?;
 
 			let tray_icon = TrayIconBuilder::new()
 				.menu(&tray_menu)
@@ -103,6 +105,7 @@ pub fn run() {
 					menu_ids::BACKGROUND => handle_event(app, events::TOGGLE_BACKGROUND_CANVAS),
 					menu_ids::TOOLBAR => handle_event(app, events::TOGGLE_TOOLBAR_CANVAS),
 					menu_ids::SNAP => handle_event(app, events::TOGGLE_SNAP_CANVAS),
+					menu_ids::CYCLE_THEME_MODE => handle_event(app, events::TOGGLE_THEME_CANVAS),
 					&_ => {}
 				})
 				.icon(Image::from_path(get_icon_path(
@@ -138,8 +141,7 @@ pub fn run() {
 					} else {
 						Ok(())
 					}
-				})
-			{
+				}) {
 				warn!("Failed to apply initial tray accelerators: {}", err);
 			}
 

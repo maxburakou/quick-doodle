@@ -13,6 +13,7 @@ import { useToolbarStore } from "@/store/useToolbarStore";
 import { Tool } from "@/types";
 import { TOOL_CONFIG } from "@/components/Toolbar/config";
 import { resolveCanvasShortcutAction } from "./shortcutMatcher";
+import { toggleThemeMode } from "@/helpers/toggleThemeMode";
 
 const { undo, redo, clear, reset } = useHistoryStore.getState();
 const { setTool } = useToolStore.getState();
@@ -24,6 +25,7 @@ const { toggleEnabled: toggleSnap } = useSnapStore.getState();
 const { toNextFontSize, toPrevFontSize } = useTextSettingsStore.getState();
 const { copySelection, cutSelection, pasteFromClipboard, hasData } =
   useClipboardStore.getState();
+
 const TOOL_ACTION_PREFIX = "canvas.tools.tool_";
 
 const SLOT_TO_TOOL_MAP = Object.entries(TOOL_CONFIG).reduce((acc, [tool, config]) => {
@@ -49,6 +51,7 @@ const ACTION_HANDLERS: Record<string, () => void> = {
   "canvas.toggles.background": toggleCanvas,
   "canvas.toggles.toolbar": toggleToolbar,
   "canvas.toggles.snap": toggleSnap,
+  "canvas.toggles.toggle_theme_mode": toggleThemeMode,
 };
 
 const isTypingTarget = (target: EventTarget | null) => {

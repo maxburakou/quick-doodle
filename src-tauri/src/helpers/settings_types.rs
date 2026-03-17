@@ -7,12 +7,29 @@ pub const SETTINGS_SCHEMA_VERSION: u32 = 1;
 pub struct SettingsSnapshot {
 	pub schema_version: u32,
 	pub autostart: AutostartSettings,
+	#[serde(default = "default_theme_settings")]
+	pub theme: ThemeSettings,
 	pub shortcuts: ShortcutsConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AutostartSettings {
 	pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ThemeSettings {
+	#[serde(default)]
+	pub mode: ThemeMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ThemeMode {
+	Light,
+	Dark,
+	#[default]
+	System,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,11 +128,18 @@ fn default_canvas_clipboard_scope() -> ShortcutScope {
 	}
 }
 
+fn default_theme_settings() -> ThemeSettings {
+	ThemeSettings {
+		mode: ThemeMode::System,
+	}
+}
+
 impl SettingsSnapshot {
 	pub fn defaults() -> Self {
 		Self {
 			schema_version: SETTINGS_SCHEMA_VERSION,
 			autostart: AutostartSettings { enabled: false },
+			theme: default_theme_settings(),
 			shortcuts: ShortcutsConfig {
 				policy: ShortcutPolicy {
 					conflicts: ConflictsPolicy {
@@ -240,6 +264,15 @@ impl SettingsSnapshot {
 									bindings: vec![Binding {
 										code: "KeyE".to_string(),
 										modifiers: vec!["Primary".to_string()],
+									}],
+								},
+							),
+							(
+								"toggle_theme_mode".to_string(),
+								ShortcutAction {
+									bindings: vec![Binding {
+										code: "KeyM".to_string(),
+										modifiers: vec!["Primary".to_string(), "Shift".to_string()],
 									}],
 								},
 							),

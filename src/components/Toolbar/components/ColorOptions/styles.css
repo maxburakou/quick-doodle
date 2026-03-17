@@ -50,12 +50,22 @@
   background-clip: padding-box;
 }
 
+:root[data-theme="dark"] .options-button {
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+:root[data-theme="dark"] .options-button::after {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.16);
+}
+
 @media (prefers-color-scheme: dark) {
-  .options-button {
+  :root:not([data-theme]) .options-button,
+  :root[data-theme="system"] .options-button {
     border-color: rgba(255, 255, 255, 0.24);
   }
 
-  .options-button::after {
+  :root:not([data-theme]) .options-button::after,
+  :root[data-theme="system"] .options-button::after {
     box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.16);
   }
 }

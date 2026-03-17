@@ -2,16 +2,16 @@ use log::warn;
 use tauri::{AppHandle, Emitter, Manager, WindowEvent};
 
 use crate::{
-	components::tray::apply_tray_accelerators_from_settings,
+	components::tray::{apply_theme_mode_to_tray_menu, apply_tray_accelerators_from_settings},
 	state::{AppSettingsState, WindowState},
 };
 
 use super::{
 	autostart::set_autostart_enabled,
-	shortcuts::{apply_compiled_to_runtime_state, reapply_global_shortcuts_with_rollback},
-	settings_store::save_settings,
-	settings_types::{SettingsSnapshot, ValidationIssue},
+	settings_store::{save_settings, save_theme_settings},
+	settings_types::{SettingsSnapshot, ThemeMode, ValidationIssue},
 	settings_validation::{validate_shortcuts, validate_shortcuts_with_compiled},
+	shortcuts::{apply_compiled_to_runtime_state, reapply_global_shortcuts_with_rollback},
 	shortcuts_runtime::compile_shortcuts,
 	utils::toggle_window,
 	window_service,
@@ -86,7 +86,9 @@ pub fn settings_get_snapshot(app: AppHandle) -> Result<SettingsSnapshot, String>
 }
 
 #[tauri::command]
-pub fn settings_validate_shortcuts(snapshot: SettingsSnapshot) -> Result<Vec<ValidationIssue>, String> {
+pub fn settings_validate_shortcuts(
+	snapshot: SettingsSnapshot,
+) -> Result<Vec<ValidationIssue>, String> {
 	Ok(validate_shortcuts(&snapshot))
 }
 
@@ -96,9 +98,35 @@ pub fn settings_restore_defaults() -> Result<SettingsSnapshot, String> {
 }
 
 #[tauri::command]
-pub fn settings_save(app: AppHandle, snapshot: SettingsSnapshot) -> Result<SettingsSnapshot, String> {
+pub fn settings_set_theme_mode(app: AppHandle, mode: ThemeMode) -> Result<SettingsSnapshot, String> {
+	let state = app.state::<AppSettingsState>();
+	let mut next_snapshot = state.snapshot();
+	next_snapshot.theme.mode = mode;
+
+	save_theme_settings(&app, &next_snapshot.theme)?;
+	state.set_snapshot(next_snapshot.clone());
+
+	let window_state = app.state::<WindowState>();
+	window_state.with_tray_menu_items(|menu_items| {
+		if let Some(menu_items) = menu_items {
+			apply_theme_mode_to_tray_menu(menu_items, next_snapshot.theme.mode);
+		}
+	});
+
+	emit_settings_updated(&app, &next_snapshot);
+	Ok(next_snapshot)
+}
+
+#[tauri::command]
+pub fn settings_save(
+	app: AppHandle,
+	mut snapshot: SettingsSnapshot,
+) -> Result<SettingsSnapshot, String> {
 	let state = app.state::<AppSettingsState>();
 	let previous_snapshot = state.snapshot();
+	// Theme mode is updated via the dedicated runtime command and must not be
+	// overwritten by potentially stale drafts from the Settings window.
+	snapshot.theme = previous_snapshot.theme.clone();
 	let compiled_old = compile_shortcuts(&previous_snapshot);
 	let compiled_new = compile_shortcuts(&snapshot);
 
@@ -120,6 +148,7 @@ pub fn settings_save(app: AppHandle, snapshot: SettingsSnapshot) -> Result<Setti
 			if let Err(err) = apply_tray_accelerators_from_settings(menu_items, &snapshot) {
 				return Err(err);
 			}
+			apply_theme_mode_to_tray_menu(menu_items, snapshot.theme.mode);
 		}
 		Ok(())
 	});
@@ -130,6 +159,7 @@ pub fn settings_save(app: AppHandle, snapshot: SettingsSnapshot) -> Result<Setti
 		window_state.with_tray_menu_items(|menu_items| {
 			if let Some(menu_items) = menu_items {
 				let _ = apply_tray_accelerators_from_settings(menu_items, &previous_snapshot);
+				apply_theme_mode_to_tray_menu(menu_items, previous_snapshot.theme.mode);
 			}
 		});
 		return Err(format!("Failed to apply tray accelerators: {}", err));
@@ -141,6 +171,7 @@ pub fn settings_save(app: AppHandle, snapshot: SettingsSnapshot) -> Result<Setti
 		window_state.with_tray_menu_items(|menu_items| {
 			if let Some(menu_items) = menu_items {
 				let _ = apply_tray_accelerators_from_settings(menu_items, &previous_snapshot);
+				apply_theme_mode_to_tray_menu(menu_items, previous_snapshot.theme.mode);
 			}
 		});
 		return Err(format!("Failed to persist settings: {}", err));

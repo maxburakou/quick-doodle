@@ -6,6 +6,7 @@ pub mod events {
 	pub const TOGGLE_BACKGROUND_CANVAS: &str = "toggle-background-canvas";
 	pub const TOGGLE_TOOLBAR_CANVAS: &str = "toggle-toolbar-canvas";
 	pub const TOGGLE_SNAP_CANVAS: &str = "toggle-snap-canvas";
+	pub const TOGGLE_THEME_CANVAS: &str = "toggle-theme-canvas";
 	pub const MAIN_WINDOW_VISIBILITY_CHANGED: &str = "main-window-visibility-changed";
 }
 
@@ -21,6 +22,7 @@ pub mod menu_ids {
 	pub const BACKGROUND: &str = "background";
 	pub const TOOLBAR: &str = "toolbar";
 	pub const SNAP: &str = "snap";
+	pub const CYCLE_THEME_MODE: &str = "cycle_theme_mode";
 }
 
 pub mod window_labels {

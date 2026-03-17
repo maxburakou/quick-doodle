@@ -18,6 +18,9 @@ export interface SettingsSnapshot {
   autostart: {
     enabled: boolean;
   };
+  theme: {
+    mode: "light" | "dark" | "system";
+  };
   shortcuts: {
     policy: {
       conflicts: {

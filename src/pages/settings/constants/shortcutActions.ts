@@ -30,6 +30,7 @@ export const SHORTCUT_SECTIONS: ShortcutSectionDefinition[] = [
       { actionId: "toolbar", label: "Toggle Toolbar" },
       { actionId: "background", label: "Toggle Background" },
       { actionId: "snap", label: "Toggle Snap" },
+      { actionId: "toggle_theme_mode", label: "Toggle Theme Mode" },
     ],
   },
   {
