@@ -2,7 +2,7 @@ import { Stroke, StrokePoint, Tool, TransformHandle } from "@/types";
 import {
   distance,
   getBoundsCenter,
-  getStrokeBounds,
+  getStrokeTransformBounds,
   getStrokeEndpoints,
   getStrokeRotation,
   isEditableShapeTool,
@@ -55,7 +55,7 @@ export const getStrokeTransformHandles = (
     ];
   }
 
-  const bounds = getStrokeBounds(stroke);
+  const bounds = getStrokeTransformBounds(stroke);
   const center = getBoundsCenter(bounds);
   const rotation = getStrokeRotation(stroke);
 

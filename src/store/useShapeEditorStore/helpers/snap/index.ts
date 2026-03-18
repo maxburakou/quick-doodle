@@ -95,6 +95,7 @@ interface ResolveShapeCreateEndpointSnapParams {
   point: StrokePoint;
   tool: ShapeBoxTool;
   shiftKey: boolean;
+  drawableSeed?: number;
   anchors: SnapAnchor[];
   segments?: SnapSegment[];
   axisCandidates?: AxisSnapCandidate[];
@@ -581,6 +582,7 @@ export const resolveShapeCreateEndpointSnap = ({
   point,
   tool,
   shiftKey,
+  drawableSeed,
   anchors,
   segments = [],
   axisCandidates = [],
@@ -599,6 +601,7 @@ export const resolveShapeCreateEndpointSnap = ({
     color: "",
     thickness: 1,
     tool,
+    drawableSeed,
   };
   const draftAnchors = getStrokeSnapAnchors(draftStroke);
 

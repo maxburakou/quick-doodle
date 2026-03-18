@@ -75,6 +75,11 @@ export const getStrokeBounds = (stroke: Stroke): ShapeBounds => {
   return getVisualStrokeBounds(stroke);
 };
 
+export const getStrokeTransformBounds = (stroke: Stroke): ShapeBounds => {
+  const [start, end] = getStrokeEndpoints(stroke);
+  return normalizeBoundsFromPoints(start, end);
+};
+
 const getRotatedAABB = (bounds: ShapeBounds, rotation: number): ShapeBounds => {
   if (rotation === 0) return bounds;
 

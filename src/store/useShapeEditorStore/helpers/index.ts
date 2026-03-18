@@ -5,6 +5,7 @@ export {
   getStrokeEndpoints,
   normalizeBoundsFromPoints,
   getStrokeBounds,
+  getStrokeTransformBounds,
   getStrokeAABB,
   getBoundsCenter,
   rotatePoint,

@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { ShapeEditorState } from "./types";
 import {
   applySessionTransform,
-  getStrokeBounds,
+  getStrokeTransformBounds,
   getStrokeRotation,
   hasStrokeTransformChanged,
   moveStrokeIdsToEnd,
@@ -81,7 +81,7 @@ export const useShapeEditorStore = create<ShapeEditorState>((set, get) => ({
       isShiftPressed: undefined,
     };
     const normalizedStroke = normalizeTextStroke(baseStroke);
-    const initialBounds = getStrokeBounds(normalizedStroke);
+    const initialBounds = getStrokeTransformBounds(normalizedStroke);
     const initialRotation = getStrokeRotation(normalizedStroke);
 
     const nextIds = [stroke.id];
