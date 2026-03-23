@@ -62,6 +62,7 @@ export const useSelectMode = ({
   ctxRef,
 }: UseSelectModeParams) => {
   const tool = useToolStore((state) => state.tool);
+  const setTool = useToolStore((state) => state.setTool);
   const isSnapEnabled = useSnapStore((state) => state.enabled);
 
   const prevToolRef = useRef<Tool>(tool);
@@ -173,7 +174,8 @@ export const useSelectMode = ({
         lastTextBodyClickRef.current = { strokeId: targetStroke.id, at: now };
 
         if (canEnterTextEdit) {
-          enterTextEdit(targetStroke);
+          setTool(Tool.Text);
+          enterTextEdit(targetStroke, { returnToolOnFinish: Tool.Select });
           activeSnapGuidesRef.current = null;
           setCursor("default");
           renderOverlayRef.current();
@@ -199,7 +201,7 @@ export const useSelectMode = ({
       setCursor(nextHandle === "move" ? "grabbing" : getCursorByHandle(nextHandle));
       renderOverlayRef.current();
     },
-    [startMarqueeSelection, setCursor, precomputeSceneSnapContext]
+    [startMarqueeSelection, setCursor, precomputeSceneSnapContext, setTool]
   );
 
   const processPointerMove = useCallback(

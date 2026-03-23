@@ -15,6 +15,7 @@ import { hitTestText } from "@/components/Canvas/utils/textGeometry";
 import { enterTextEdit } from "@/components/Canvas/utils/enterTextEdit";
 import { AutoSizeTextarea } from "./AutoSizeTextarea";
 import { handleInputSubmit } from "./helpers";
+import { useAutoSubmitOnToolSwitch } from "./hooks";
 
 export const TextEditor: React.FC = () => {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -28,6 +29,7 @@ export const TextEditor: React.FC = () => {
   const point = useTextEditorStartPoint();
   const startCreate = useStartTextEditorCreate();
   const isEditable = (mode === "create" || mode === "edit") && !!point;
+  useAutoSubmitOnToolSwitch(ref);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLElement>) => {
     e.stopPropagation();

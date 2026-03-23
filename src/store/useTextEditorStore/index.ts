@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { TextEditorActions, TextEditorState } from "./types";
 import { useToolStore } from "../useToolStore";
+import { Tool } from "@/types";
 
 const initialState: TextEditorState = {
   mode: "idle",
@@ -12,8 +13,18 @@ const initialState: TextEditorState = {
   returnToolOnFinish: null,
 };
 
-export const useTextEditorStore = create<TextEditorState & TextEditorActions>(
-  (set, get) => ({
+export const useTextEditorStore = create<TextEditorState & TextEditorActions>((set, get) => {
+  const completeEditorSession = () => {
+    const returnTool = get().returnToolOnFinish;
+    const { tool: currentTool, setTool } = useToolStore.getState();
+
+    set(initialState);
+    if (returnTool !== null && currentTool === Tool.Text) {
+      setTool(returnTool);
+    }
+  };
+
+  return {
     ...initialState,
     startCreate: (startPoint) =>
       set({
@@ -44,23 +55,11 @@ export const useTextEditorStore = create<TextEditorState & TextEditorActions>(
       }),
     setStartPoint: (startPoint) => set({ startPoint }),
     setInputText: (inputText) => set({ inputText }),
-    finish: () => {
-      const returnTool = get().returnToolOnFinish;
-      if (returnTool !== null) {
-        useToolStore.getState().setTool(returnTool);
-      }
-      set(initialState);
-    },
-    cancel: () => {
-      const returnTool = get().returnToolOnFinish;
-      if (returnTool !== null) {
-        useToolStore.getState().setTool(returnTool);
-      }
-      set(initialState);
-    },
+    finish: completeEditorSession,
+    cancel: completeEditorSession,
     reset: () => set(initialState),
-  })
-);
+  };
+});
 
 export const useTextEditorMode = () => useTextEditorStore((state) => state.mode);
 export const useTextEditorEditingStrokeId = () =>
