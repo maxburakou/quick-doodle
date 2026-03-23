@@ -1,6 +1,9 @@
 import {
   CONTOUR_CACHE_MAX_SIZE,
   ELLIPSE_CONTOUR_SEGMENTS,
+  PEN_ADAPTIVE_STEP_POINTS,
+  PEN_BASE_CONTOUR_SEGMENTS,
+  PEN_MAX_ADAPTIVE_CONTOUR_SEGMENTS,
   PEN_MAX_CONTOUR_SEGMENTS,
 } from "@/config/contourConfig";
 import { Stroke, StrokePoint, Tool } from "@/types";
@@ -157,7 +160,7 @@ export const getEllipseContourPoints = (
 
 export const getPenContourPoints = (
   stroke: Stroke,
-  maxSegments: number = PEN_MAX_CONTOUR_SEGMENTS
+  maxSegments: number
 ) => {
   if (stroke.points.length < 2) return [];
 
@@ -173,7 +176,33 @@ export const getPenContourPoints = (
   return toPolylinePoints(polygonPoints, maxSegments);
 };
 
-const toContourCacheKey = (stroke: Stroke, policy?: StrokeContourPolicy) => {
+const clampPenSegments = (value: number) =>
+  Math.max(
+    PEN_BASE_CONTOUR_SEGMENTS,
+    Math.min(PEN_MAX_ADAPTIVE_CONTOUR_SEGMENTS, Math.floor(value))
+  );
+
+const resolvePenEffectiveMaxSegments = (
+  stroke: Stroke,
+  policy?: StrokeContourPolicy
+) => {
+  if (typeof policy?.penMaxSegments === "number") {
+    return Math.max(2, Math.floor(policy.penMaxSegments));
+  }
+
+  const polygon = getCachedPenPolygon(stroke);
+  const pointCount = polygon?.length ?? 0;
+  const adaptive = PEN_BASE_CONTOUR_SEGMENTS +
+    Math.floor(pointCount / PEN_ADAPTIVE_STEP_POINTS);
+
+  return clampPenSegments(adaptive);
+};
+
+const toContourCacheKey = (
+  stroke: Stroke,
+  policy?: StrokeContourPolicy,
+  penEffectiveMaxSegments?: number
+) => {
   const firstPoint = stroke.points[0];
   const middlePoint =
     stroke.points.length > 0
@@ -196,7 +225,9 @@ const toContourCacheKey = (stroke: Stroke, policy?: StrokeContourPolicy) => {
     stroke.isShiftPressed ? 1 : 0,
     shapeFillKey,
     policy?.ellipseSegments ?? ELLIPSE_CONTOUR_SEGMENTS,
-    policy?.penMaxSegments ?? PEN_MAX_CONTOUR_SEGMENTS,
+    stroke.tool === Tool.Pen
+      ? penEffectiveMaxSegments ?? policy?.penMaxSegments ?? PEN_MAX_CONTOUR_SEGMENTS
+      : policy?.penMaxSegments ?? PEN_MAX_CONTOUR_SEGMENTS,
   ].join("|");
 };
 
@@ -215,7 +246,8 @@ const setCachedContourSegments = (key: string, segments: ContourSegment[]) => {
 
 const computeStrokeContourSegments = (
   stroke: Stroke,
-  policy?: StrokeContourPolicy
+  policy?: StrokeContourPolicy,
+  penEffectiveMaxSegments?: number
 ): ContourSegment[] => {
   if (isLineLikeGeometryTool(stroke.tool)) {
     const [start, end] = getStrokeEndpoints(stroke);
@@ -223,7 +255,8 @@ const computeStrokeContourSegments = (
   }
 
   if (stroke.tool === Tool.Pen) {
-    const maxSegments = policy?.penMaxSegments ?? PEN_MAX_CONTOUR_SEGMENTS;
+    const maxSegments =
+      penEffectiveMaxSegments ?? policy?.penMaxSegments ?? PEN_MAX_CONTOUR_SEGMENTS;
     return buildSegmentsFromOrderedPoints(
       getPenContourPoints(stroke, maxSegments),
       "lineSegment",
@@ -259,13 +292,21 @@ export const getStrokeContourSegments = (
   stroke: Stroke,
   policy?: StrokeContourPolicy
 ): ContourSegment[] => {
-  const key = toContourCacheKey(stroke, policy);
+  const penEffectiveMaxSegments =
+    stroke.tool === Tool.Pen
+      ? resolvePenEffectiveMaxSegments(stroke, policy)
+      : undefined;
+  const key = toContourCacheKey(stroke, policy, penEffectiveMaxSegments);
   const cached = contourSegmentsCache.get(key);
   if (cached) {
     return cached;
   }
 
-  const segments = computeStrokeContourSegments(stroke, policy);
+  const segments = computeStrokeContourSegments(
+    stroke,
+    policy,
+    penEffectiveMaxSegments
+  );
   setCachedContourSegments(key, segments);
 
   return segments;
