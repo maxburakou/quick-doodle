@@ -71,6 +71,8 @@ export {
   getSceneSnapSegments,
   getStrokeAxisSnapCandidates,
   getSceneAxisSnapCandidates,
+  getGroupBoundsAnchors,
+  pickResizeDrivingAnchors,
   resolveNearestSnap,
   resolveNearestSegmentSnap,
   resolveNearestAxisSnap,

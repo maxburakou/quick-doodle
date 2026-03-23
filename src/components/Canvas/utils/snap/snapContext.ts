@@ -1,9 +1,7 @@
 import type { MutableRefObject } from "react";
-import { Stroke } from "@/types";
+import { Stroke, Tool } from "@/types";
 import {
-  getSceneAxisSnapCandidates,
-  getSceneSnapAnchors,
-  getSceneSnapSegments,
+  getSnapSubjectFromStroke,
 } from "@/store/useShapeEditorStore/helpers";
 
 export interface CanvasBounds {
@@ -12,9 +10,9 @@ export interface CanvasBounds {
 }
 
 export interface SceneSnapContext {
-  anchors: ReturnType<typeof getSceneSnapAnchors>;
-  segments: ReturnType<typeof getSceneSnapSegments>;
-  axisCandidates: ReturnType<typeof getSceneAxisSnapCandidates>;
+  anchors: ReturnType<typeof getSnapSubjectFromStroke>["anchors"];
+  segments: ReturnType<typeof getSnapSubjectFromStroke>["segments"];
+  axisCandidates: ReturnType<typeof getSnapSubjectFromStroke>["axisCandidates"];
 }
 
 export interface SceneSnapContextCache {
@@ -36,11 +34,36 @@ export const buildSceneSnapContext = (
   canvasBounds: CanvasBounds
 ): SceneSnapContext => {
   const excludedSet = new Set(excludedIds);
+  const anchors: SceneSnapContext["anchors"] = [];
+  const segments: SceneSnapContext["segments"] = [];
+  const axisCandidates: SceneSnapContext["axisCandidates"] = [];
+
+  present.forEach((stroke) => {
+    if (excludedSet.has(stroke.id)) return;
+    const subject = getSnapSubjectFromStroke(stroke);
+    anchors.push(...subject.anchors);
+    segments.push(...subject.segments);
+    axisCandidates.push(...subject.axisCandidates);
+  });
+
+  const canvasSubject = getSnapSubjectFromStroke({
+    id: "__canvas__",
+    points: [
+      { x: 0, y: 0, pressure: 0.5 },
+      { x: canvasBounds.width, y: canvasBounds.height, pressure: 0.5 },
+    ],
+    color: "",
+    thickness: 1,
+    tool: Tool.Rectangle,
+  });
+  anchors.push(...canvasSubject.anchors);
+  segments.push(...canvasSubject.segments);
+  axisCandidates.push(...canvasSubject.axisCandidates);
 
   return {
-    anchors: getSceneSnapAnchors(present, excludedSet, canvasBounds),
-    segments: getSceneSnapSegments(present, excludedSet, canvasBounds),
-    axisCandidates: getSceneAxisSnapCandidates(present, excludedSet, canvasBounds),
+    anchors,
+    segments,
+    axisCandidates,
   };
 };
 

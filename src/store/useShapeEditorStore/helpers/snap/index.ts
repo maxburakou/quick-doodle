@@ -18,6 +18,7 @@ import {
   type SnapSegment,
 } from "./geometry";
 export { getStrokeSnapSegments, getSceneSnapSegments } from "./geometry";
+export { getGroupBoundsAnchors, pickResizeDrivingAnchors } from "./selectors";
 
 export type SnapAnchorKind =
   | "corner"
@@ -149,9 +150,6 @@ interface AxisSnapSelection {
   delta: number;
   guide: number;
 }
-
-const X_AXIS_KINDS = new Set<AxisSnapKind>(["left", "centerX", "right"]);
-const Y_AXIS_KINDS = new Set<AxisSnapKind>(["top", "centerY", "bottom"]);
 
 export const isLineLikeSnapTool = (tool: Tool) =>
   isLineLikeGeometryTool(tool);
@@ -384,7 +382,11 @@ export const resolveNearestAxisSnap = (
 
   for (const movingPoint of movingPoints) {
     for (const candidate of axisCandidates) {
-      if (X_AXIS_KINDS.has(candidate.kind)) {
+      if (
+        candidate.kind === "left" ||
+        candidate.kind === "centerX" ||
+        candidate.kind === "right"
+      ) {
         const deltaX = candidate.x - movingPoint.x;
         const absX = Math.abs(deltaX);
         if (
@@ -399,7 +401,11 @@ export const resolveNearestAxisSnap = (
         }
       }
 
-      if (Y_AXIS_KINDS.has(candidate.kind)) {
+      if (
+        candidate.kind === "top" ||
+        candidate.kind === "centerY" ||
+        candidate.kind === "bottom"
+      ) {
         const deltaY = candidate.y - movingPoint.y;
         const absY = Math.abs(deltaY);
         if (
@@ -471,32 +477,36 @@ const resolveTranslationSegmentSnap = (
   segments: SnapSegment[],
   snapDistance: number
 ): TranslationSnapResolution | null => {
-  let bestDelta: { x: number; y: number } | null = null;
+  let bestDeltaX = 0;
+  let bestDeltaY = 0;
   let bestTarget: StrokePoint | null = null;
   let bestDistance = Number.POSITIVE_INFINITY;
 
   for (const movingPoint of movingPoints) {
-    const snapResult = resolveNearestSegmentSnap(movingPoint, segments, snapDistance);
-    if (!snapResult) continue;
+    for (const segment of segments) {
+      const projected = projectPointToSegment(
+        movingPoint,
+        segment.start,
+        segment.end
+      );
+      if (projected.distance > snapDistance) continue;
+      if (projected.distance >= bestDistance) continue;
 
-    const deltaX = snapResult.snappedX - movingPoint.x;
-    const deltaY = snapResult.snappedY - movingPoint.y;
-    const distance = Math.hypot(deltaX, deltaY);
-    if (distance >= bestDistance) continue;
-
-    bestDistance = distance;
-    bestDelta = { x: deltaX, y: deltaY };
-    bestTarget = {
-      x: snapResult.target.x,
-      y: snapResult.target.y,
-      pressure: 0.5,
-    };
+      bestDistance = projected.distance;
+      bestDeltaX = projected.projection.x - movingPoint.x;
+      bestDeltaY = projected.projection.y - movingPoint.y;
+      bestTarget = {
+        x: projected.projection.x,
+        y: projected.projection.y,
+        pressure: 0.5,
+      };
+    }
   }
 
-  if (!bestDelta || !bestTarget) return null;
+  if (!bestTarget) return null;
 
   return {
-    delta: bestDelta,
+    delta: { x: bestDeltaX, y: bestDeltaY },
     pointTarget: bestTarget,
   };
 };

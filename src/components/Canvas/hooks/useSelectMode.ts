@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { Stroke, StrokePoint, Tool, TransformHandle } from "@/types";
+import { Tool } from "@/types";
 import { useSnapStore, useToolStore } from "@/store";
 import { useHistoryStore } from "@/store/useHistoryStore";
 import { useShapeEditorStore } from "@/store/useShapeEditorStore";
@@ -14,12 +14,9 @@ import { CanvasPointerPayload } from "./types";
 import { enterTextEdit } from "../utils/enterTextEdit";
 import {
   applySessionTransform,
-  getStrokeAABB,
-  getStrokeEndpoints,
-  getStrokeRotation,
-  getStrokeTransformBounds,
-  inverseRotatePoint,
-  type SnapSubject,
+  getGroupBoundsAnchors,
+  getStrokeSnapAnchors,
+  pickResizeDrivingAnchors,
   resolveSnapForMovingAnchors,
   resolveSnapForInteraction,
 } from "@/store/useShapeEditorStore/helpers";
@@ -34,150 +31,6 @@ const TEXT_EDIT_SECOND_CLICK_INTERVAL_MS = 400;
 interface UseSelectModeParams {
   ctxRef: React.MutableRefObject<CanvasRenderingContext2D | null>;
 }
-
-const getGroupBoundsAnchors = (
-  strokes: Stroke[]
-): Array<Pick<StrokePoint, "x" | "y">> => {
-  if (strokes.length === 0) return [];
-
-  let minX = Number.POSITIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let maxY = Number.NEGATIVE_INFINITY;
-
-  strokes.forEach((stroke) => {
-    const bounds = getStrokeAABB(stroke);
-    minX = Math.min(minX, bounds.x);
-    minY = Math.min(minY, bounds.y);
-    maxX = Math.max(maxX, bounds.x + bounds.width);
-    maxY = Math.max(maxY, bounds.y + bounds.height);
-  });
-
-  const centerX = (minX + maxX) / 2;
-  const centerY = (minY + maxY) / 2;
-
-  return [
-    { x: minX, y: minY },
-    { x: centerX, y: minY },
-    { x: maxX, y: minY },
-    { x: maxX, y: centerY },
-    { x: maxX, y: maxY },
-    { x: centerX, y: maxY },
-    { x: minX, y: maxY },
-    { x: minX, y: centerY },
-    { x: centerX, y: centerY },
-  ];
-};
-
-const RESIZE_SIDE_ANCHOR_COUNT = 3;
-
-const pickResizeDrivingAnchors = (
-  subject: SnapSubject,
-  handle: TransformHandle
-): Array<Pick<StrokePoint, "x" | "y">> => {
-  if (handle === "move") {
-    return subject.anchors.map((anchor) => ({ x: anchor.x, y: anchor.y }));
-  }
-  if (handle === "rotate") return [];
-
-  if (
-    subject.stroke.tool === Tool.Line ||
-    subject.stroke.tool === Tool.Arrow ||
-    subject.stroke.tool === Tool.Highlighter
-  ) {
-    const [start, end] = getStrokeEndpoints(subject.stroke);
-    if (handle === "nw") return [{ x: start.x, y: start.y }];
-    if (handle === "se") return [{ x: end.x, y: end.y }];
-    return subject.anchors.map((anchor) => ({ x: anchor.x, y: anchor.y }));
-  }
-
-  const worldAnchors = subject.anchors.map((anchor) => ({ x: anchor.x, y: anchor.y }));
-  if (worldAnchors.length === 0) return [];
-
-  const transformBounds = getStrokeTransformBounds(subject.stroke);
-  const center = {
-    x: transformBounds.x + transformBounds.width / 2,
-    y: transformBounds.y + transformBounds.height / 2,
-  };
-  const rotation = getStrokeRotation(subject.stroke);
-
-  const localPairs = worldAnchors.map((world) => ({
-    world,
-    local: inverseRotatePoint(world, center, rotation),
-  }));
-
-  const localContourPoints = subject.segments.flatMap((segment) => [
-    inverseRotatePoint(segment.start, center, rotation),
-    inverseRotatePoint(segment.end, center, rotation),
-  ]);
-  const localPoints =
-    localContourPoints.length > 0 ? localContourPoints : localPairs.map((pair) => pair.local);
-
-  const xValues = localPoints.map((point) => point.x);
-  const yValues = localPoints.map((point) => point.y);
-
-  const minX = Math.min(...xValues);
-  const maxX = Math.max(...xValues);
-  const minY = Math.min(...yValues);
-  const maxY = Math.max(...yValues);
-  const centerX = (minX + maxX) / 2;
-  const centerY = (minY + maxY) / 2;
-
-  const targetByHandle: Record<
-    Exclude<TransformHandle, "move" | "rotate">,
-    { x: number; y: number }
-  > = {
-    nw: { x: minX, y: minY },
-    n: { x: centerX, y: minY },
-    ne: { x: maxX, y: minY },
-    e: { x: maxX, y: centerY },
-    se: { x: maxX, y: maxY },
-    s: { x: centerX, y: maxY },
-    sw: { x: minX, y: maxY },
-    w: { x: minX, y: centerY },
-  };
-
-  const target = targetByHandle[handle];
-  if (!target) {
-    return worldAnchors;
-  }
-
-  if (handle === "nw" || handle === "ne" || handle === "sw" || handle === "se") {
-    const closest = localPairs.reduce((best, current) => {
-      if (!best) return current;
-      const bestDistance = Math.hypot(best.local.x - target.x, best.local.y - target.y);
-      const currentDistance = Math.hypot(
-        current.local.x - target.x,
-        current.local.y - target.y
-      );
-      return currentDistance < bestDistance ? current : best;
-    }, null as (typeof localPairs)[number] | null);
-
-    return closest ? [closest.world] : [];
-  }
-
-  const isHorizontalHandle = handle === "n" || handle === "s";
-  const sorted = [...localPairs].sort((a, b) => {
-    const primaryA = isHorizontalHandle
-      ? Math.abs(a.local.y - target.y)
-      : Math.abs(a.local.x - target.x);
-    const primaryB = isHorizontalHandle
-      ? Math.abs(b.local.y - target.y)
-      : Math.abs(b.local.x - target.x);
-    if (primaryA !== primaryB) return primaryA - primaryB;
-
-    const secondaryA = isHorizontalHandle
-      ? Math.abs(a.local.x - target.x)
-      : Math.abs(a.local.y - target.y);
-    const secondaryB = isHorizontalHandle
-      ? Math.abs(b.local.x - target.x)
-      : Math.abs(b.local.y - target.y);
-    return secondaryA - secondaryB;
-  });
-
-  const picks = sorted.slice(0, RESIZE_SIDE_ANCHOR_COUNT).map((pair) => pair.world);
-  return picks.length > 0 ? picks : worldAnchors;
-};
 
 export const getSelectionSnapshot = () => {
   const {
@@ -369,26 +222,44 @@ export const useSelectMode = ({
       if (session?.type === "single") {
         if (isSnapEnabled && session.handle !== "rotate") {
           const { anchors, segments, axisCandidates } = getSceneSnapData();
-          const snap = resolveSnapForInteraction({
-            rawPointer: point,
-            sceneContext: {
-              anchors,
-              segments,
-              axisCandidates,
-            },
-            buildDraftStroke: (rawPointer) =>
-              applySessionTransform(session, rawPointer, shiftKey),
-            drivingAnchorSelector: (draftSubject) =>
-              session.handle === "move"
-                ? draftSubject.anchors.map((anchor) => ({ x: anchor.x, y: anchor.y }))
-                : pickResizeDrivingAnchors(draftSubject, session.handle),
-            snapDistance: SNAP_DISTANCE_PX,
-          });
-          updateTransform(snap.snappedPointer, { shiftKey });
-          activeSnapGuidesRef.current = {
-            pointGuide: snap.pointGuide,
-            axisGuides: snap.axisGuide,
-          };
+          if (session.handle === "move") {
+            const movingAnchors = getStrokeSnapAnchors(session.initialStroke);
+            const snap = resolveSnapForMovingAnchors({
+              rawPointer: point,
+              startPointer: session.startPointer,
+              movingAnchors,
+              sceneContext: {
+                anchors,
+                segments,
+                axisCandidates,
+              },
+              snapDistance: SNAP_DISTANCE_PX,
+            });
+            updateTransform(snap.point, { shiftKey });
+            activeSnapGuidesRef.current = {
+              pointGuide: snap.pointTarget,
+              axisGuides: snap.axisSnap,
+            };
+          } else {
+            const snap = resolveSnapForInteraction({
+              rawPointer: point,
+              sceneContext: {
+                anchors,
+                segments,
+                axisCandidates,
+              },
+              buildDraftStroke: (rawPointer) =>
+                applySessionTransform(session, rawPointer, shiftKey),
+              drivingAnchorSelector: (draftSubject) =>
+                pickResizeDrivingAnchors(draftSubject, session.handle),
+              snapDistance: SNAP_DISTANCE_PX,
+            });
+            updateTransform(snap.snappedPointer, { shiftKey });
+            activeSnapGuidesRef.current = {
+              pointGuide: snap.pointGuide,
+              axisGuides: snap.axisGuide,
+            };
+          }
         } else {
           updateTransform(point, { shiftKey });
           activeSnapGuidesRef.current = null;
