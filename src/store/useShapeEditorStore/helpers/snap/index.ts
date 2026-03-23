@@ -1,5 +1,5 @@
 import { getStrokeAABB } from "../core";
-import { isShapeBoxTool, ShapeBoxTool, Stroke, StrokePoint, Tool } from "@/types";
+import { isShapeBoxTool, Stroke, StrokePoint, Tool } from "@/types";
 import { constrainToSquareBounds } from "@/components/Canvas/utils/constrainToSquareBounds";
 import {
   AXIS_SNAP_DISTANCE_PX,
@@ -7,9 +7,11 @@ import {
   SNAP_PRIORITY_ORDER,
 } from "@/config/snapConfig";
 import { getStrokeAnchorPoints, StrokeAnchorPoint } from "../geometry/anchors";
+import { getStrokeContourSegments } from "../geometry/contours";
 import { isLineLikeGeometryTool } from "../toolProfile";
 import {
   createCanvasBoundaryStroke,
+  getStrokeSnapSegments,
   projectPointToSegment,
   type CanvasSnapBounds,
   type PointLike,
@@ -68,6 +70,47 @@ export interface SnapComputation {
   axisSnap: AxisSnapResult | null;
 }
 
+export interface SnapSubject {
+  // Snap geometry is derived from stroke contour/domain geometry, never from selection UI.
+  stroke: Stroke;
+  anchors: SnapAnchor[];
+  segments: SnapSegment[];
+  axisCandidates: AxisSnapCandidate[];
+}
+
+export interface InteractionSnapInput {
+  rawPointer: StrokePoint;
+  sceneContext: {
+    anchors: SnapAnchor[];
+    segments?: SnapSegment[];
+    axisCandidates?: AxisSnapCandidate[];
+  };
+  buildDraftStroke: (rawPointer: StrokePoint) => Stroke;
+  drivingAnchorSelector?: (subject: SnapSubject) => PointLike[];
+  snapDistance?: number;
+  axisSnapDistance?: number;
+}
+
+export interface InteractionSnapResult {
+  snappedPointer: StrokePoint;
+  pointGuide: StrokePoint | null;
+  axisGuide: AxisSnapResult | null;
+  draftSubject: SnapSubject;
+}
+
+export interface MovingAnchorsSnapInput {
+  rawPointer: StrokePoint;
+  startPointer: StrokePoint;
+  movingAnchors: PointLike[];
+  sceneContext: {
+    anchors: SnapAnchor[];
+    segments?: SnapSegment[];
+    axisCandidates?: AxisSnapCandidate[];
+  };
+  snapDistance?: number;
+  axisSnapDistance?: number;
+}
+
 export type { SnapSegment } from "./geometry";
 
 export interface SegmentSnapResult {
@@ -78,34 +121,27 @@ export interface SegmentSnapResult {
 }
 
 
-interface ResolveMoveSnapPointerParams {
-  pointer: StrokePoint;
-  startPointer: StrokePoint;
-  initialCenter?: PointLike;
-  movingAnchors?: PointLike[];
-  anchors: SnapAnchor[];
-  segments?: SnapSegment[];
-  axisCandidates?: AxisSnapCandidate[];
-  snapDistance?: number;
-  axisSnapDistance?: number;
-}
-
-interface ResolveShapeCreateEndpointSnapParams {
-  startPoint: StrokePoint;
-  point: StrokePoint;
-  tool: ShapeBoxTool;
-  shiftKey: boolean;
-  drawableSeed?: number;
-  anchors: SnapAnchor[];
-  segments?: SnapSegment[];
-  axisCandidates?: AxisSnapCandidate[];
-  snapDistance?: number;
-  axisSnapDistance?: number;
-}
-
 interface TranslationSnapResolution {
   delta: { x: number; y: number };
   pointTarget: StrokePoint;
+}
+
+interface InteractionSnapCoreInput {
+  rawPointer: StrokePoint;
+  movingAnchors: PointLike[];
+  sceneContext: {
+    anchors: SnapAnchor[];
+    segments?: SnapSegment[];
+    axisCandidates?: AxisSnapCandidate[];
+  };
+  snapDistance: number;
+  axisSnapDistance: number;
+}
+
+interface InteractionSnapCoreResult {
+  snappedPointer: StrokePoint;
+  pointGuide: StrokePoint | null;
+  axisGuide: AxisSnapResult | null;
 }
 
 interface AxisSnapSelection {
@@ -205,7 +241,34 @@ export const getSceneSnapAnchors = (
 export const getStrokeAxisSnapCandidates = (
   stroke: Stroke
 ): AxisSnapCandidate[] => {
-  const bounds = getStrokeAABB(stroke);
+  const contourBounds = (() => {
+    if (stroke.tool === Tool.Pen || stroke.tool === Tool.Text) return null;
+    const points = getStrokeContourSegments(stroke).flatMap((segment) => [
+      segment.start,
+      segment.end,
+    ]);
+    if (points.length === 0) return null;
+
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    points.forEach((point) => {
+      minX = Math.min(minX, point.x);
+      minY = Math.min(minY, point.y);
+      maxX = Math.max(maxX, point.x);
+      maxY = Math.max(maxY, point.y);
+    });
+
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
+  })();
+  const bounds = contourBounds ?? getStrokeAABB(stroke);
   const left = bounds.x;
   const right = bounds.x + bounds.width;
   const top = bounds.y;
@@ -235,6 +298,13 @@ export const getSceneAxisSnapCandidates = (
 
   return [...strokeCandidates, ...getCanvasAxisSnapCandidates(canvasBounds)];
 };
+
+export const getSnapSubjectFromStroke = (stroke: Stroke): SnapSubject => ({
+  stroke,
+  anchors: getStrokeSnapAnchors(stroke),
+  segments: getStrokeSnapSegments(stroke),
+  axisCandidates: getStrokeAxisSnapCandidates(stroke),
+});
 
 export const resolveNearestSnap = (
   point: PointLike,
@@ -431,255 +501,144 @@ const resolveTranslationSegmentSnap = (
   };
 };
 
-export const resolveMoveSnapPointer = ({
-  pointer,
-  startPointer,
-  initialCenter,
+const resolveInteractionSnapCore = ({
+  rawPointer,
   movingAnchors,
-  anchors,
-  segments = [],
-  axisCandidates = [],
-  snapDistance = SNAP_DISTANCE_PX,
-  axisSnapDistance = AXIS_SNAP_DISTANCE_PX,
-}: ResolveMoveSnapPointerParams): SnapComputation => {
-  const rawDx = pointer.x - startPointer.x;
-  const rawDy = pointer.y - startPointer.y;
-  const sourceAnchors =
-    movingAnchors && movingAnchors.length > 0
-      ? movingAnchors
-      : initialCenter
-        ? [initialCenter]
-        : [];
-  const movedAnchors = sourceAnchors.map((sourceAnchor) => ({
-    x: sourceAnchor.x + rawDx,
-    y: sourceAnchor.y + rawDy,
-  }));
-
-  const pointSnap = resolveTranslationSnap(movedAnchors, anchors, snapDistance);
+  sceneContext,
+  snapDistance,
+  axisSnapDistance,
+}: InteractionSnapCoreInput): InteractionSnapCoreResult => {
+  const pointSnap = resolveTranslationSnap(
+    movingAnchors,
+    sceneContext.anchors,
+    snapDistance
+  );
   if (pointSnap) {
     return {
-      point: {
-        ...pointer,
-        x: pointer.x + pointSnap.delta.x,
-        y: pointer.y + pointSnap.delta.y,
+      snappedPointer: {
+        ...rawPointer,
+        x: rawPointer.x + pointSnap.delta.x,
+        y: rawPointer.y + pointSnap.delta.y,
       },
-      pointTarget: pointSnap.pointTarget,
-      axisSnap: null,
+      pointGuide: pointSnap.pointTarget,
+      axisGuide: null,
     };
   }
 
   const segmentSnap = resolveTranslationSegmentSnap(
-    movedAnchors,
-    segments,
+    movingAnchors,
+    sceneContext.segments ?? [],
     snapDistance
   );
   if (segmentSnap) {
     return {
-      point: {
-        ...pointer,
-        x: pointer.x + segmentSnap.delta.x,
-        y: pointer.y + segmentSnap.delta.y,
+      snappedPointer: {
+        ...rawPointer,
+        x: rawPointer.x + segmentSnap.delta.x,
+        y: rawPointer.y + segmentSnap.delta.y,
       },
-      pointTarget: segmentSnap.pointTarget,
-      axisSnap: null,
+      pointGuide: segmentSnap.pointTarget,
+      axisGuide: null,
     };
   }
 
   const axisSnap = resolveNearestAxisSnap(
-    movedAnchors,
-    axisCandidates,
-    pointer,
+    movingAnchors,
+    sceneContext.axisCandidates ?? [],
+    rawPointer,
     axisSnapDistance
   );
   if (!axisSnap) {
     return {
-      point: pointer,
-      pointTarget: null,
-      axisSnap: null,
+      snappedPointer: rawPointer,
+      pointGuide: null,
+      axisGuide: null,
     };
   }
 
   return {
-    point: {
-      ...pointer,
-      x: pointer.x + (axisSnap.snappedX - pointer.x),
-      y: pointer.y + (axisSnap.snappedY - pointer.y),
-    },
-    pointTarget: null,
-    axisSnap,
-  };
-};
-
-export const resolveLineEndpointSnap = (
-  point: StrokePoint,
-  anchors: SnapAnchor[],
-  axisCandidates: AxisSnapCandidate[] = [],
-  distance: number = SNAP_DISTANCE_PX,
-  axisSnapDistance: number = AXIS_SNAP_DISTANCE_PX,
-  segments: SnapSegment[] = []
-): SnapComputation => {
-  const pointSnap = resolveNearestSnap(point, anchors, distance);
-  if (pointSnap) {
-    return {
-      point: {
-        ...point,
-        x: pointSnap.snappedX,
-        y: pointSnap.snappedY,
-      },
-      pointTarget: {
-        x: pointSnap.target.x,
-        y: pointSnap.target.y,
-        pressure: 0.5,
-      },
-      axisSnap: null,
-    };
-  }
-
-  const segmentSnap = resolveNearestSegmentSnap(point, segments, distance);
-  if (segmentSnap) {
-    return {
-      point: {
-        ...point,
-        x: segmentSnap.snappedX,
-        y: segmentSnap.snappedY,
-      },
-      pointTarget: {
-        x: segmentSnap.target.x,
-        y: segmentSnap.target.y,
-        pressure: 0.5,
-      },
-      axisSnap: null,
-    };
-  }
-
-  const axisSnap = resolveNearestAxisSnap(
-    [point],
-    axisCandidates,
-    point,
-    axisSnapDistance
-  );
-  if (!axisSnap) {
-    return {
-      point,
-      pointTarget: null,
-      axisSnap: null,
-    };
-  }
-
-  return {
-    point: {
-      ...point,
+    snappedPointer: {
+      ...rawPointer,
       x: axisSnap.snappedX,
       y: axisSnap.snappedY,
     },
-    pointTarget: null,
-    axisSnap,
+    pointGuide: null,
+    axisGuide: axisSnap,
   };
 };
 
-export const resolveShapeCreateEndpointSnap = ({
-  startPoint,
-  point,
-  tool,
-  shiftKey,
-  drawableSeed,
-  anchors,
-  segments = [],
-  axisCandidates = [],
+export const resolveSnapForMovingAnchors = ({
+  rawPointer,
+  startPointer,
+  movingAnchors,
+  sceneContext,
   snapDistance = SNAP_DISTANCE_PX,
   axisSnapDistance = AXIS_SNAP_DISTANCE_PX,
-}: ResolveShapeCreateEndpointSnapParams): SnapComputation => {
-  const effectivePoint = getConstrainedShapeEndpoint(
-    startPoint,
-    point,
-    tool,
-    shiftKey
-  );
-  const draftStroke: Stroke = {
-    id: "__draft__",
-    points: [startPoint, effectivePoint],
-    color: "",
-    thickness: 1,
-    tool,
-    drawableSeed,
-  };
-  const draftAnchors = getStrokeSnapAnchors(draftStroke);
-
-  const pointSnap = resolveTranslationSnap(draftAnchors, anchors, snapDistance);
-  if (pointSnap) {
-    const snappedPoint: StrokePoint = {
-      ...effectivePoint,
-      x: effectivePoint.x + pointSnap.delta.x,
-      y: effectivePoint.y + pointSnap.delta.y,
-    };
-    const finalPoint = getConstrainedShapeEndpoint(
-      startPoint,
-      snappedPoint,
-      tool,
-      shiftKey
-    );
-
+}: MovingAnchorsSnapInput): SnapComputation => {
+  if (movingAnchors.length === 0) {
     return {
-      point: finalPoint,
-      pointTarget: pointSnap.pointTarget,
-      axisSnap: null,
-    };
-  }
-
-  const segmentSnap = resolveTranslationSegmentSnap(
-    draftAnchors,
-    segments,
-    snapDistance
-  );
-  if (segmentSnap) {
-    const snappedPoint: StrokePoint = {
-      ...effectivePoint,
-      x: effectivePoint.x + segmentSnap.delta.x,
-      y: effectivePoint.y + segmentSnap.delta.y,
-    };
-    const finalPoint = getConstrainedShapeEndpoint(
-      startPoint,
-      snappedPoint,
-      tool,
-      shiftKey
-    );
-
-    return {
-      point: finalPoint,
-      pointTarget: segmentSnap.pointTarget,
-      axisSnap: null,
-    };
-  }
-
-  const axisSnap = resolveNearestAxisSnap(
-    draftAnchors,
-    axisCandidates,
-    effectivePoint,
-    axisSnapDistance
-  );
-  if (!axisSnap) {
-    return {
-      point: effectivePoint,
+      point: rawPointer,
       pointTarget: null,
       axisSnap: null,
     };
   }
 
-  const snappedPoint: StrokePoint = {
-    ...effectivePoint,
-    x: axisSnap.snappedX,
-    y: axisSnap.snappedY,
-  };
-  const finalPoint = getConstrainedShapeEndpoint(
-    startPoint,
-    snappedPoint,
-    tool,
-    shiftKey
-  );
+  const rawDx = rawPointer.x - startPointer.x;
+  const rawDy = rawPointer.y - startPointer.y;
+  const translatedAnchors = movingAnchors.map((sourceAnchor) => ({
+    x: sourceAnchor.x + rawDx,
+    y: sourceAnchor.y + rawDy,
+  }));
+  const snapped = resolveInteractionSnapCore({
+    rawPointer,
+    movingAnchors: translatedAnchors,
+    sceneContext,
+    snapDistance,
+    axisSnapDistance,
+  });
 
   return {
-    point: finalPoint,
-    pointTarget: null,
-    axisSnap,
+    point: snapped.snappedPointer,
+    pointTarget: snapped.pointGuide,
+    axisSnap: snapped.axisGuide,
+  };
+};
+
+export const resolveSnapForInteraction = ({
+  rawPointer,
+  sceneContext,
+  buildDraftStroke,
+  drivingAnchorSelector,
+  snapDistance = SNAP_DISTANCE_PX,
+  axisSnapDistance = AXIS_SNAP_DISTANCE_PX,
+}: InteractionSnapInput): InteractionSnapResult => {
+  const draftStroke = buildDraftStroke(rawPointer);
+  const draftSubject = getSnapSubjectFromStroke(draftStroke);
+
+  const defaultDrivingAnchors = draftSubject.anchors.map((anchor) => ({
+    x: anchor.x,
+    y: anchor.y,
+  }));
+
+  const selectedAnchors = drivingAnchorSelector
+    ? drivingAnchorSelector(draftSubject)
+    : defaultDrivingAnchors;
+  const drivingAnchors =
+    selectedAnchors.length > 0 ? selectedAnchors : defaultDrivingAnchors;
+  const movingAnchors =
+    drivingAnchors.length > 0 ? drivingAnchors : [{ x: rawPointer.x, y: rawPointer.y }];
+  const snapped = resolveInteractionSnapCore({
+    rawPointer,
+    movingAnchors,
+    sceneContext,
+    snapDistance,
+    axisSnapDistance,
+  });
+
+  return {
+    snappedPointer: snapped.snappedPointer,
+    pointGuide: snapped.pointGuide,
+    axisGuide: snapped.axisGuide,
+    draftSubject,
   };
 };

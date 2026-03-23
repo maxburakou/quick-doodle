@@ -69,7 +69,12 @@ export const resolveSelectCursor = (
   primarySelectedStroke: Stroke | null
 ): SelectCursor => {
   if (selectedStrokes.length === 1 && primarySelectedStroke) {
-    const selectedHandle = getHandleAtPointer(primarySelectedStroke, pointer);
+    const selectedHandle = getHandleAtPointer(
+      primarySelectedStroke,
+      pointer,
+      undefined,
+      "selection"
+    );
     if (selectedHandle) return getCursorByHandle(selectedHandle);
 
     if (hitTestStroke(primarySelectedStroke, pointer)) return "grab";
@@ -94,7 +99,9 @@ export const resolveSelectCursor = (
   if (!targetStroke) return "default";
 
   const targetHandle =
-    selectedStrokes.length <= 1 ? getHandleAtPointer(targetStroke, pointer) : null;
+    selectedStrokes.length <= 1
+      ? getHandleAtPointer(targetStroke, pointer, undefined, "selection")
+      : null;
   if (targetHandle) return getCursorByHandle(targetHandle);
   return "grab";
 };
@@ -106,7 +113,12 @@ export const resolveSelectTarget = (
   primarySelectedStroke: Stroke | null
 ): SelectTargetResult => {
   if (selectedStrokes.length === 1 && primarySelectedStroke) {
-    const handle = getHandleAtPointer(primarySelectedStroke, pointer);
+    const handle = getHandleAtPointer(
+      primarySelectedStroke,
+      pointer,
+      undefined,
+      "selection"
+    );
 
     if (handle) {
       return {
@@ -177,7 +189,9 @@ export const resolveSelectTarget = (
   return {
     targetStroke,
     nextHandle:
-      (selectedStrokes.length <= 1 ? getHandleAtPointer(targetStroke, pointer) : null) ??
+      (selectedStrokes.length <= 1
+        ? getHandleAtPointer(targetStroke, pointer, undefined, "selection")
+        : null) ??
       "move",
     isBodyHit: true,
     targetKind: "unselected",

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { Stroke, Tool, TransformHandle, StrokePoint } from "@/types";
+import { Stroke, StrokePoint, Tool, TransformHandle } from "@/types";
 import { useSnapStore, useToolStore } from "@/store";
 import { useHistoryStore } from "@/store/useHistoryStore";
 import { useShapeEditorStore } from "@/store/useShapeEditorStore";
@@ -13,25 +13,21 @@ import type { SnapGuidesRenderData } from "../helpers/drawSnapMarker";
 import { CanvasPointerPayload } from "./types";
 import { enterTextEdit } from "../utils/enterTextEdit";
 import {
-  getAxisConstrainedByShift,
+  applySessionTransform,
   getStrokeAABB,
-  isLineLikeSnapTool,
-  isShapeBoxSnapTool,
-  getStrokeSnapAnchors,
-  resolveMoveSnapPointer,
-  resolveLineEndpointSnap,
+  getStrokeEndpoints,
+  getStrokeRotation,
+  getStrokeTransformBounds,
+  inverseRotatePoint,
+  type SnapSubject,
+  resolveSnapForMovingAnchors,
+  resolveSnapForInteraction,
 } from "@/store/useShapeEditorStore/helpers";
 import { SNAP_DISTANCE_PX } from "@/config/snapConfig";
-import {
-  type SceneSnapContextCache,
-  type SceneSnapContext,
-} from "../utils/snap/snapContext";
-import { getAsyncCachedSceneSnapContext } from "../utils/snap/snapWorkerManager";
 
 import { useMarqueeSelection } from "./useMarqueeSelection";
 import { useSelectModeOverlay } from "./useSelectModeOverlay";
-
-import { getCanvasBoundsFromCtx } from "../utils/getCanvasBounds";
+import { useSceneSnapContext } from "./useSceneSnapContext";
 
 const TEXT_EDIT_SECOND_CLICK_INTERVAL_MS = 400;
 
@@ -73,16 +69,114 @@ const getGroupBoundsAnchors = (
   ];
 };
 
-const canSnapSingleResize = (
-  stroke: Stroke,
-  handle: TransformHandle,
-  shiftKey: boolean
-) => {
-  if (handle === "rotate") return false;
-  if (isShapeBoxSnapTool(stroke.tool)) return true;
-  if (!isLineLikeSnapTool(stroke.tool)) return false;
-  const isAxisConstrained = getAxisConstrainedByShift(stroke.tool, shiftKey);
-  return (handle === "nw" || handle === "se") && !isAxisConstrained;
+const RESIZE_SIDE_ANCHOR_COUNT = 3;
+
+const pickResizeDrivingAnchors = (
+  subject: SnapSubject,
+  handle: TransformHandle
+): Array<Pick<StrokePoint, "x" | "y">> => {
+  if (handle === "move") {
+    return subject.anchors.map((anchor) => ({ x: anchor.x, y: anchor.y }));
+  }
+  if (handle === "rotate") return [];
+
+  if (
+    subject.stroke.tool === Tool.Line ||
+    subject.stroke.tool === Tool.Arrow ||
+    subject.stroke.tool === Tool.Highlighter
+  ) {
+    const [start, end] = getStrokeEndpoints(subject.stroke);
+    if (handle === "nw") return [{ x: start.x, y: start.y }];
+    if (handle === "se") return [{ x: end.x, y: end.y }];
+    return subject.anchors.map((anchor) => ({ x: anchor.x, y: anchor.y }));
+  }
+
+  const worldAnchors = subject.anchors.map((anchor) => ({ x: anchor.x, y: anchor.y }));
+  if (worldAnchors.length === 0) return [];
+
+  const transformBounds = getStrokeTransformBounds(subject.stroke);
+  const center = {
+    x: transformBounds.x + transformBounds.width / 2,
+    y: transformBounds.y + transformBounds.height / 2,
+  };
+  const rotation = getStrokeRotation(subject.stroke);
+
+  const localPairs = worldAnchors.map((world) => ({
+    world,
+    local: inverseRotatePoint(world, center, rotation),
+  }));
+
+  const localContourPoints = subject.segments.flatMap((segment) => [
+    inverseRotatePoint(segment.start, center, rotation),
+    inverseRotatePoint(segment.end, center, rotation),
+  ]);
+  const localPoints =
+    localContourPoints.length > 0 ? localContourPoints : localPairs.map((pair) => pair.local);
+
+  const xValues = localPoints.map((point) => point.x);
+  const yValues = localPoints.map((point) => point.y);
+
+  const minX = Math.min(...xValues);
+  const maxX = Math.max(...xValues);
+  const minY = Math.min(...yValues);
+  const maxY = Math.max(...yValues);
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+
+  const targetByHandle: Record<
+    Exclude<TransformHandle, "move" | "rotate">,
+    { x: number; y: number }
+  > = {
+    nw: { x: minX, y: minY },
+    n: { x: centerX, y: minY },
+    ne: { x: maxX, y: minY },
+    e: { x: maxX, y: centerY },
+    se: { x: maxX, y: maxY },
+    s: { x: centerX, y: maxY },
+    sw: { x: minX, y: maxY },
+    w: { x: minX, y: centerY },
+  };
+
+  const target = targetByHandle[handle];
+  if (!target) {
+    return worldAnchors;
+  }
+
+  if (handle === "nw" || handle === "ne" || handle === "sw" || handle === "se") {
+    const closest = localPairs.reduce((best, current) => {
+      if (!best) return current;
+      const bestDistance = Math.hypot(best.local.x - target.x, best.local.y - target.y);
+      const currentDistance = Math.hypot(
+        current.local.x - target.x,
+        current.local.y - target.y
+      );
+      return currentDistance < bestDistance ? current : best;
+    }, null as (typeof localPairs)[number] | null);
+
+    return closest ? [closest.world] : [];
+  }
+
+  const isHorizontalHandle = handle === "n" || handle === "s";
+  const sorted = [...localPairs].sort((a, b) => {
+    const primaryA = isHorizontalHandle
+      ? Math.abs(a.local.y - target.y)
+      : Math.abs(a.local.x - target.x);
+    const primaryB = isHorizontalHandle
+      ? Math.abs(b.local.y - target.y)
+      : Math.abs(b.local.x - target.x);
+    if (primaryA !== primaryB) return primaryA - primaryB;
+
+    const secondaryA = isHorizontalHandle
+      ? Math.abs(a.local.x - target.x)
+      : Math.abs(a.local.y - target.y);
+    const secondaryB = isHorizontalHandle
+      ? Math.abs(b.local.x - target.x)
+      : Math.abs(b.local.y - target.y);
+    return secondaryA - secondaryB;
+  });
+
+  const picks = sorted.slice(0, RESIZE_SIDE_ANCHOR_COUNT).map((pair) => pair.world);
+  return picks.length > 0 ? picks : worldAnchors;
 };
 
 export const getSelectionSnapshot = () => {
@@ -122,21 +216,19 @@ export const useSelectMode = ({
   
   const pendingMoveRef = useRef<CanvasPointerPayload | null>(null);
   const rafMoveIdRef = useRef<number | null>(null);
-  const sessionSnapCacheRef = useRef<SceneSnapContextCache | null>(null);
   const activeSnapGuidesRef = useRef<SnapGuidesRenderData | null>(null);
   const cursorRef = useRef<React.CSSProperties["cursor"]>("default");
   
   const marqueeBoundsRef = useRef(null);
   const renderOverlayRef = useRef<() => void>(() => {});
-
-  const fallbackContext = useMemo<SceneSnapContext>(
-    () => ({
-      anchors: [],
-      segments: [],
-      axisCandidates: [],
-    }),
-    []
-  );
+  const {
+    getSceneSnapContext: getSceneSnapData,
+    clearSceneSnapCache,
+    precomputeSceneSnapContext,
+  } = useSceneSnapContext({
+    ctxRef,
+    isSnapEnabled,
+  });
 
   const setCursor = useCallback((newCursor: React.CSSProperties["cursor"]) => {
     if (cursorRef.current === newCursor) return;
@@ -145,10 +237,6 @@ export const useSelectMode = ({
       ctxRef.current.canvas.style.cursor = newCursor ?? "default";
     }
   }, [ctxRef]);
-
-  const clearSessionSnapCache = useCallback(() => {
-    sessionSnapCacheRef.current = null;
-  }, []);
 
   useSelectModeOverlay({
     ctxRef,
@@ -166,38 +254,12 @@ export const useSelectMode = ({
     finalizeMarquee,
     clearMarqueeState,
   } = useMarqueeSelection({
-    clearSessionSnapCache,
+    clearSessionSnapCache: clearSceneSnapCache,
     marqueeBoundsRef,
     activeSnapGuidesRef,
     setCursor,
     renderOverlay: () => renderOverlayRef.current(),
   });
-
-  const getSceneSnapData = useCallback(
-    () => {
-      return sessionSnapCacheRef.current?.context ?? fallbackContext;
-    },
-    [fallbackContext]
-  );
-
-  const precomputeSnapContext = useCallback((excludedIds: string[]) => {
-    if (!isSnapEnabled) return;
-    const compute = async () => {
-      try {
-        const { present } = useHistoryStore.getState();
-        const canvasBounds = getCanvasBoundsFromCtx(ctxRef);
-        await getAsyncCachedSceneSnapContext(
-          sessionSnapCacheRef,
-          present,
-          excludedIds,
-          canvasBounds
-        );
-      } catch (e) {
-        console.error("Failed to precompute snap context", e);
-      }
-    };
-    compute();
-  }, [ctxRef, isSnapEnabled]);
 
   const handlePointerDown = useCallback(
     ({ point, shiftKey }: CanvasPointerPayload) => {
@@ -270,7 +332,7 @@ export const useSelectMode = ({
 
       if (selectedStrokes.length > 1 && targetKind === "selected-group-member") {
         startGroupMove({ strokes: selectedStrokes, pointer: point });
-        precomputeSnapContext(selectedStrokes.map(s => s.id));
+        precomputeSceneSnapContext(selectedStrokes.map((stroke) => stroke.id));
         activeSnapGuidesRef.current = null;
         setCursor("grabbing");
         renderOverlayRef.current();
@@ -279,12 +341,12 @@ export const useSelectMode = ({
 
       setSelection([targetStroke.id], targetStroke.id);
       startTransform({ stroke: targetStroke, handle: nextHandle, pointer: point });
-      precomputeSnapContext([targetStroke.id]);
+      precomputeSceneSnapContext([targetStroke.id]);
       activeSnapGuidesRef.current = null;
       setCursor(nextHandle === "move" ? "grabbing" : getCursorByHandle(nextHandle));
       renderOverlayRef.current();
     },
-    [startMarqueeSelection, setCursor, precomputeSnapContext]
+    [startMarqueeSelection, setCursor, precomputeSceneSnapContext]
   );
 
   const processPointerMove = useCallback(
@@ -305,58 +367,27 @@ export const useSelectMode = ({
       }
 
       if (session?.type === "single") {
-        if (session.handle === "move") {
-          if (!isSnapEnabled) {
-            updateTransform(point, { shiftKey });
-            activeSnapGuidesRef.current = null;
-          } else {
-            const movingAnchors = getStrokeSnapAnchors(session.initialStroke);
-            const initialCenter =
-              movingAnchors.length > 0
-                ? undefined
-                : {
-                    x: session.initialBounds.x + session.initialBounds.width / 2,
-                    y: session.initialBounds.y + session.initialBounds.height / 2,
-                  };
-            const { anchors, segments, axisCandidates } = getSceneSnapData();
-            const snap = resolveMoveSnapPointer({
-              pointer: point,
-              startPointer: session.startPointer,
-              initialCenter,
-              movingAnchors,
+        if (isSnapEnabled && session.handle !== "rotate") {
+          const { anchors, segments, axisCandidates } = getSceneSnapData();
+          const snap = resolveSnapForInteraction({
+            rawPointer: point,
+            sceneContext: {
               anchors,
               segments,
               axisCandidates,
-              snapDistance: SNAP_DISTANCE_PX,
-            });
-
-            updateTransform(snap.point, { shiftKey });
-            activeSnapGuidesRef.current = {
-              pointGuide: snap.pointTarget,
-              axisGuides: snap.axisSnap,
-            };
-          }
-        } else if (
-          isSnapEnabled &&
-          canSnapSingleResize(
-            session.initialStroke,
-            session.handle,
-            shiftKey
-          )
-        ) {
-          const { anchors, segments, axisCandidates } = getSceneSnapData();
-          const snap = resolveLineEndpointSnap(
-            point,
-            anchors,
-            axisCandidates,
-            SNAP_DISTANCE_PX,
-            SNAP_DISTANCE_PX,
-            segments
-          );
-          updateTransform(snap.point, { shiftKey });
+            },
+            buildDraftStroke: (rawPointer) =>
+              applySessionTransform(session, rawPointer, shiftKey),
+            drivingAnchorSelector: (draftSubject) =>
+              session.handle === "move"
+                ? draftSubject.anchors.map((anchor) => ({ x: anchor.x, y: anchor.y }))
+                : pickResizeDrivingAnchors(draftSubject, session.handle),
+            snapDistance: SNAP_DISTANCE_PX,
+          });
+          updateTransform(snap.snappedPointer, { shiftKey });
           activeSnapGuidesRef.current = {
-            pointGuide: snap.pointTarget,
-            axisGuides: snap.axisSnap,
+            pointGuide: snap.pointGuide,
+            axisGuides: snap.axisGuide,
           };
         } else {
           updateTransform(point, { shiftKey });
@@ -383,13 +414,15 @@ export const useSelectMode = ({
             activeSnapGuidesRef.current = null;
           } else {
             const { anchors, segments, axisCandidates } = getSceneSnapData();
-            const snap = resolveMoveSnapPointer({
-              pointer: point,
+            const snap = resolveSnapForMovingAnchors({
+              rawPointer: point,
               startPointer: session.startPointer,
               movingAnchors,
-              anchors,
-              segments,
-              axisCandidates,
+              sceneContext: {
+                anchors,
+                segments,
+                axisCandidates,
+              },
               snapDistance: SNAP_DISTANCE_PX,
             });
             updateGroupMove(snap.point);
@@ -449,26 +482,26 @@ export const useSelectMode = ({
       } = useShapeEditorStore.getState();
 
       if (!session) {
-        clearSessionSnapCache();
+        clearSceneSnapCache();
         activeSnapGuidesRef.current = null;
         renderOverlayRef.current();
         return;
       }
       if (session.type === "single") {
         commitTransform();
-        clearSessionSnapCache();
+        clearSceneSnapCache();
         activeSnapGuidesRef.current = null;
         renderOverlayRef.current();
         return;
       }
 
       commitGroupMove();
-      clearSessionSnapCache();
+      clearSceneSnapCache();
       activeSnapGuidesRef.current = null;
       renderOverlayRef.current();
     },
     [
-      clearSessionSnapCache,
+      clearSceneSnapCache,
       flushPendingMove,
       finalizeMarquee,
     ]
@@ -482,24 +515,24 @@ export const useSelectMode = ({
         rafMoveIdRef.current = null;
       }
       pendingMoveRef.current = null;
-      clearSessionSnapCache();
+      clearSceneSnapCache();
       activeSnapGuidesRef.current = null;
       setCursor("default");
       renderOverlayRef.current();
     }
-  }, [clearSessionSnapCache, setCursor, marqueeStartRef]);
+  }, [clearSceneSnapCache, setCursor, marqueeStartRef]);
 
   useEffect(() => {
     let prevSession = useShapeEditorStore.getState().session;
     const unsubscribe = useShapeEditorStore.subscribe((state) => {
       const session = state.session;
       if (prevSession && !session) {
-        clearSessionSnapCache();
+        clearSceneSnapCache();
       }
       prevSession = session;
     });
     return unsubscribe;
-  }, [clearSessionSnapCache]);
+  }, [clearSceneSnapCache]);
 
   useEffect(() => {
     const prevTool = prevToolRef.current;
@@ -517,7 +550,7 @@ export const useSelectMode = ({
       clearSelection();
       clearMarqueeState();
       
-      clearSessionSnapCache();
+      clearSceneSnapCache();
       marqueeBoundsRef.current = null;
       activeSnapGuidesRef.current = null;
       if (rafMoveIdRef.current !== null) {
@@ -530,7 +563,7 @@ export const useSelectMode = ({
     }
 
     prevToolRef.current = tool;
-  }, [clearSessionSnapCache, ctxRef, tool, setCursor, clearMarqueeState, marqueeBoundsRef]);
+  }, [clearSceneSnapCache, ctxRef, tool, setCursor, clearMarqueeState, marqueeBoundsRef]);
 
   useEffect(() => {
     const syncSelection = () => {

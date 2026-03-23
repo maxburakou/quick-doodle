@@ -2,9 +2,10 @@ import { Stroke, StrokePoint, Tool, TransformHandle } from "@/types";
 import {
   distance,
   getBoundsCenter,
-  getStrokeTransformBounds,
+  getStrokeBounds,
   getStrokeEndpoints,
   getStrokeRotation,
+  getStrokeTransformBounds,
   isEditableShapeTool,
   rotatePoint,
 } from "../core";
@@ -18,8 +19,14 @@ export interface TransformHandlePoint {
   point: StrokePoint;
 }
 
+export type TransformHandleMode = "transform" | "selection";
+
+const getHandleBounds = (stroke: Stroke, mode: TransformHandleMode) =>
+  mode === "transform" ? getStrokeTransformBounds(stroke) : getStrokeBounds(stroke);
+
 export const getStrokeTransformHandles = (
-  stroke: Stroke
+  stroke: Stroke,
+  mode: TransformHandleMode = "selection"
 ): TransformHandlePoint[] => {
   if (!isEditableShapeTool(stroke.tool)) return [];
   if (stroke.tool === Tool.Pen) return [];
@@ -55,7 +62,7 @@ export const getStrokeTransformHandles = (
     ];
   }
 
-  const bounds = getStrokeTransformBounds(stroke);
+  const bounds = getHandleBounds(stroke, mode);
   const center = getBoundsCenter(bounds);
   const rotation = getStrokeRotation(stroke);
 
@@ -155,9 +162,10 @@ export const getStrokeTransformHandles = (
 export const getHandleAtPointer = (
   stroke: Stroke,
   pointer: StrokePoint,
-  radius: number = HANDLE_RADIUS
+  radius: number = HANDLE_RADIUS,
+  mode: TransformHandleMode = "selection"
 ): TransformHandle | null => {
-  const handles = getStrokeTransformHandles(stroke);
+  const handles = getStrokeTransformHandles(stroke, mode);
 
   for (const { handle, point } of handles) {
     if (distance(pointer, point) <= radius) return handle;

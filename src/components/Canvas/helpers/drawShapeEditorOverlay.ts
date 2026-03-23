@@ -124,7 +124,7 @@ const drawTransformHandles = (
   stroke: Stroke,
   outlineColor: string
 ) => {
-  const handles = getStrokeTransformHandles(stroke);
+  const handles = getStrokeTransformHandles(stroke, "selection");
 
   handles.forEach(({ point, handle }) => {
     ctx.beginPath();
@@ -154,7 +154,7 @@ export const drawShapeEditorOverlay = (
   ctx.save();
   ctx.strokeStyle = outlineColor;
   ctx.lineWidth = outlineWidth;
-  ctx.setLineDash([4, 4]);
+  ctx.setLineDash([]);
 
   switch (stroke.tool) {
     case Tool.Pen: {
@@ -244,7 +244,7 @@ export const drawGroupSelectionOverlay = (
   }
   ctx.strokeStyle = outlineColor;
   ctx.lineWidth = outlineWidth;
-  ctx.setLineDash([6, 4]);
+  ctx.setLineDash([]);
   ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
 };
@@ -257,7 +257,7 @@ export const drawMarqueeOverlay = (
   ctx.strokeStyle = SELECTION_OUTLINE_COLOR;
   ctx.fillStyle = "rgba(15, 98, 254, 0.1)";
   ctx.lineWidth = SELECTION_OUTLINE_WIDTH;
-  ctx.setLineDash([4, 4]);
+  ctx.setLineDash([]);
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();

@@ -18,6 +18,7 @@ export {
 export {
   getStrokeTransformHandles,
   getHandleAtPointer,
+  type TransformHandleMode,
 } from "./selection/handles";
 export {
   hitTestStroke,
@@ -55,11 +56,17 @@ export {
   type AxisSnapLine,
   type AxisSnapResult,
   type SnapComputation,
+  type SnapSubject,
+  type InteractionSnapInput,
+  type InteractionSnapResult,
+  type MovingAnchorsSnapInput,
   type SnapSegment,
   isLineLikeSnapTool,
   isShapeBoxSnapTool,
+  getConstrainedShapeEndpoint,
   getStrokeSnapAnchors,
   getSceneSnapAnchors,
+  getSnapSubjectFromStroke,
   getStrokeSnapSegments,
   getSceneSnapSegments,
   getStrokeAxisSnapCandidates,
@@ -67,7 +74,6 @@ export {
   resolveNearestSnap,
   resolveNearestSegmentSnap,
   resolveNearestAxisSnap,
-  resolveMoveSnapPointer,
-  resolveLineEndpointSnap,
-  resolveShapeCreateEndpointSnap,
+  resolveSnapForMovingAnchors,
+  resolveSnapForInteraction,
 } from "./snap";
