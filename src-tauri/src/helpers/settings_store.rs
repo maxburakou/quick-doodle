@@ -37,6 +37,10 @@ pub fn load_settings(app: &AppHandle) -> Result<SettingsSnapshot, String> {
 			.get("theme")
 			.and_then(|value| serde_json::from_value(value).ok())
 			.unwrap_or(defaults.theme),
+		tray: store
+			.get("tray")
+			.and_then(|value| serde_json::from_value(value).ok())
+			.unwrap_or(defaults.tray),
 		shortcuts: store
 			.get("shortcuts")
 			.and_then(|value| serde_json::from_value(value).ok())
@@ -113,6 +117,7 @@ pub fn load_settings(app: &AppHandle) -> Result<SettingsSnapshot, String> {
 		|| !store.has("schema_version")
 		|| !store.has("autostart")
 		|| !store.has("theme")
+		|| !store.has("tray")
 		|| !store.has("shortcuts")
 	{
 		save_settings(app, &snapshot)?;
@@ -137,6 +142,10 @@ pub fn save_settings(app: &AppHandle, snapshot: &SettingsSnapshot) -> Result<(),
 	store.set(
 		"theme",
 		serde_json::to_value(&snapshot.theme).map_err(|err| err.to_string())?,
+	);
+	store.set(
+		"tray",
+		serde_json::to_value(&snapshot.tray).map_err(|err| err.to_string())?,
 	);
 	store.set(
 		"shortcuts",

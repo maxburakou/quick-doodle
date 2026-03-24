@@ -9,6 +9,8 @@ pub struct SettingsSnapshot {
 	pub autostart: AutostartSettings,
 	#[serde(default = "default_theme_settings")]
 	pub theme: ThemeSettings,
+	#[serde(default = "default_tray_settings")]
+	pub tray: TraySettings,
 	pub shortcuts: ShortcutsConfig,
 }
 
@@ -21,6 +23,20 @@ pub struct AutostartSettings {
 pub struct ThemeSettings {
 	#[serde(default)]
 	pub mode: ThemeMode,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TraySettings {
+	#[serde(default)]
+	pub inactive_click_action: TrayInactiveClickAction,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TrayInactiveClickAction {
+	#[default]
+	OpenPreviousCanvas,
+	OpenNewCanvas,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -134,12 +150,19 @@ fn default_theme_settings() -> ThemeSettings {
 	}
 }
 
+fn default_tray_settings() -> TraySettings {
+	TraySettings {
+		inactive_click_action: TrayInactiveClickAction::OpenPreviousCanvas,
+	}
+}
+
 impl SettingsSnapshot {
 	pub fn defaults() -> Self {
 		Self {
 			schema_version: SETTINGS_SCHEMA_VERSION,
 			autostart: AutostartSettings { enabled: false },
 			theme: default_theme_settings(),
+			tray: default_tray_settings(),
 			shortcuts: ShortcutsConfig {
 				policy: ShortcutPolicy {
 					conflicts: ConflictsPolicy {
@@ -281,5 +304,35 @@ impl SettingsSnapshot {
 				},
 			},
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use serde_json::Value;
+
+	#[test]
+	fn defaults_use_open_previous_canvas_for_inactive_tray_click() {
+		let snapshot = SettingsSnapshot::defaults();
+		assert_eq!(
+			snapshot.tray.inactive_click_action,
+			TrayInactiveClickAction::OpenPreviousCanvas
+		);
+	}
+
+	#[test]
+	fn legacy_snapshot_without_tray_uses_default_tray_settings() {
+		let mut value = serde_json::to_value(SettingsSnapshot::defaults()).expect("serialize defaults");
+
+		if let Value::Object(map) = &mut value {
+			map.remove("tray");
+		}
+
+		let parsed: SettingsSnapshot = serde_json::from_value(value).expect("deserialize snapshot");
+		assert_eq!(
+			parsed.tray.inactive_click_action,
+			TrayInactiveClickAction::OpenPreviousCanvas
+		);
 	}
 }

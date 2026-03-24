@@ -22,9 +22,9 @@ export const AutostartSection = () => {
       <h2 className="autostart-section__title">Startup</h2>
       <label className="autostart-section__row">
         <div className="autostart-section__copy">
-          <span className="autostart-section__label">Launch on system startup</span>
+          <span className="autostart-section__label">Launch on startup</span>
           <span className="autostart-section__description">
-            Start Quick Doodle automatically when you sign in.
+            Start Quick Doodle automatically when you sign in to your Mac.
           </span>
         </div>
         <input

@@ -21,6 +21,9 @@ export interface SettingsSnapshot {
   theme: {
     mode: "light" | "dark" | "system";
   };
+  tray: {
+    inactive_click_action: "open_previous_canvas" | "open_new_canvas";
+  };
   shortcuts: {
     policy: {
       conflicts: {

@@ -2,6 +2,7 @@ import { useSettingsStore } from "@/store";
 import { SHORTCUT_SECTIONS } from "../../constants/shortcutActions";
 import { ShortcutSection } from "../ShortcutSection";
 import { AutostartSection } from "../AutostartSection";
+import { TraySection } from "../TraySection";
 import "./styles.css";
 
 export const SettingsContent = () => {
@@ -23,6 +24,7 @@ export const SettingsContent = () => {
       <div className="settings-content__divider" />
 
       <AutostartSection />
+      <TraySection />
     </section>
   );
 };

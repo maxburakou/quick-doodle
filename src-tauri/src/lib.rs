@@ -15,7 +15,11 @@ use helpers::{
 	settings_store::load_settings,
 	shortcuts::{init_global_shortcuts, reapply_global_shortcuts_with_rollback},
 	shortcuts_runtime::{compile_shortcuts, CompiledShortcuts},
-	utils::{get_icon_path, handle_event, toggle_window, warm_tray_icon_cache, ToggleOutcome},
+	settings_types::TrayInactiveClickAction,
+	utils::{
+		get_icon_path, handle_event, is_main_open_blocked_by_settings, toggle_window,
+		warm_tray_icon_cache, ToggleOutcome,
+	},
 };
 use ids::{events, menu_ids};
 use log::warn;
@@ -28,6 +32,29 @@ use tauri::{
 };
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_store;
+
+fn handle_tray_left_click(app: &tauri::AppHandle) {
+	let window_state = app.state::<WindowState>();
+
+	if window_state.is_main_visible() {
+		let _ = toggle_window(app);
+		return;
+	}
+
+	let settings_state = app.state::<AppSettingsState>();
+	match settings_state.snapshot().tray.inactive_click_action {
+		TrayInactiveClickAction::OpenPreviousCanvas => {
+			let _ = toggle_window(app);
+		}
+		TrayInactiveClickAction::OpenNewCanvas => {
+			if is_main_open_blocked_by_settings(app) {
+				return;
+			}
+			handle_event(app, events::RESET_CANVAS);
+			let _ = toggle_window(app);
+		}
+	}
+}
 
 pub fn run() {
 	tauri::Builder::default()
@@ -120,7 +147,8 @@ pub fn run() {
 						..
 					} = event
 					{
-						let _ = toggle_window(&tray.app_handle());
+						let app = tray.app_handle();
+						handle_tray_left_click(&app);
 					}
 				})
 				.build(app)?;

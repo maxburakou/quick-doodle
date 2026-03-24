@@ -82,7 +82,8 @@ body {
   .shortcut-row__record-button,
   .shortcut-row__reset-button,
   .autostart-section__toggle,
-  .autostart-section__toggle::after {
+  .autostart-section__toggle::after,
+  .tray-section__radio-control {
     transition: none !important;
   }
 }
