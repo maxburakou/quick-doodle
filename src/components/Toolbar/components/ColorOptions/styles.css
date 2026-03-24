@@ -14,12 +14,10 @@
   background: var(--app-toolbar-control-bg);
   color: var(--app-text-primary);
   isolation: isolate;
-  outline: 2px solid transparent;
-  outline-offset: 1px;
   transition:
     background-color var(--app-duration-medium) var(--app-ease-standard),
     border-color var(--app-duration-medium) var(--app-ease-standard),
-    outline-color var(--app-duration-medium) var(--app-ease-standard);
+    box-shadow var(--app-duration-medium) var(--app-ease-standard);
   position: relative;
   border-color: rgba(15, 23, 42, 0.28);
 }
@@ -34,7 +32,7 @@
 }
 
 .options-button.--active {
-  outline-color: var(--app-accent);
+  box-shadow: 0 0 0 1.5px var(--app-accent);
 }
 
 .color-button {
