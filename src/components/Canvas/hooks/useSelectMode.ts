@@ -23,6 +23,7 @@ import {
 import { SNAP_DISTANCE_PX } from "@/config/snapConfig";
 
 import { useMarqueeSelection } from "./useMarqueeSelection";
+import { MarqueeOverlayApi } from "./useMarqueeOverlayController";
 import { useSelectModeOverlay } from "./useSelectModeOverlay";
 import { useSceneSnapContext } from "./useSceneSnapContext";
 
@@ -30,6 +31,7 @@ const TEXT_EDIT_SECOND_CLICK_INTERVAL_MS = 400;
 
 interface UseSelectModeParams {
   ctxRef: React.MutableRefObject<CanvasRenderingContext2D | null>;
+  marqueeOverlay: MarqueeOverlayApi;
 }
 
 export const getSelectionSnapshot = () => {
@@ -60,6 +62,7 @@ export const getSelectionSnapshot = () => {
 
 export const useSelectMode = ({
   ctxRef,
+  marqueeOverlay,
 }: UseSelectModeParams) => {
   const tool = useToolStore((state) => state.tool);
   const setTool = useToolStore((state) => state.setTool);
@@ -72,8 +75,7 @@ export const useSelectMode = ({
   const rafMoveIdRef = useRef<number | null>(null);
   const activeSnapGuidesRef = useRef<SnapGuidesRenderData | null>(null);
   const cursorRef = useRef<React.CSSProperties["cursor"]>("default");
-  
-  const marqueeBoundsRef = useRef(null);
+
   const renderOverlayRef = useRef<() => void>(() => {});
   const {
     getSceneSnapContext: getSceneSnapData,
@@ -96,7 +98,6 @@ export const useSelectMode = ({
     ctxRef,
     tool,
     isSnapEnabled,
-    marqueeBoundsRef,
     activeSnapGuidesRef,
     renderOverlayRef,
   });
@@ -109,10 +110,8 @@ export const useSelectMode = ({
     clearMarqueeState,
   } = useMarqueeSelection({
     clearSessionSnapCache: clearSceneSnapCache,
-    marqueeBoundsRef,
-    activeSnapGuidesRef,
     setCursor,
-    renderOverlay: () => renderOverlayRef.current(),
+    marqueeOverlay,
   });
 
   const handlePointerDown = useCallback(
@@ -424,7 +423,7 @@ export const useSelectMode = ({
       clearMarqueeState();
       
       clearSceneSnapCache();
-      marqueeBoundsRef.current = null;
+      marqueeOverlay.clear();
       activeSnapGuidesRef.current = null;
       if (rafMoveIdRef.current !== null) {
         window.cancelAnimationFrame(rafMoveIdRef.current);
@@ -436,7 +435,7 @@ export const useSelectMode = ({
     }
 
     prevToolRef.current = tool;
-  }, [clearSceneSnapCache, ctxRef, tool, setCursor, clearMarqueeState, marqueeBoundsRef]);
+  }, [clearSceneSnapCache, ctxRef, marqueeOverlay, tool, setCursor, clearMarqueeState]);
 
   useEffect(() => {
     const syncSelection = () => {
@@ -491,6 +490,11 @@ export const useSelectMode = ({
       handlePointerUp,
       handlePointerLeave,
     }),
-    [handlePointerDown, handlePointerMove, handlePointerUp, handlePointerLeave]
+    [
+      handlePointerDown,
+      handlePointerMove,
+      handlePointerUp,
+      handlePointerLeave,
+    ]
   );
 };

@@ -4,6 +4,7 @@ import { useToolStore } from "@/store";
 import {
   useCanvasScaleSetup,
   useDrawMode,
+  useMarqueeOverlayController,
   usePointerEvents,
   useSelectionSettingsController,
   useSelectMode,
@@ -12,6 +13,7 @@ import {
 import { CanvasPointerPayload } from "./hooks/types";
 import "./styles.css";
 import { BackgroundCanvas } from "./BackgroundCanvas";
+import { MarqueeOverlay } from "./MarqueeOverlay";
 
 const getPointerPayloadFromEvent = (
   e?: React.PointerEvent<HTMLCanvasElement>
@@ -29,13 +31,14 @@ export const Canvas: React.FC = () => {
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
   const tool = useToolStore((state) => state.tool);
+  const marqueeOverlay = useMarqueeOverlayController();
 
   useShortcuts();
   useCanvasScaleSetup(canvasRef, ctxRef);
   useSelectionSettingsController();
 
   const drawMode = useDrawMode({ ctxRef });
-  const selectMode = useSelectMode({ ctxRef });
+  const selectMode = useSelectMode({ ctxRef, marqueeOverlay: marqueeOverlay.overlayApi });
 
   const {
     cursor: selectCursor,
@@ -84,6 +87,11 @@ export const Canvas: React.FC = () => {
         onPointerLeave={handleSelectPointerLeave}
       />
       <BackgroundCanvas />
+      <MarqueeOverlay
+        isVisible={tool === Tool.Select}
+        bounds={marqueeOverlay.bounds}
+        isActive={marqueeOverlay.isActive}
+      />
     </section>
   );
 };

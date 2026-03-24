@@ -1,0 +1,32 @@
+.marquee-overlay-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.marquee-overlay-box {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border: 1px solid var(--app-accent);
+  background: color-mix(in srgb, var(--app-accent) 6%, transparent);
+  box-sizing: border-box;
+  opacity: 0;
+  visibility: visible;
+  transition: opacity var(--app-duration-medium) var(--app-ease-out);
+  will-change: transform, opacity;
+}
+.marquee-overlay-box {
+  opacity: 0;
+}
+
+.marquee-overlay-box.--active {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-overlay-box {
+    transition: none;
+  }
+}

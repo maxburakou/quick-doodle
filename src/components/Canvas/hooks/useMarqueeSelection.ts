@@ -3,7 +3,6 @@ import { ShapeBounds, Stroke, StrokePoint } from "@/types";
 import { useShapeEditorStore } from "@/store/useShapeEditorStore";
 import { useHistoryStore } from "@/store/useHistoryStore";
 import { strokeIntersectsMarquee } from "@/store/useShapeEditorStore/helpers";
-import type { SnapGuidesRenderData } from "../helpers/drawSnapMarker";
 
 const MARQUEE_DRAG_THRESHOLD = 3;
 
@@ -24,22 +23,26 @@ export const getStrokesInMarquee = (strokes: Stroke[], marqueeBounds: ShapeBound
 
 interface UseMarqueeSelectionParams {
   clearSessionSnapCache: () => void;
-  marqueeBoundsRef: React.MutableRefObject<ShapeBounds | null>;
-  activeSnapGuidesRef: React.MutableRefObject<SnapGuidesRenderData | null>;
   setCursor: (cursor: React.CSSProperties["cursor"]) => void;
-  renderOverlay: () => void;
+  marqueeOverlay: {
+    setActiveBounds: (bounds: ShapeBounds | null) => void;
+    fadeOutBounds: (bounds: ShapeBounds) => void;
+    clear: () => void;
+  };
 }
 
 export const useMarqueeSelection = ({
   clearSessionSnapCache,
-  marqueeBoundsRef,
-  activeSnapGuidesRef,
   setCursor,
-  renderOverlay,
+  marqueeOverlay,
 }: UseMarqueeSelectionParams) => {
   const marqueeStartRef = useRef<StrokePoint | null>(null);
   const marqueeShiftRef = useRef(false);
   const marqueeActiveRef = useRef(false);
+
+  const resetMarqueeOverlay = useCallback(() => {
+    marqueeOverlay.clear();
+  }, [marqueeOverlay]);
 
   const startMarqueeSelection = useCallback(
     (point: StrokePoint, shiftKey: boolean) => {
@@ -47,12 +50,14 @@ export const useMarqueeSelection = ({
       marqueeStartRef.current = point;
       marqueeShiftRef.current = shiftKey;
       marqueeActiveRef.current = false;
-      marqueeBoundsRef.current = null;
-      activeSnapGuidesRef.current = null;
+      resetMarqueeOverlay();
       setCursor("default");
-      renderOverlay();
     },
-    [clearSessionSnapCache, setCursor, renderOverlay, marqueeBoundsRef, activeSnapGuidesRef]
+    [
+      clearSessionSnapCache,
+      resetMarqueeOverlay,
+      setCursor,
+    ]
   );
 
   const processMarqueeMove = useCallback(
@@ -67,14 +72,11 @@ export const useMarqueeSelection = ({
       }
 
       if (marqueeActiveRef.current) {
-        marqueeBoundsRef.current = normalizeMarqueeBounds(start, point);
-        setCursor("crosshair");
+        marqueeOverlay.setActiveBounds(normalizeMarqueeBounds(start, point));
       }
-      activeSnapGuidesRef.current = null;
-      renderOverlay();
       return true; 
     },
-    [setCursor, renderOverlay, marqueeBoundsRef, activeSnapGuidesRef]
+    [marqueeOverlay]
   );
 
   const finalizeMarquee = useCallback(
@@ -87,12 +89,14 @@ export const useMarqueeSelection = ({
       const { clearSelection, setSelection } = useShapeEditorStore.getState();
 
       const shouldApplyMarquee = marqueeActiveRef.current;
+      let finalBounds: ShapeBounds | null = null;
       if (!shouldApplyMarquee) {
         if (!marqueeShiftRef.current) {
           clearSelection();
         }
       } else {
         const bounds = normalizeMarqueeBounds(start, pointer);
+        finalBounds = bounds;
         const hitIds = getStrokesInMarquee(present, bounds);
         if (marqueeShiftRef.current) {
           const nextSelection = Array.from(new Set([...selectedStrokeIds, ...hitIds]));
@@ -106,23 +110,29 @@ export const useMarqueeSelection = ({
       marqueeActiveRef.current = false;
       marqueeShiftRef.current = false;
       clearSessionSnapCache();
-      marqueeBoundsRef.current = null;
-      activeSnapGuidesRef.current = null;
-      renderOverlay();
+      if (finalBounds) {
+        marqueeOverlay.fadeOutBounds(finalBounds);
+      } else {
+        resetMarqueeOverlay();
+      }
       return true; 
     },
-    [clearSessionSnapCache, renderOverlay, marqueeBoundsRef, activeSnapGuidesRef]
+    [
+      clearSessionSnapCache,
+      marqueeOverlay,
+      resetMarqueeOverlay,
+    ]
   );
 
   const clearMarqueeState = useCallback(() => {
     marqueeStartRef.current = null;
     marqueeActiveRef.current = false;
     marqueeShiftRef.current = false;
-  }, []);
+    resetMarqueeOverlay();
+  }, [resetMarqueeOverlay]);
 
   return {
     marqueeStartRef,
-    marqueeActiveRef,
     startMarqueeSelection,
     processMarqueeMove,
     finalizeMarquee,

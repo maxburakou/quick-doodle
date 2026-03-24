@@ -11,7 +11,6 @@ export { drawSnapGuides } from "./drawSnapMarker";
 export {
   drawShapeEditorOverlay,
   drawGroupSelectionOverlay,
-  drawMarqueeOverlay,
 } from "./drawShapeEditorOverlay";
 export {
   getCursorByHandle,

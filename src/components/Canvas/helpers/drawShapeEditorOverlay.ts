@@ -248,17 +248,3 @@ export const drawGroupSelectionOverlay = (
   ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
 };
-
-export const drawMarqueeOverlay = (
-  ctx: CanvasRenderingContext2D,
-  bounds: ShapeBounds
-) => {
-  ctx.save();
-  ctx.strokeStyle = SELECTION_OUTLINE_COLOR;
-  ctx.fillStyle = "rgba(15, 98, 254, 0.1)";
-  ctx.lineWidth = SELECTION_OUTLINE_WIDTH;
-  ctx.setLineDash([]);
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
-};

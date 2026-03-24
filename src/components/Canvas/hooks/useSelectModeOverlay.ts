@@ -2,13 +2,12 @@ import { useEffect } from "react";
 import { useShapeEditorStore } from "@/store/useShapeEditorStore";
 import { useHistoryStore } from "@/store/useHistoryStore";
 import { useTextEditorStore } from "@/store/useTextEditorStore";
-import { Tool, ShapeBounds } from "@/types";
+import { Tool } from "@/types";
 import { SnapGuidesRenderData } from "../helpers/drawSnapMarker";
 import {
   clearCanvas,
   drawSnapGuides,
   drawGroupSelectionOverlay,
-  drawMarqueeOverlay,
   drawShapeEditorOverlay,
 } from "../helpers";
 import { drawStrokes, getTransformLayerFromSession } from "../utils";
@@ -17,7 +16,6 @@ interface UseSelectModeOverlayParams {
   ctxRef: React.MutableRefObject<CanvasRenderingContext2D | null>;
   tool: Tool;
   isSnapEnabled: boolean;
-  marqueeBoundsRef: React.MutableRefObject<ShapeBounds | null>;
   activeSnapGuidesRef: React.MutableRefObject<SnapGuidesRenderData | null>;
   renderOverlayRef: React.MutableRefObject<() => void>;
 }
@@ -26,7 +24,6 @@ export const useSelectModeOverlay = ({
   ctxRef,
   tool,
   isSnapEnabled,
-  marqueeBoundsRef,
   activeSnapGuidesRef,
   renderOverlayRef,
 }: UseSelectModeOverlayParams) => {
@@ -79,10 +76,6 @@ export const useSelectModeOverlay = ({
         drawShapeEditorOverlay(ctx, primarySelectedStroke);
       }
 
-      if (marqueeBoundsRef.current) {
-        drawMarqueeOverlay(ctx, marqueeBoundsRef.current);
-      }
-
       if (isSnapEnabled && activeSnapGuidesRef.current) {
         drawSnapGuides(ctx, activeSnapGuidesRef.current);
       }
@@ -103,7 +96,6 @@ export const useSelectModeOverlay = ({
     textEditorMode,
     tool,
     renderOverlayRef,
-    marqueeBoundsRef,
     activeSnapGuidesRef,
   ]);
 };
