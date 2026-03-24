@@ -518,20 +518,44 @@ const resolveInteractionSnapCore = ({
   snapDistance,
   axisSnapDistance,
 }: InteractionSnapCoreInput): InteractionSnapCoreResult => {
+  const resolveAxisGuideForDelta = (
+    deltaX: number,
+    deltaY: number,
+    basePoint: StrokePoint
+  ): AxisSnapResult | null => {
+    const shiftedAnchors = movingAnchors.map((anchor) => ({
+      x: anchor.x + deltaX,
+      y: anchor.y + deltaY,
+    }));
+
+    return resolveNearestAxisSnap(
+      shiftedAnchors,
+      sceneContext.axisCandidates ?? [],
+      basePoint,
+      axisSnapDistance
+    );
+  };
+
   const pointSnap = resolveTranslationSnap(
     movingAnchors,
     sceneContext.anchors,
     snapDistance
   );
   if (pointSnap) {
+    const snappedPointer = {
+      ...rawPointer,
+      x: rawPointer.x + pointSnap.delta.x,
+      y: rawPointer.y + pointSnap.delta.y,
+    };
+
     return {
-      snappedPointer: {
-        ...rawPointer,
-        x: rawPointer.x + pointSnap.delta.x,
-        y: rawPointer.y + pointSnap.delta.y,
-      },
+      snappedPointer,
       pointGuide: pointSnap.pointTarget,
-      axisGuide: null,
+      axisGuide: resolveAxisGuideForDelta(
+        pointSnap.delta.x,
+        pointSnap.delta.y,
+        snappedPointer
+      ),
     };
   }
 
@@ -541,14 +565,20 @@ const resolveInteractionSnapCore = ({
     snapDistance
   );
   if (segmentSnap) {
+    const snappedPointer = {
+      ...rawPointer,
+      x: rawPointer.x + segmentSnap.delta.x,
+      y: rawPointer.y + segmentSnap.delta.y,
+    };
+
     return {
-      snappedPointer: {
-        ...rawPointer,
-        x: rawPointer.x + segmentSnap.delta.x,
-        y: rawPointer.y + segmentSnap.delta.y,
-      },
+      snappedPointer,
       pointGuide: segmentSnap.pointTarget,
-      axisGuide: null,
+      axisGuide: resolveAxisGuideForDelta(
+        segmentSnap.delta.x,
+        segmentSnap.delta.y,
+        snappedPointer
+      ),
     };
   }
 

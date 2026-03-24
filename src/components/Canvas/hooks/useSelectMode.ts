@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { Tool } from "@/types";
+import { Stroke, Tool } from "@/types";
 import { useSnapStore, useToolStore } from "@/store";
 import { useHistoryStore } from "@/store/useHistoryStore";
 import { useShapeEditorStore } from "@/store/useShapeEditorStore";
@@ -28,6 +28,19 @@ import { useSelectModeOverlay } from "./useSelectModeOverlay";
 import { useSceneSnapContext } from "./useSceneSnapContext";
 
 const TEXT_EDIT_SECOND_CLICK_INTERVAL_MS = 400;
+const MOVE_MID_ANCHOR_EXCLUDED_TOOLS = new Set<Tool>([
+  Tool.Arrow,
+  Tool.Line,
+  Tool.Highlighter,
+]);
+
+const getMoveDrivingAnchors = (stroke: Stroke) => {
+  const isMidAnchorExcluded = MOVE_MID_ANCHOR_EXCLUDED_TOOLS.has(stroke.tool);
+
+  return getStrokeSnapAnchors(stroke)
+    .filter((anchor) => !(isMidAnchorExcluded && anchor.kind === "lineMid"))
+    .map((anchor) => ({ x: anchor.x, y: anchor.y }));
+};
 
 interface UseSelectModeParams {
   ctxRef: React.MutableRefObject<CanvasRenderingContext2D | null>;
@@ -224,7 +237,7 @@ export const useSelectMode = ({
         if (isSnapEnabled && session.handle !== "rotate") {
           const { anchors, segments, axisCandidates } = getSceneSnapData();
           if (session.handle === "move") {
-            const movingAnchors = getStrokeSnapAnchors(session.initialStroke);
+            const movingAnchors = getMoveDrivingAnchors(session.initialStroke);
             const snap = resolveSnapForMovingAnchors({
               rawPointer: point,
               startPointer: session.startPointer,
