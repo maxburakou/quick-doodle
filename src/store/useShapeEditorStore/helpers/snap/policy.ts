@@ -104,12 +104,21 @@ export const shouldDisableSelectSnap = (
 };
 
 export const resolveSelectResizeSceneSnapPolicy = (
-  handle: TransformHandle
+  handle: TransformHandle,
+  tool: Tool
 ): SelectResizeSceneSnapPolicy => {
   if (SIDE_RESIZE_HANDLES.has(handle)) {
     return {
       includeAnchors: false,
       includeSegments: false,
+      includeAxisCandidates: true,
+    };
+  }
+
+  if (isLineLikeGeometryTool(tool)) {
+    return {
+      includeAnchors: true,
+      includeSegments: true,
       includeAxisCandidates: true,
     };
   }

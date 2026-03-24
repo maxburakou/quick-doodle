@@ -279,7 +279,10 @@ export const useSelectMode = ({
               axisGuides: snap.axisSnap,
             };
           } else {
-            const resizeSnapPolicy = resolveSelectResizeSceneSnapPolicy(session.handle);
+            const resizeSnapPolicy = resolveSelectResizeSceneSnapPolicy(
+              session.handle,
+              session.initialStroke.tool
+            );
             const resizeSceneContext = {
               anchors: resizeSnapPolicy.includeAnchors ? anchors : [],
               segments: resizeSnapPolicy.includeSegments ? segments : [],
