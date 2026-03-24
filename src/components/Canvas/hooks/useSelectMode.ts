@@ -13,13 +13,15 @@ import type { SnapGuidesRenderData } from "../helpers/drawSnapMarker";
 import { CanvasPointerPayload } from "./types";
 import { enterTextEdit } from "../utils/enterTextEdit";
 import {
+  applySelectResizeGuidePolicy,
   applySessionTransform,
   getGroupBoundsAnchors,
   getStrokeSnapAnchors,
   pickResizeDrivingAnchors,
+  resolveSelectResizeSceneSnapPolicy,
+  resolveSnapInteractionPolicy,
   resolveSnapForMovingAnchors,
   resolveSnapForInteraction,
-  shouldDisableSelectSnap,
 } from "@/store/useShapeEditorStore/helpers";
 import { SNAP_DISTANCE_PX } from "@/config/snapConfig";
 
@@ -240,7 +242,13 @@ export const useSelectMode = ({
 
       if (session?.type === "single") {
         if (isSnapEnabled && session.handle !== "rotate") {
-          if (shouldDisableSelectSnap(session.initialStroke.tool, session.handle, shiftKey)) {
+          const policy = resolveSnapInteractionPolicy({
+            mode: "select",
+            tool: session.initialStroke.tool,
+            handle: session.handle,
+            shiftKey,
+          });
+          if (policy.snapDisabled) {
             updateTransform(point, { shiftKey });
             activeSnapGuidesRef.current = null;
             setCursor(
@@ -263,6 +271,7 @@ export const useSelectMode = ({
                 axisCandidates,
               },
               snapDistance: SNAP_DISTANCE_PX,
+              axisSnapDistance: SNAP_DISTANCE_PX,
             });
             updateTransform(snap.point, { shiftKey });
             activeSnapGuidesRef.current = {
@@ -270,23 +279,34 @@ export const useSelectMode = ({
               axisGuides: snap.axisSnap,
             };
           } else {
+            const resizeSnapPolicy = resolveSelectResizeSceneSnapPolicy(session.handle);
+            const resizeSceneContext = {
+              anchors: resizeSnapPolicy.includeAnchors ? anchors : [],
+              segments: resizeSnapPolicy.includeSegments ? segments : [],
+              axisCandidates: resizeSnapPolicy.includeAxisCandidates
+                ? axisCandidates
+                : [],
+            };
             const snap = resolveSnapForInteraction({
               rawPointer: point,
-              sceneContext: {
-                anchors,
-                segments,
-                axisCandidates,
-              },
+              sceneContext: resizeSceneContext,
               buildDraftStroke: (rawPointer) =>
                 applySessionTransform(session, rawPointer, shiftKey),
               drivingAnchorSelector: (draftSubject) =>
                 pickResizeDrivingAnchors(draftSubject, session.handle),
               snapDistance: SNAP_DISTANCE_PX,
+              axisSnapDistance: SNAP_DISTANCE_PX,
             });
-            updateTransform(snap.snappedPointer, { shiftKey });
+            const axisFiltered = applySelectResizeGuidePolicy(
+              session.handle,
+              point,
+              snap.snappedPointer,
+              snap.axisGuide
+            );
+            updateTransform(axisFiltered.snappedPoint, { shiftKey });
             activeSnapGuidesRef.current = {
               pointGuide: snap.pointGuide,
-              axisGuides: snap.axisGuide,
+              axisGuides: axisFiltered.axisGuide,
             };
           }
         } else {
@@ -324,6 +344,7 @@ export const useSelectMode = ({
                 axisCandidates,
               },
               snapDistance: SNAP_DISTANCE_PX,
+              axisSnapDistance: SNAP_DISTANCE_PX,
             });
             updateGroupMove(snap.point);
             activeSnapGuidesRef.current = {

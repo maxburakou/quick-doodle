@@ -51,7 +51,15 @@ export {
 } from "./transform";
 
 export {
+  applySelectResizeGuidePolicy,
+  resolveSelectResizeSceneSnapPolicy,
+  resolveSnapInteractionPolicy,
+  type SnapAxis,
   shouldApplyAxisConstraint,
+  type SnapInteractionMode,
+  type SnapPolicyDecision,
+  type SelectResizeGuidePolicyResult,
+  type SelectResizeSceneSnapPolicy,
   type AxisSnapLine,
   type AxisSnapResult,
   type SnapComputation,

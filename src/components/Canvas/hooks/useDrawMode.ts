@@ -12,9 +12,8 @@ import {
   pickEllipseCardinalAnchors,
   pickLineLikeEndpointAnchors,
   pickRectangleCornerAnchors,
-  shouldApplyAxisConstraint,
-  shouldDisableDrawSnap,
   isShapeBoxSnapTool,
+  resolveSnapInteractionPolicy,
   resolveSnapForInteraction,
 } from "@/store/useShapeEditorStore/helpers";
 import { SNAP_DISTANCE_PX } from "@/config/snapConfig";
@@ -83,6 +82,9 @@ const pickDrawDrivingAnchors = (
     draftSubject.stroke.tool === Tool.Highlighter
   ) {
     const lineLikeAnchors = pickLineLikeEndpointAnchors(draftSubject.stroke);
+    // During draw, only the active endpoint should drive snap for line-like tools.
+    // Using both endpoints causes unstable axis hints near center alignments.
+    if (lineLikeAnchors.length > 1) return [lineLikeAnchors[1]];
     if (lineLikeAnchors.length > 0) return lineLikeAnchors;
   }
   if (draftSubject.stroke.tool === Tool.Rectangle) {
@@ -119,11 +121,6 @@ export const useDrawMode = ({
     autoPrecomputeExcludedIds: EMPTY_EXCLUDED_IDS,
   });
 
-  const getAxisConstrainState = useCallback(
-    (shiftKey: boolean) => shouldApplyAxisConstraint(tool, shiftKey),
-    [tool]
-  );
-
   const resolveCreateSnap = useCallback(
     (point: StrokePoint, shiftKey: boolean): SnapPreview => {
       if (!isSnapEnabled) {
@@ -137,7 +134,12 @@ export const useDrawMode = ({
       if (!isLineLikeSnapTool(tool) && !isShapeBoxSnapTool(tool)) {
         return { point, pointTarget: null, axisSnap: null };
       }
-      if (shouldDisableDrawSnap(tool, shiftKey)) {
+      const policy = resolveSnapInteractionPolicy({
+        mode: "draw",
+        tool,
+        shiftKey,
+      });
+      if (policy.snapDisabled) {
         if (!isShapeBoxSnapTool(tool)) {
           return { point, pointTarget: null, axisSnap: null };
         }
@@ -183,7 +185,6 @@ export const useDrawMode = ({
       };
     },
     [
-      getAxisConstrainState,
       getSceneSnapContext,
       isSnapEnabled,
       tool,
@@ -200,7 +201,12 @@ export const useDrawMode = ({
 
       const endpointCandidate = finalizedPoints[finalizedPoints.length - 1];
       const startPoint = finalizedPoints[0];
-      if (shouldDisableDrawSnap(tool, shiftKey)) {
+      const policy = resolveSnapInteractionPolicy({
+        mode: "draw",
+        tool,
+        shiftKey,
+      });
+      if (policy.snapDisabled) {
         if (!isShapeBoxSnapTool(tool)) {
           return finalizedPoints;
         }
@@ -256,7 +262,6 @@ export const useDrawMode = ({
       ];
     },
     [
-      getAxisConstrainState,
       getSceneSnapContext,
       isSnapEnabled,
       tool,
@@ -299,7 +304,11 @@ export const useDrawMode = ({
     ({ point, shiftKey }: CanvasPointerPayload) => {
       if (!isDrawingRef.current) return;
       const { color, thickness, shapeFill } = getToolSettings();
-      const isAxisConstrained = getAxisConstrainState(shiftKey);
+      const policy = resolveSnapInteractionPolicy({
+        mode: "draw",
+        tool,
+        shiftKey,
+      });
 
       const snap = resolveCreateSnap(point, shiftKey);
       pointsRef.current.push(snap.point);
@@ -311,7 +320,7 @@ export const useDrawMode = ({
         thickness,
         tool,
         drawableSeed: drawableSeedRef.current,
-        isShiftPressed: isAxisConstrained,
+        isShiftPressed: policy.axisConstraintActive,
         shapeFill: getShapeFillData(color, shapeFill, tool),
       };
 
@@ -323,7 +332,6 @@ export const useDrawMode = ({
     },
     [
       ctxRef,
-      getAxisConstrainState,
       resolveCreateSnap,
       tool,
     ]
@@ -358,14 +366,18 @@ export const useDrawMode = ({
       flushPendingMove();
       if (!isDrawingRef.current) return;
       const { color, thickness, shapeFill } = getToolSettings();
-      const isAxisConstrained = getAxisConstrainState(shiftKey);
+      const policy = resolveSnapInteractionPolicy({
+        mode: "draw",
+        tool,
+        shiftKey,
+      });
 
       stopDrawing();
 
       let finalizedPoints = finalizeStrokePoints(
         pointsRef.current,
         tool,
-        isAxisConstrained
+        policy.axisConstraintActive
       );
       finalizedPoints = withSnappedEndpoint(finalizedPoints, shiftKey);
 
@@ -387,7 +399,6 @@ export const useDrawMode = ({
     [
       ctxRef,
       flushPendingMove,
-      getAxisConstrainState,
       tool,
       withSnappedEndpoint,
     ]

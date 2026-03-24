@@ -19,10 +19,20 @@ import {
 } from "./geometry";
 export { getStrokeSnapSegments, getSceneSnapSegments } from "./geometry";
 export {
+  applySelectResizeGuidePolicy,
+  resolveSelectResizeSceneSnapPolicy,
+  resolveSnapInteractionPolicy,
   shouldApplyAxisConstraint,
   shouldDisableDrawSnap,
   shouldDisableSelectSnap,
   shouldDisableResizeSnap,
+} from "./policy";
+export type {
+  SnapAxis,
+  SnapInteractionMode,
+  SnapPolicyDecision,
+  SelectResizeGuidePolicyResult,
+  SelectResizeSceneSnapPolicy,
 } from "./policy";
 export {
   getGroupBoundsAnchors,

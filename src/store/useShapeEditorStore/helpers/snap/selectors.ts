@@ -176,6 +176,23 @@ export const pickResizeDrivingAnchors = (
     return worldAnchors;
   }
 
+  if (
+    worldAnchors.length <= 4 &&
+    (handle === "n" || handle === "s" || handle === "w" || handle === "e")
+  ) {
+    const byPrimaryAxis = [...localPairs].sort((a, b) => {
+      if (handle === "n" || handle === "s") {
+        return handle === "n" ? a.local.y - b.local.y : b.local.y - a.local.y;
+      }
+      return handle === "w" ? a.local.x - b.local.x : b.local.x - a.local.x;
+    });
+
+    const sidePairs = byPrimaryAxis.slice(0, 2);
+    if (sidePairs.length > 0) {
+      return sidePairs.map((pair) => pair.world);
+    }
+  }
+
   if (handle === "nw" || handle === "ne" || handle === "sw" || handle === "se") {
     const closest = localPairs.reduce((best, current) => {
       if (!best) return current;
