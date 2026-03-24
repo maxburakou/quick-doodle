@@ -37,10 +37,8 @@ export {
 export {
   getToolProfile,
   isLineLikeGeometryTool,
-  getAxisConstrainedByShift,
   type ToolProfile,
   type ToolGeometryMode,
-  type AxisConstraintMode,
 } from "./toolProfile";
 
 export {
@@ -53,6 +51,7 @@ export {
 } from "./transform";
 
 export {
+  shouldApplyAxisConstraint,
   type AxisSnapLine,
   type AxisSnapResult,
   type SnapComputation,
@@ -71,7 +70,14 @@ export {
   getSceneSnapSegments,
   getStrokeAxisSnapCandidates,
   getSceneAxisSnapCandidates,
+  shouldDisableDrawSnap,
+  shouldDisableSelectSnap,
+  shouldDisableResizeSnap,
   getGroupBoundsAnchors,
+  pickDiamondCornerAnchors,
+  pickEllipseCardinalAnchors,
+  pickLineLikeEndpointAnchors,
+  pickRectangleCornerAnchors,
   pickResizeDrivingAnchors,
   resolveNearestSnap,
   resolveNearestSegmentSnap,

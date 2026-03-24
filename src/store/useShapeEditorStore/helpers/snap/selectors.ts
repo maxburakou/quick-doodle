@@ -5,6 +5,7 @@ import {
   getStrokeRotation,
   getStrokeTransformBounds,
   inverseRotatePoint,
+  rotatePoint,
 } from "../core";
 import type { PointLike, SnapSegment } from "./geometry";
 
@@ -48,6 +49,55 @@ export const getGroupBoundsAnchors = (strokes: Stroke[]): PointLike[] => {
   ];
 };
 
+const getRotatedBoxCornerAnchors = (stroke: Stroke): PointLike[] => {
+  const bounds = getStrokeTransformBounds(stroke);
+  const center = {
+    x: bounds.x + bounds.width / 2,
+    y: bounds.y + bounds.height / 2,
+  };
+  const rotation = getStrokeRotation(stroke);
+  const halfWidth = bounds.width / 2;
+  const halfHeight = bounds.height / 2;
+
+  return [
+    { x: center.x - halfWidth, y: center.y - halfHeight },
+    { x: center.x + halfWidth, y: center.y - halfHeight },
+    { x: center.x + halfWidth, y: center.y + halfHeight },
+    { x: center.x - halfWidth, y: center.y + halfHeight },
+  ].map((point) => rotatePoint(point, center, rotation));
+};
+
+export const pickEllipseCardinalAnchors = (stroke: Stroke): PointLike[] => {
+  if (stroke.tool !== Tool.Ellipse) return [];
+  return getRotatedBoxCornerAnchors(stroke);
+};
+
+export const pickRectangleCornerAnchors = (stroke: Stroke): PointLike[] => {
+  if (stroke.tool !== Tool.Rectangle) return [];
+  return getRotatedBoxCornerAnchors(stroke);
+};
+
+export const pickDiamondCornerAnchors = (stroke: Stroke): PointLike[] => {
+  if (stroke.tool !== Tool.Diamond) return [];
+  return getRotatedBoxCornerAnchors(stroke);
+};
+
+export const pickLineLikeEndpointAnchors = (stroke: Stroke): PointLike[] => {
+  if (
+    stroke.tool !== Tool.Line &&
+    stroke.tool !== Tool.Arrow &&
+    stroke.tool !== Tool.Highlighter
+  ) {
+    return [];
+  }
+
+  const [start, end] = getStrokeEndpoints(stroke);
+  return [
+    { x: start.x, y: start.y },
+    { x: end.x, y: end.y },
+  ];
+};
+
 export const pickResizeDrivingAnchors = (
   subject: ResizeAnchorSubject,
   handle: TransformHandle
@@ -65,10 +115,17 @@ export const pickResizeDrivingAnchors = (
     const [start, end] = getStrokeEndpoints(subject.stroke);
     if (handle === "nw") return [{ x: start.x, y: start.y }];
     if (handle === "se") return [{ x: end.x, y: end.y }];
-    return subject.anchors.map((anchor) => ({ x: anchor.x, y: anchor.y }));
+    return pickLineLikeEndpointAnchors(subject.stroke);
   }
 
-  const worldAnchors = subject.anchors.map((anchor) => ({ x: anchor.x, y: anchor.y }));
+  const worldAnchors =
+    subject.stroke.tool === Tool.Rectangle
+      ? pickRectangleCornerAnchors(subject.stroke)
+      : subject.stroke.tool === Tool.Ellipse
+        ? pickEllipseCardinalAnchors(subject.stroke)
+        : subject.stroke.tool === Tool.Diamond
+          ? pickDiamondCornerAnchors(subject.stroke)
+          : subject.anchors.map((anchor) => ({ x: anchor.x, y: anchor.y }));
   if (worldAnchors.length === 0) return [];
 
   const transformBounds = getStrokeTransformBounds(subject.stroke);

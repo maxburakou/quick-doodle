@@ -19,6 +19,7 @@ import {
   pickResizeDrivingAnchors,
   resolveSnapForMovingAnchors,
   resolveSnapForInteraction,
+  shouldDisableSelectSnap,
 } from "@/store/useShapeEditorStore/helpers";
 import { SNAP_DISTANCE_PX } from "@/config/snapConfig";
 
@@ -155,7 +156,11 @@ export const useSelectMode = ({
       }
 
       const { targetStroke, nextHandle, targetKind, isBodyHit } = targetResult;
-      if (shiftKey) {
+      const isHandleTransformWithShift =
+        shiftKey &&
+        targetKind === "single-selected" &&
+        nextHandle !== "move";
+      if (shiftKey && !isHandleTransformWithShift) {
         if (!isBodyHit) {
           startMarqueeSelection(point, shiftKey);
           return;
@@ -235,6 +240,16 @@ export const useSelectMode = ({
 
       if (session?.type === "single") {
         if (isSnapEnabled && session.handle !== "rotate") {
+          if (shouldDisableSelectSnap(session.initialStroke.tool, session.handle, shiftKey)) {
+            updateTransform(point, { shiftKey });
+            activeSnapGuidesRef.current = null;
+            setCursor(
+              session.handle === "move" ? "grabbing" : getCursorByHandle(session.handle)
+            );
+            renderOverlayRef.current();
+            return;
+          }
+
           const { anchors, segments, axisCandidates } = getSceneSnapData();
           if (session.handle === "move") {
             const movingAnchors = getMoveDrivingAnchors(session.initialStroke);

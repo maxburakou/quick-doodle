@@ -18,7 +18,8 @@ import {
   rotatePoint,
   withStrokeEndpoints,
 } from "./core";
-import { getAxisConstrainedByShift, isLineLikeGeometryTool } from "./toolProfile";
+import { isLineLikeGeometryTool } from "./toolProfile";
+import { shouldApplyAxisConstraint } from "./snap/policy";
 
 const MIN_SIZE = 8;
 const MIN_TEXT_FONT_SIZE = 8;
@@ -265,7 +266,7 @@ export const applySessionTransform = (
       const to = Math.atan2(pointer.y - center.y, pointer.x - center.x);
       const initialLineAngle = Math.atan2(end.y - start.y, end.x - start.x);
       const nextLineAngle = initialLineAngle + (to - from);
-      const shouldSnapAngle = getAxisConstrainedByShift(
+      const shouldSnapAngle = shouldApplyAxisConstraint(
         initialStroke.tool,
         shiftKey
       );
@@ -292,7 +293,7 @@ export const applySessionTransform = (
   }
 
   if (isLineLikeGeometryTool(initialStroke.tool) && (handle === "nw" || handle === "se")) {
-    const keepAxis = getAxisConstrainedByShift(initialStroke.tool, shiftKey);
+    const keepAxis = shouldApplyAxisConstraint(initialStroke.tool, shiftKey);
     return resizeLineStroke(initialStroke, handle, pointer, keepAxis);
   }
 

@@ -6,9 +6,14 @@ import { useToolSettingsStore } from "@/store/useToolSettingsStore";
 import { createStrokeId } from "@/store/useShapeEditorStore/helpers";
 import {
   type InteractionSnapResult,
-  getAxisConstrainedByShift,
   getConstrainedShapeEndpoint,
   isLineLikeSnapTool,
+  pickDiamondCornerAnchors,
+  pickEllipseCardinalAnchors,
+  pickLineLikeEndpointAnchors,
+  pickRectangleCornerAnchors,
+  shouldApplyAxisConstraint,
+  shouldDisableDrawSnap,
   isShapeBoxSnapTool,
   resolveSnapForInteraction,
 } from "@/store/useShapeEditorStore/helpers";
@@ -67,6 +72,35 @@ const toGuidesRenderData = (snap: SnapPreview) => ({
   axisGuides: snap.axisSnap,
 });
 
+const pickDrawDrivingAnchors = (
+  draftSubject: Parameters<
+    NonNullable<Parameters<typeof resolveSnapForInteraction>[0]["drivingAnchorSelector"]>
+  >[0]
+) => {
+  if (
+    draftSubject.stroke.tool === Tool.Line ||
+    draftSubject.stroke.tool === Tool.Arrow ||
+    draftSubject.stroke.tool === Tool.Highlighter
+  ) {
+    const lineLikeAnchors = pickLineLikeEndpointAnchors(draftSubject.stroke);
+    if (lineLikeAnchors.length > 0) return lineLikeAnchors;
+  }
+  if (draftSubject.stroke.tool === Tool.Rectangle) {
+    const rectangleAnchors = pickRectangleCornerAnchors(draftSubject.stroke);
+    if (rectangleAnchors.length > 0) return rectangleAnchors;
+  }
+  if (draftSubject.stroke.tool === Tool.Ellipse) {
+    const ellipseAnchors = pickEllipseCardinalAnchors(draftSubject.stroke);
+    if (ellipseAnchors.length > 0) return ellipseAnchors;
+  }
+  if (draftSubject.stroke.tool === Tool.Diamond) {
+    const diamondAnchors = pickDiamondCornerAnchors(draftSubject.stroke);
+    if (diamondAnchors.length > 0) return diamondAnchors;
+  }
+
+  return draftSubject.anchors.map((anchor) => ({ x: anchor.x, y: anchor.y }));
+};
+
 export const useDrawMode = ({
   ctxRef,
 }: UseDrawModeParams) => {
@@ -86,7 +120,7 @@ export const useDrawMode = ({
   });
 
   const getAxisConstrainState = useCallback(
-    (shiftKey: boolean) => getAxisConstrainedByShift(tool, shiftKey),
+    (shiftKey: boolean) => shouldApplyAxisConstraint(tool, shiftKey),
     [tool]
   );
 
@@ -95,7 +129,6 @@ export const useDrawMode = ({
       if (!isSnapEnabled) {
         return { point, pointTarget: null, axisSnap: null };
       }
-      const isAxisConstrained = getAxisConstrainState(shiftKey);
       const startPoint = pointsRef.current[0];
       if (!startPoint) {
         return { point, pointTarget: null, axisSnap: null };
@@ -104,8 +137,16 @@ export const useDrawMode = ({
       if (!isLineLikeSnapTool(tool) && !isShapeBoxSnapTool(tool)) {
         return { point, pointTarget: null, axisSnap: null };
       }
-      if (isLineLikeSnapTool(tool) && isAxisConstrained) {
-        return { point, pointTarget: null, axisSnap: null };
+      if (shouldDisableDrawSnap(tool, shiftKey)) {
+        if (!isShapeBoxSnapTool(tool)) {
+          return { point, pointTarget: null, axisSnap: null };
+        }
+
+        return {
+          point: getConstrainedShapeEndpoint(startPoint, point, tool, shiftKey),
+          pointTarget: null,
+          axisSnap: null,
+        };
       }
 
       const { color, thickness, shapeFill } = getToolSettings();
@@ -120,6 +161,7 @@ export const useDrawMode = ({
           segments,
           axisCandidates,
         },
+        drivingAnchorSelector: pickDrawDrivingAnchors,
         buildDraftStroke: (nextPointer) =>
           buildDrawSnapDraft(
             startPoint,
@@ -150,7 +192,6 @@ export const useDrawMode = ({
 
   const withSnappedEndpoint = useCallback(
     (finalizedPoints: StrokePoint[], shiftKey: boolean) => {
-      const isAxisConstrained = getAxisConstrainState(shiftKey);
       if (finalizedPoints.length < 2) return finalizedPoints;
       if (!isSnapEnabled) return finalizedPoints;
       if (!isLineLikeSnapTool(tool) && !isShapeBoxSnapTool(tool)) {
@@ -159,8 +200,25 @@ export const useDrawMode = ({
 
       const endpointCandidate = finalizedPoints[finalizedPoints.length - 1];
       const startPoint = finalizedPoints[0];
-      if (isLineLikeSnapTool(tool) && isAxisConstrained) {
-        return finalizedPoints;
+      if (shouldDisableDrawSnap(tool, shiftKey)) {
+        if (!isShapeBoxSnapTool(tool)) {
+          return finalizedPoints;
+        }
+
+        const constrainedPointer = getConstrainedShapeEndpoint(
+          startPoint,
+          endpointCandidate,
+          tool,
+          shiftKey
+        );
+
+        return [
+          finalizedPoints[0],
+          {
+            ...finalizedPoints[finalizedPoints.length - 1],
+            ...constrainedPointer,
+          },
+        ];
       }
       const { color, thickness, shapeFill } = getToolSettings();
       const rawPointer = isShapeBoxSnapTool(tool)
@@ -174,6 +232,7 @@ export const useDrawMode = ({
           segments,
           axisCandidates,
         },
+        drivingAnchorSelector: pickDrawDrivingAnchors,
         buildDraftStroke: (nextPointer) =>
           buildDrawSnapDraft(
             startPoint,

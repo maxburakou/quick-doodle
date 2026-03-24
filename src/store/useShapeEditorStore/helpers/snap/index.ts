@@ -18,7 +18,20 @@ import {
   type SnapSegment,
 } from "./geometry";
 export { getStrokeSnapSegments, getSceneSnapSegments } from "./geometry";
-export { getGroupBoundsAnchors, pickResizeDrivingAnchors } from "./selectors";
+export {
+  shouldApplyAxisConstraint,
+  shouldDisableDrawSnap,
+  shouldDisableSelectSnap,
+  shouldDisableResizeSnap,
+} from "./policy";
+export {
+  getGroupBoundsAnchors,
+  pickDiamondCornerAnchors,
+  pickEllipseCardinalAnchors,
+  pickLineLikeEndpointAnchors,
+  pickRectangleCornerAnchors,
+  pickResizeDrivingAnchors,
+} from "./selectors";
 
 export type SnapAnchorKind =
   | "corner"
@@ -518,24 +531,6 @@ const resolveInteractionSnapCore = ({
   snapDistance,
   axisSnapDistance,
 }: InteractionSnapCoreInput): InteractionSnapCoreResult => {
-  const resolveAxisGuideForDelta = (
-    deltaX: number,
-    deltaY: number,
-    basePoint: StrokePoint
-  ): AxisSnapResult | null => {
-    const shiftedAnchors = movingAnchors.map((anchor) => ({
-      x: anchor.x + deltaX,
-      y: anchor.y + deltaY,
-    }));
-
-    return resolveNearestAxisSnap(
-      shiftedAnchors,
-      sceneContext.axisCandidates ?? [],
-      basePoint,
-      axisSnapDistance
-    );
-  };
-
   const pointSnap = resolveTranslationSnap(
     movingAnchors,
     sceneContext.anchors,
@@ -551,11 +546,7 @@ const resolveInteractionSnapCore = ({
     return {
       snappedPointer,
       pointGuide: pointSnap.pointTarget,
-      axisGuide: resolveAxisGuideForDelta(
-        pointSnap.delta.x,
-        pointSnap.delta.y,
-        snappedPointer
-      ),
+      axisGuide: null,
     };
   }
 
@@ -574,11 +565,7 @@ const resolveInteractionSnapCore = ({
     return {
       snappedPointer,
       pointGuide: segmentSnap.pointTarget,
-      axisGuide: resolveAxisGuideForDelta(
-        segmentSnap.delta.x,
-        segmentSnap.delta.y,
-        snappedPointer
-      ),
+      axisGuide: null,
     };
   }
 

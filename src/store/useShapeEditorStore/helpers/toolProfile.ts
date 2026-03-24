@@ -1,24 +1,18 @@
 import { Tool } from "@/types";
 export type ToolGeometryMode = "lineLike" | "boxLike";
-export type AxisConstraintMode = "normal" | "inverted";
 
 export interface ToolProfile {
   geometryMode: ToolGeometryMode;
-  axisConstraintMode: AxisConstraintMode;
 }
 
-const buildProfile = (
-  geometryMode: ToolGeometryMode,
-  axisConstraintMode: AxisConstraintMode = "normal"
-): ToolProfile => ({
+const buildProfile = (geometryMode: ToolGeometryMode): ToolProfile => ({
   geometryMode,
-  axisConstraintMode,
 });
 
 const TOOL_PROFILES: Record<Tool, ToolProfile> = {
   [Tool.Select]: buildProfile("boxLike"),
-  [Tool.Pen]: buildProfile("boxLike", "normal"),
-  [Tool.Highlighter]: buildProfile("lineLike", "inverted"),
+  [Tool.Pen]: buildProfile("boxLike"),
+  [Tool.Highlighter]: buildProfile("lineLike"),
   [Tool.Text]: buildProfile("boxLike"),
   [Tool.Arrow]: buildProfile("lineLike"),
   [Tool.Line]: buildProfile("lineLike"),
@@ -32,6 +26,3 @@ export const getToolProfile = (tool: Tool): ToolProfile =>
 
 export const isLineLikeGeometryTool = (tool: Tool) =>
   getToolProfile(tool).geometryMode === "lineLike";
-
-export const getAxisConstrainedByShift = (tool: Tool, shiftKey: boolean) =>
-  getToolProfile(tool).axisConstraintMode === "inverted" ? !shiftKey : shiftKey;
