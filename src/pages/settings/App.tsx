@@ -30,7 +30,13 @@ const SettingsApp = () => {
   return (
     <main className="settings-page">
       <div className="settings-page__content">
-        {draft ? <SettingsContent /> : <p>Loading settings...</p>}
+        {draft ? (
+          <SettingsContent />
+        ) : (
+          <section className="settings-loading" aria-busy="true" aria-live="polite">
+            <p className="settings-loading__text">Loading settings...</p>
+          </section>
+        )}
       </div>
 
       <ErrorSection />

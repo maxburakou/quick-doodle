@@ -58,6 +58,25 @@ body {
   width: min(100%, var(--settings-layout-max));
 }
 
+.settings-loading {
+  margin-top: 24px;
+  border: 1px solid var(--settings-border);
+  border-radius: var(--settings-radius-panel);
+  background: var(--settings-surface);
+  box-shadow: var(--settings-shadow-panel);
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+}
+
+.settings-loading__text {
+  margin: 0;
+  color: var(--settings-text-secondary);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .settings-footer__button,
   .shortcut-row__record-button,
