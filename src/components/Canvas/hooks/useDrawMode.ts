@@ -8,11 +8,11 @@ import {
   type InteractionSnapResult,
   getConstrainedShapeEndpoint,
   isLineLikeSnapTool,
-  pickResizeDrivingAnchors,
   isShapeBoxSnapTool,
   resolveSnapInteractionPolicy,
   resolveSnapForInteraction,
 } from "@/store/useShapeEditorStore/helpers";
+import { pickDrawDrivingAnchors } from "@/store/useShapeEditorStore/helpers/snap/selectors";
 import { SNAP_DISTANCE_PX } from "@/config/snapConfig";
 import {
   clearCanvas,
@@ -68,10 +68,10 @@ const toGuidesRenderData = (snap: SnapPreview) => ({
   axisGuides: snap.axisSnap,
 });
 
-const pickMoveLikeDraftDrivingAnchors: NonNullable<
+const pickDrawDraftDrivingAnchors: NonNullable<
   Parameters<typeof resolveSnapForInteraction>[0]["drivingAnchorSelector"]
 > = (draftSubject) =>
-  pickResizeDrivingAnchors(draftSubject.stroke, draftSubject.anchors);
+  pickDrawDrivingAnchors(draftSubject.stroke, draftSubject.anchors);
 
 export const useDrawMode = ({
   ctxRef,
@@ -133,7 +133,7 @@ export const useDrawMode = ({
           segments,
           axisCandidates,
         },
-        drivingAnchorSelector: pickMoveLikeDraftDrivingAnchors,
+        drivingAnchorSelector: pickDrawDraftDrivingAnchors,
         buildDraftStroke: (nextPointer) =>
           buildDrawSnapDraft(
             startPoint,
@@ -208,7 +208,7 @@ export const useDrawMode = ({
           segments,
           axisCandidates,
         },
-        drivingAnchorSelector: pickMoveLikeDraftDrivingAnchors,
+        drivingAnchorSelector: pickDrawDraftDrivingAnchors,
         buildDraftStroke: (nextPointer) =>
           buildDrawSnapDraft(
             startPoint,

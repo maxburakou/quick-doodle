@@ -1,6 +1,7 @@
 import { Stroke, Tool, TransformHandle } from "@/types";
 import {
   getStrokeAABB,
+  getStrokeBounds,
   getStrokeEndpoints,
   getStrokeRotation,
   getStrokeTransformBounds,
@@ -16,7 +17,7 @@ const MOVE_MID_ANCHOR_EXCLUDED_TOOLS = new Set<Tool>([
 ]);
 const LINE_MID_KIND = "lineMid";
 
-interface ResizeDrivingAnchor extends PointLike {
+interface SnapDrivingAnchor extends PointLike {
   kind?: string;
 }
 
@@ -225,7 +226,7 @@ export const pickLineLikeEndpointAnchors = (stroke: Stroke): PointLike[] => {
 
 export const pickResizeDrivingAnchors = (
   stroke: Stroke,
-  anchors: ResizeDrivingAnchor[],
+  anchors: SnapDrivingAnchor[],
   options?: ResizeDrivingAnchorOptions
 ): PointLike[] => {
   const isMidAnchorExcluded = MOVE_MID_ANCHOR_EXCLUDED_TOOLS.has(stroke.tool);
@@ -252,4 +253,46 @@ export const pickResizeDrivingAnchors = (
   }
 
   return filtered;
+};
+
+const pickBoxLikeCornersForDraw = (stroke: Stroke): PointLike[] => {
+  if (stroke.tool === Tool.Diamond) {
+    return pickDiamondCornerAnchors(stroke);
+  }
+
+  if (stroke.tool === Tool.Ellipse) {
+    const bounds = getStrokeBounds(stroke);
+    const center = {
+      x: bounds.x + bounds.width / 2,
+      y: bounds.y + bounds.height / 2,
+    };
+    const rotation = getStrokeRotation(stroke);
+    return [
+      { x: bounds.x, y: bounds.y },
+      { x: bounds.x + bounds.width, y: bounds.y },
+      { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
+      { x: bounds.x, y: bounds.y + bounds.height },
+    ].map((point) => rotatePoint(point, center, rotation));
+  }
+
+  return [];
+};
+
+export const pickDrawDrivingAnchors = (
+  stroke: Stroke,
+  anchors: SnapDrivingAnchor[]
+): PointLike[] => {
+  if (stroke.tool === Tool.Rectangle) {
+    const contourCorners = anchors
+      .filter((anchor) => anchor.kind === "corner")
+      .map((anchor) => ({ x: anchor.x, y: anchor.y }));
+    return contourCorners.length > 0
+      ? contourCorners
+      : pickResizeDrivingAnchors(stroke, anchors);
+  }
+
+  const boxLikeCorners = pickBoxLikeCornersForDraw(stroke);
+  if (boxLikeCorners.length > 0) return boxLikeCorners;
+
+  return pickResizeDrivingAnchors(stroke, anchors);
 };
