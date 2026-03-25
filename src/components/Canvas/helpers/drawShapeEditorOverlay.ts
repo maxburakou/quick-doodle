@@ -11,16 +11,14 @@ import {
 import { getStrokeContourSegments } from "@/store/useShapeEditorStore/helpers/geometry/contours";
 import { useThemeStore } from "@/store/useThemeStore";
 import {
-  MARQUEE_FILL_ALPHA,
   PRIMARY_COLORS_BY_THEME,
-  SELECTION_HANDLE_FILL,
+  SELECTION_FILL_ALPHA,
+  SELECTION_FILL_ALPHA_GROUP,
+  SELECTION_HANDLE_FILL_BY_THEME,
+  SELECTION_MIN_FILL_SIZE,
+  SELECTION_OUTLINE_WIDTH,
+  SELECTION_OUTLINE_WIDTH_HOVER,
 } from "@/config";
-
-const SELECTION_FILL_ALPHA = MARQUEE_FILL_ALPHA;
-const SELECTION_FILL_ALPHA_GROUP = MARQUEE_FILL_ALPHA;
-const SELECTION_OUTLINE_WIDTH = 1;
-const SELECTION_OUTLINE_WIDTH_HOVER = 1.75;
-const MIN_FILL_SIZE = 4;
 
 interface OverlayOptions {
   isHoverActive?: boolean;
@@ -114,7 +112,10 @@ const drawShapeBoundsOverlay = (ctx: CanvasRenderingContext2D, stroke: Stroke) =
     { x: bounds.x, y: bounds.y + bounds.height },
   ].map((point) => rotatePoint(point, center, rotation));
 
-  if (bounds.width >= MIN_FILL_SIZE && bounds.height >= MIN_FILL_SIZE) {
+  if (
+    bounds.width >= SELECTION_MIN_FILL_SIZE &&
+    bounds.height >= SELECTION_MIN_FILL_SIZE
+  ) {
     const accentColor =
       PRIMARY_COLORS_BY_THEME[useThemeStore.getState().effectiveTheme];
 
@@ -137,6 +138,8 @@ const drawTransformHandles = (
 ) => {
   const accentColor =
     PRIMARY_COLORS_BY_THEME[useThemeStore.getState().effectiveTheme];
+  const handleFillColor =
+    SELECTION_HANDLE_FILL_BY_THEME[useThemeStore.getState().effectiveTheme];
 
   const handles = getStrokeTransformHandles(stroke, "selection");
 
@@ -149,7 +152,7 @@ const drawTransformHandles = (
       return;
     }
 
-    ctx.fillStyle = SELECTION_HANDLE_FILL;
+    ctx.fillStyle = handleFillColor;
     ctx.strokeStyle = accentColor;
     ctx.rect(point.x - 4, point.y - 4, 8, 8);
     ctx.fill();
@@ -254,7 +257,10 @@ export const drawGroupSelectionOverlay = (
     PRIMARY_COLORS_BY_THEME[useThemeStore.getState().effectiveTheme];
 
   ctx.save();
-  if (bounds.width >= MIN_FILL_SIZE && bounds.height >= MIN_FILL_SIZE) {
+  if (
+    bounds.width >= SELECTION_MIN_FILL_SIZE &&
+    bounds.height >= SELECTION_MIN_FILL_SIZE
+  ) {
     ctx.fillStyle = accentColor;
     ctx.globalAlpha = SELECTION_FILL_ALPHA_GROUP;
     ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);

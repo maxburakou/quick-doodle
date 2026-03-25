@@ -1,6 +1,10 @@
 import { StrokePoint } from "@/types";
 import { useThemeStore } from "@/store/useThemeStore";
-import { PRIMARY_COLORS_BY_THEME } from "@/config";
+import {
+  PRIMARY_COLORS_BY_THEME,
+  SNAP_GUIDE_DASH,
+  SNAP_GUIDE_WIDTH,
+} from "@/config";
 
 export type AxisGuideRenderData = {
   snappedAxes: Array<"x" | "y">;
@@ -12,9 +16,6 @@ export interface SnapGuidesRenderData {
   pointGuide?: Pick<StrokePoint, "x" | "y"> | null;
   axisGuides?: AxisGuideRenderData | null;
 }
-
-const SNAP_GUIDE_WIDTH = 1.5;
-const SNAP_GUIDE_DASH = [0, 6];
 
 const drawAxisGuides = (
   ctx: CanvasRenderingContext2D,
