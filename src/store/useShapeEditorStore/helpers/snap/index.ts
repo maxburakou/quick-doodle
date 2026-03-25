@@ -148,6 +148,7 @@ export interface SegmentSnapResult {
 interface TranslationSnapResolution {
   delta: { x: number; y: number };
   pointTarget: StrokePoint;
+  snapTargetKind?: SnapAnchorKind;
 }
 
 interface InteractionSnapCoreInput {
@@ -467,6 +468,7 @@ const resolveTranslationSnap = (
 ): TranslationSnapResolution | null => {
   let bestDelta: { x: number; y: number } | null = null;
   let bestTarget: StrokePoint | null = null;
+  let bestSnapTargetKind: SnapAnchorKind | null = null;
   let bestDistance = Number.POSITIVE_INFINITY;
 
   for (const movingPoint of movingPoints) {
@@ -480,6 +482,7 @@ const resolveTranslationSnap = (
 
     bestDistance = distance;
     bestDelta = { x: deltaX, y: deltaY };
+    bestSnapTargetKind = snapResult.target.kind;
     bestTarget = {
       x: snapResult.target.x,
       y: snapResult.target.y,
@@ -492,6 +495,7 @@ const resolveTranslationSnap = (
   return {
     delta: bestDelta,
     pointTarget: bestTarget,
+    snapTargetKind: bestSnapTargetKind ?? undefined,
   };
 };
 
@@ -552,11 +556,26 @@ const resolveInteractionSnapCore = ({
       x: rawPointer.x + pointSnap.delta.x,
       y: rawPointer.y + pointSnap.delta.y,
     };
+    const translatedMovingAnchors = movingAnchors.map((anchor) => ({
+      x: anchor.x + pointSnap.delta.x,
+      y: anchor.y + pointSnap.delta.y,
+    }));
+    const axisGuide =
+      // By default axis guides are suppressed for anchor/segment snaps.
+      // Keep an explicit exception for center-anchor snaps to show the cross.
+      pointSnap.snapTargetKind === "center"
+        ? resolveNearestAxisSnap(
+            translatedMovingAnchors,
+            sceneContext.axisCandidates ?? [],
+            snappedPointer,
+            axisSnapDistance
+          )
+        : null;
 
     return {
       snappedPointer,
       pointGuide: pointSnap.pointTarget,
-      axisGuide: null,
+      axisGuide,
     };
   }
 
