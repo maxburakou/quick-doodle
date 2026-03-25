@@ -33,6 +33,10 @@ import { useSceneSnapContext } from "./useSceneSnapContext";
 const TEXT_EDIT_SECOND_CLICK_INTERVAL_MS = 400;
 const SIDE_RESIZE_HANDLES = new Set<TransformHandle>(["n", "s", "e", "w"]);
 const getMoveDrivingAnchors = (stroke: Stroke) => {
+  if (stroke.tool === Tool.Pen) {
+    return getGroupBoundsAnchors([stroke]);
+  }
+
   return pickResizeDrivingAnchors(stroke, getStrokeSnapAnchors(stroke));
 };
 const pickResizeMoveLikeDraftDrivingAnchors = (

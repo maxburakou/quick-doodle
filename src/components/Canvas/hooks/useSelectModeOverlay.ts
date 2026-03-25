@@ -64,7 +64,12 @@ export const useSelectModeOverlay = ({
       }
 
       if (session?.type === "single") {
-        drawShapeEditorOverlay(ctx, session.draftStroke);
+        const shouldRenderPenAsGroup = session.initialStroke.tool === Tool.Pen;
+        if (shouldRenderPenAsGroup) {
+          drawGroupSelectionOverlay(ctx, [session.draftStroke]);
+        } else {
+          drawShapeEditorOverlay(ctx, session.draftStroke);
+        }
       } else if (session?.type === "groupMove") {
         const draftStrokes = session.strokeIds
           .map((id) => session.draftStrokesById[id])
@@ -73,7 +78,11 @@ export const useSelectModeOverlay = ({
       } else if (selectedStrokes.length > 1) {
         drawGroupSelectionOverlay(ctx, selectedStrokes);
       } else if (primarySelectedStroke) {
-        drawShapeEditorOverlay(ctx, primarySelectedStroke);
+        if (primarySelectedStroke.tool === Tool.Pen) {
+          drawGroupSelectionOverlay(ctx, [primarySelectedStroke]);
+        } else {
+          drawShapeEditorOverlay(ctx, primarySelectedStroke);
+        }
       }
 
       if (isSnapEnabled && activeSnapGuidesRef.current) {
