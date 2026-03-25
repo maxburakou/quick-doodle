@@ -8,7 +8,7 @@ import {
   type InteractionSnapResult,
   getConstrainedShapeEndpoint,
   isLineLikeSnapTool,
-  pickMoveLikeDrivingAnchors,
+  pickResizeDrivingAnchors,
   isShapeBoxSnapTool,
   resolveSnapInteractionPolicy,
   resolveSnapForInteraction,
@@ -71,7 +71,7 @@ const toGuidesRenderData = (snap: SnapPreview) => ({
 const pickMoveLikeDraftDrivingAnchors: NonNullable<
   Parameters<typeof resolveSnapForInteraction>[0]["drivingAnchorSelector"]
 > = (draftSubject) =>
-  pickMoveLikeDrivingAnchors(draftSubject.stroke, draftSubject.anchors);
+  pickResizeDrivingAnchors(draftSubject.stroke, draftSubject.anchors);
 
 export const useDrawMode = ({
   ctxRef,

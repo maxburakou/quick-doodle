@@ -1,4 +1,4 @@
-import { Stroke, StrokePoint, Tool, TransformHandle } from "@/types";
+import { Stroke, Tool, TransformHandle } from "@/types";
 import {
   getStrokeAABB,
   getStrokeEndpoints,
@@ -7,15 +7,7 @@ import {
   inverseRotatePoint,
   rotatePoint,
 } from "../core";
-import type { PointLike, SnapSegment } from "./geometry";
-
-const RESIZE_SIDE_ANCHOR_COUNT = 3;
-
-interface ResizeAnchorSubject {
-  stroke: Stroke;
-  anchors: PointLike[];
-  segments: SnapSegment[];
-}
+import type { PointLike } from "./geometry";
 
 const MOVE_MID_ANCHOR_EXCLUDED_TOOLS = new Set<Tool>([
   Tool.Arrow,
@@ -24,18 +16,130 @@ const MOVE_MID_ANCHOR_EXCLUDED_TOOLS = new Set<Tool>([
 ]);
 const LINE_MID_KIND = "lineMid";
 
-interface MoveLikeAnchor extends PointLike {
+interface ResizeDrivingAnchor extends PointLike {
   kind?: string;
 }
 
-export const pickMoveLikeDrivingAnchors = (
+interface ResizeDrivingAnchorOptions {
+  handle?: TransformHandle;
+}
+
+const SIDE_RESIZE_HANDLES = new Set<TransformHandle>(["n", "s", "e", "w"]);
+const CORNER_RESIZE_HANDLES = new Set<TransformHandle>(["nw", "ne", "sw", "se"]);
+const SIDE_ANCHOR_EPSILON = 0.5;
+const LINE_LIKE_TOOLS = new Set<Tool>([Tool.Line, Tool.Arrow, Tool.Highlighter]);
+
+interface LocalizedAnchor {
+  world: PointLike;
+  local: PointLike;
+}
+
+const toLocalizedAnchors = (
   stroke: Stroke,
-  anchors: MoveLikeAnchor[]
+  anchors: PointLike[]
+): LocalizedAnchor[] => {
+  const bounds = getStrokeTransformBounds(stroke);
+  const center = {
+    x: bounds.x + bounds.width / 2,
+    y: bounds.y + bounds.height / 2,
+  };
+  const rotation = getStrokeRotation(stroke);
+
+  return anchors.map((anchor) => ({
+    world: anchor,
+    local: inverseRotatePoint(anchor, center, rotation),
+  }));
+};
+
+const pickSideAnchorsForHandle = (
+  stroke: Stroke,
+  anchors: PointLike[],
+  handle: TransformHandle
 ): PointLike[] => {
-  const isMidAnchorExcluded = MOVE_MID_ANCHOR_EXCLUDED_TOOLS.has(stroke.tool);
-  return anchors
-    .filter((anchor) => !(isMidAnchorExcluded && anchor.kind === LINE_MID_KIND))
-    .map((anchor) => ({ x: anchor.x, y: anchor.y }));
+  if (!SIDE_RESIZE_HANDLES.has(handle) || anchors.length === 0) {
+    return anchors;
+  }
+
+  const bounds = getStrokeTransformBounds(stroke);
+  const center = {
+    x: bounds.x + bounds.width / 2,
+    y: bounds.y + bounds.height / 2,
+  };
+  const rotation = getStrokeRotation(stroke);
+
+  const localAnchors = anchors.map((anchor) => ({
+    world: anchor,
+    local: inverseRotatePoint(anchor, center, rotation),
+  }));
+
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (const anchor of localAnchors) {
+    minX = Math.min(minX, anchor.local.x);
+    minY = Math.min(minY, anchor.local.y);
+    maxX = Math.max(maxX, anchor.local.x);
+    maxY = Math.max(maxY, anchor.local.y);
+  }
+
+  const sideAnchors = localAnchors.filter((anchor) => {
+    if (handle === "n") return Math.abs(anchor.local.y - minY) <= SIDE_ANCHOR_EPSILON;
+    if (handle === "s") return Math.abs(anchor.local.y - maxY) <= SIDE_ANCHOR_EPSILON;
+    if (handle === "w") return Math.abs(anchor.local.x - minX) <= SIDE_ANCHOR_EPSILON;
+    if (handle === "e") return Math.abs(anchor.local.x - maxX) <= SIDE_ANCHOR_EPSILON;
+    return true;
+  }).map((anchor) => anchor.world);
+
+  return sideAnchors.length > 0 ? sideAnchors : anchors;
+};
+
+const pickCornerAnchorForHandle = (
+  stroke: Stroke,
+  anchors: PointLike[],
+  handle: TransformHandle
+): PointLike[] => {
+  if (!CORNER_RESIZE_HANDLES.has(handle) || anchors.length === 0) {
+    return anchors;
+  }
+
+  const localized = toLocalizedAnchors(stroke, anchors);
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (const anchor of localized) {
+    minX = Math.min(minX, anchor.local.x);
+    minY = Math.min(minY, anchor.local.y);
+    maxX = Math.max(maxX, anchor.local.x);
+    maxY = Math.max(maxY, anchor.local.y);
+  }
+
+  const targetByHandle: Record<
+    Extract<TransformHandle, "nw" | "ne" | "sw" | "se">,
+    PointLike
+  > = {
+    nw: { x: minX, y: minY },
+    ne: { x: maxX, y: minY },
+    sw: { x: minX, y: maxY },
+    se: { x: maxX, y: maxY },
+  };
+  const target = targetByHandle[handle as keyof typeof targetByHandle];
+  if (!target) return anchors;
+
+  const closest = localized.reduce((best, current) => {
+    if (!best) return current;
+    const bestDistance = Math.hypot(best.local.x - target.x, best.local.y - target.y);
+    const currentDistance = Math.hypot(
+      current.local.x - target.x,
+      current.local.y - target.y
+    );
+    return currentDistance < bestDistance ? current : best;
+  }, null as LocalizedAnchor | null);
+
+  return closest ? [closest.world] : anchors;
 };
 
 export const getGroupBoundsAnchors = (strokes: Stroke[]): PointLike[] => {
@@ -120,133 +224,32 @@ export const pickLineLikeEndpointAnchors = (stroke: Stroke): PointLike[] => {
 };
 
 export const pickResizeDrivingAnchors = (
-  subject: ResizeAnchorSubject,
-  handle: TransformHandle
+  stroke: Stroke,
+  anchors: ResizeDrivingAnchor[],
+  options?: ResizeDrivingAnchorOptions
 ): PointLike[] => {
-  if (handle === "move") {
-    return subject.anchors.map((anchor) => ({ x: anchor.x, y: anchor.y }));
-  }
-  if (handle === "rotate") return [];
+  const isMidAnchorExcluded = MOVE_MID_ANCHOR_EXCLUDED_TOOLS.has(stroke.tool);
+  const filtered = anchors
+    .filter((anchor) => !(isMidAnchorExcluded && anchor.kind === LINE_MID_KIND))
+    .map((anchor) => ({ x: anchor.x, y: anchor.y }));
 
-  if (
-    subject.stroke.tool === Tool.Line ||
-    subject.stroke.tool === Tool.Arrow ||
-    subject.stroke.tool === Tool.Highlighter
-  ) {
-    const [start, end] = getStrokeEndpoints(subject.stroke);
-    if (handle === "nw") return [{ x: start.x, y: start.y }];
-    if (handle === "se") return [{ x: end.x, y: end.y }];
-    return pickLineLikeEndpointAnchors(subject.stroke);
-  }
+  const handle = options?.handle;
+  if (!handle) return filtered;
 
-  const worldAnchors =
-    subject.stroke.tool === Tool.Rectangle
-      ? pickRectangleCornerAnchors(subject.stroke)
-      : subject.stroke.tool === Tool.Ellipse
-        ? pickEllipseCardinalAnchors(subject.stroke)
-        : subject.stroke.tool === Tool.Diamond
-          ? pickDiamondCornerAnchors(subject.stroke)
-          : subject.anchors.map((anchor) => ({ x: anchor.x, y: anchor.y }));
-  if (worldAnchors.length === 0) return [];
-
-  const transformBounds = getStrokeTransformBounds(subject.stroke);
-  const center = {
-    x: transformBounds.x + transformBounds.width / 2,
-    y: transformBounds.y + transformBounds.height / 2,
-  };
-  const rotation = getStrokeRotation(subject.stroke);
-
-  const localPairs = worldAnchors.map((world) => ({
-    world,
-    local: inverseRotatePoint(world, center, rotation),
-  }));
-
-  const localContourPoints: StrokePoint[] = subject.segments.flatMap((segment) => [
-    inverseRotatePoint(segment.start, center, rotation),
-    inverseRotatePoint(segment.end, center, rotation),
-  ]);
-  const localPoints =
-    localContourPoints.length > 0 ? localContourPoints : localPairs.map((pair) => pair.local);
-
-  const xValues = localPoints.map((point) => point.x);
-  const yValues = localPoints.map((point) => point.y);
-
-  const minX = Math.min(...xValues);
-  const maxX = Math.max(...xValues);
-  const minY = Math.min(...yValues);
-  const maxY = Math.max(...yValues);
-  const centerX = (minX + maxX) / 2;
-  const centerY = (minY + maxY) / 2;
-
-  const targetByHandle: Record<
-    Exclude<TransformHandle, "move" | "rotate">,
-    { x: number; y: number }
-  > = {
-    nw: { x: minX, y: minY },
-    n: { x: centerX, y: minY },
-    ne: { x: maxX, y: minY },
-    e: { x: maxX, y: centerY },
-    se: { x: maxX, y: maxY },
-    s: { x: centerX, y: maxY },
-    sw: { x: minX, y: maxY },
-    w: { x: minX, y: centerY },
-  };
-
-  const target = targetByHandle[handle];
-  if (!target) {
-    return worldAnchors;
+  if (LINE_LIKE_TOOLS.has(stroke.tool)) {
+    const [start, end] = pickLineLikeEndpointAnchors(stroke);
+    if (handle === "nw" && start) return [start];
+    if (handle === "se" && end) return [end];
+    return [start, end].filter(Boolean) as PointLike[];
   }
 
-  if (
-    worldAnchors.length <= 4 &&
-    (handle === "n" || handle === "s" || handle === "w" || handle === "e")
-  ) {
-    const byPrimaryAxis = [...localPairs].sort((a, b) => {
-      if (handle === "n" || handle === "s") {
-        return handle === "n" ? a.local.y - b.local.y : b.local.y - a.local.y;
-      }
-      return handle === "w" ? a.local.x - b.local.x : b.local.x - a.local.x;
-    });
-
-    const sidePairs = byPrimaryAxis.slice(0, 2);
-    if (sidePairs.length > 0) {
-      return sidePairs.map((pair) => pair.world);
-    }
+  if (SIDE_RESIZE_HANDLES.has(handle)) {
+    return pickSideAnchorsForHandle(stroke, filtered, handle);
   }
 
-  if (handle === "nw" || handle === "ne" || handle === "sw" || handle === "se") {
-    const closest = localPairs.reduce((best, current) => {
-      if (!best) return current;
-      const bestDistance = Math.hypot(best.local.x - target.x, best.local.y - target.y);
-      const currentDistance = Math.hypot(
-        current.local.x - target.x,
-        current.local.y - target.y
-      );
-      return currentDistance < bestDistance ? current : best;
-    }, null as (typeof localPairs)[number] | null);
-
-    return closest ? [closest.world] : [];
+  if (CORNER_RESIZE_HANDLES.has(handle)) {
+    return pickCornerAnchorForHandle(stroke, filtered, handle);
   }
 
-  const isHorizontalHandle = handle === "n" || handle === "s";
-  const sorted = [...localPairs].sort((a, b) => {
-    const primaryA = isHorizontalHandle
-      ? Math.abs(a.local.y - target.y)
-      : Math.abs(a.local.x - target.x);
-    const primaryB = isHorizontalHandle
-      ? Math.abs(b.local.y - target.y)
-      : Math.abs(b.local.x - target.x);
-    if (primaryA !== primaryB) return primaryA - primaryB;
-
-    const secondaryA = isHorizontalHandle
-      ? Math.abs(a.local.x - target.x)
-      : Math.abs(a.local.y - target.y);
-    const secondaryB = isHorizontalHandle
-      ? Math.abs(b.local.x - target.x)
-      : Math.abs(b.local.y - target.y);
-    return secondaryA - secondaryB;
-  });
-
-  const picks = sorted.slice(0, RESIZE_SIDE_ANCHOR_COUNT).map((pair) => pair.world);
-  return picks.length > 0 ? picks : worldAnchors;
+  return filtered;
 };

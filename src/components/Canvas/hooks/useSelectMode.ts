@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { Stroke, Tool } from "@/types";
+import { Stroke, Tool, TransformHandle } from "@/types";
 import { useSnapStore, useToolStore } from "@/store";
 import { useHistoryStore } from "@/store/useHistoryStore";
 import { useShapeEditorStore } from "@/store/useShapeEditorStore";
@@ -16,8 +16,8 @@ import {
   applySelectResizeGuidePolicy,
   applySessionTransform,
   getGroupBoundsAnchors,
+  pickResizeDrivingAnchors,
   getStrokeSnapAnchors,
-  pickMoveLikeDrivingAnchors,
   resolveSelectResizeSceneSnapPolicy,
   resolveSnapInteractionPolicy,
   resolveSnapForMovingAnchors,
@@ -31,13 +31,17 @@ import { useSelectModeOverlay } from "./useSelectModeOverlay";
 import { useSceneSnapContext } from "./useSceneSnapContext";
 
 const TEXT_EDIT_SECOND_CLICK_INTERVAL_MS = 400;
+const SIDE_RESIZE_HANDLES = new Set<TransformHandle>(["n", "s", "e", "w"]);
 const getMoveDrivingAnchors = (stroke: Stroke) => {
-  return pickMoveLikeDrivingAnchors(stroke, getStrokeSnapAnchors(stroke));
+  return pickResizeDrivingAnchors(stroke, getStrokeSnapAnchors(stroke));
 };
-const pickMoveLikeDraftDrivingAnchors: NonNullable<
-  Parameters<typeof resolveSnapForInteraction>[0]["drivingAnchorSelector"]
-> = (draftSubject) =>
-  pickMoveLikeDrivingAnchors(draftSubject.stroke, draftSubject.anchors);
+const pickResizeMoveLikeDraftDrivingAnchors = (
+  handle: TransformHandle
+): NonNullable<Parameters<typeof resolveSnapForInteraction>[0]["drivingAnchorSelector"]> =>
+  (draftSubject) =>
+    pickResizeDrivingAnchors(draftSubject.stroke, draftSubject.anchors, {
+      handle,
+    });
 
 interface UseSelectModeParams {
   ctxRef: React.MutableRefObject<CanvasRenderingContext2D | null>;
@@ -289,7 +293,9 @@ export const useSelectMode = ({
               sceneContext: resizeSceneContext,
               buildDraftStroke: (rawPointer) =>
                 applySessionTransform(session, rawPointer, shiftKey),
-              drivingAnchorSelector: pickMoveLikeDraftDrivingAnchors,
+              drivingAnchorSelector: pickResizeMoveLikeDraftDrivingAnchors(
+                session.handle
+              ),
               snapDistance: SNAP_DISTANCE_PX,
               axisSnapDistance: SNAP_DISTANCE_PX,
             });
@@ -297,7 +303,12 @@ export const useSelectMode = ({
               session.handle,
               point,
               snap.snappedPointer,
-              snap.axisGuide
+              snap.axisGuide,
+              {
+                allowBothAxes:
+                  SIDE_RESIZE_HANDLES.has(session.handle) &&
+                  Math.abs(session.initialStroke.rotation ?? 0) > 0.001,
+              }
             );
             updateTransform(axisFiltered.snappedPoint, { shiftKey });
             activeSnapGuidesRef.current = {

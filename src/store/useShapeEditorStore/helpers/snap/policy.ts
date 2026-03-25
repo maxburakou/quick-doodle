@@ -142,12 +142,20 @@ export const applySelectResizeGuidePolicy = (
   handle: TransformHandle,
   rawPoint: StrokePoint,
   snappedPoint: StrokePoint,
-  axisGuide: AxisGuideLike | null | undefined
+  axisGuide: AxisGuideLike | null | undefined,
+  options?: { allowBothAxes?: boolean }
 ): SelectResizeGuidePolicyResult => {
   if (!axisGuide) {
     return {
       snappedPoint,
       axisGuide: null,
+    };
+  }
+
+  if (options?.allowBothAxes) {
+    return {
+      snappedPoint,
+      axisGuide,
     };
   }
 
