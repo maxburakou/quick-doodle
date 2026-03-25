@@ -17,6 +17,27 @@ interface ResizeAnchorSubject {
   segments: SnapSegment[];
 }
 
+const MOVE_MID_ANCHOR_EXCLUDED_TOOLS = new Set<Tool>([
+  Tool.Arrow,
+  Tool.Line,
+  Tool.Highlighter,
+]);
+const LINE_MID_KIND = "lineMid";
+
+interface MoveLikeAnchor extends PointLike {
+  kind?: string;
+}
+
+export const pickMoveLikeDrivingAnchors = (
+  stroke: Stroke,
+  anchors: MoveLikeAnchor[]
+): PointLike[] => {
+  const isMidAnchorExcluded = MOVE_MID_ANCHOR_EXCLUDED_TOOLS.has(stroke.tool);
+  return anchors
+    .filter((anchor) => !(isMidAnchorExcluded && anchor.kind === LINE_MID_KIND))
+    .map((anchor) => ({ x: anchor.x, y: anchor.y }));
+};
+
 export const getGroupBoundsAnchors = (strokes: Stroke[]): PointLike[] => {
   if (strokes.length === 0) return [];
 

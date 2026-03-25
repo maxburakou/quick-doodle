@@ -85,6 +85,7 @@ export {
   pickDiamondCornerAnchors,
   pickEllipseCardinalAnchors,
   pickLineLikeEndpointAnchors,
+  pickMoveLikeDrivingAnchors,
   pickRectangleCornerAnchors,
   pickResizeDrivingAnchors,
   resolveNearestSnap,

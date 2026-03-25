@@ -3,15 +3,10 @@ import {
   getBoundsCenter,
   getStrokeAABB,
   getStrokeBounds,
-  getStrokeEndpoints,
   getStrokeRotation,
   rotatePoint,
 } from "../core";
-import {
-  getDiamondContourPoints,
-  getRectangleContourPoints,
-  getStrokeContourSegments,
-} from "./contours";
+import { getStrokeContourSegments } from "./contours";
 import { isLineLikeGeometryTool } from "../toolProfile";
 
 export type AnchorCenterMode = "always" | "filled_only" | "never";
@@ -67,6 +62,14 @@ const appendCenterAnchor = (
   return [...anchors, createAnchor(getBoundsCenter(bounds), "center")];
 };
 
+const getSegmentMidpoint = (
+  start: Pick<StrokePoint, "x" | "y">,
+  end: Pick<StrokePoint, "x" | "y">
+) => ({
+  x: (start.x + end.x) / 2,
+  y: (start.y + end.y) / 2,
+});
+
 const buildRotatedBoxAnchors = (
   bounds: ReturnType<typeof getStrokeBounds> | ReturnType<typeof getStrokeAABB>,
   stroke: Stroke,
@@ -103,55 +106,21 @@ const buildRotatedBoxAnchors = (
   }));
 };
 
-const buildRectangleAnchors = (
+const buildBoxEdgeAnchorsFromSegments = (
   stroke: Stroke,
   centerMode: AnchorCenterMode
 ): StrokeAnchorPoint[] => {
-  const corners = getRectangleContourPoints(stroke);
-  if (corners.length !== 4) return [];
+  const segments = getStrokeContourSegments(stroke);
+  if (segments.length === 0) return [];
 
   const anchors: StrokeAnchorPoint[] = [];
-  for (let index = 0; index < corners.length; index += 1) {
-    const start = corners[index];
-    const end = corners[(index + 1) % corners.length];
-    if (!start || !end) continue;
-
-    anchors.push(createAnchor(start, "corner"));
+  for (const segment of segments) {
+    anchors.push(createAnchor(segment.start, "corner", segment.group));
     anchors.push(
       createAnchor(
-        {
-          x: (start.x + end.x) / 2,
-          y: (start.y + end.y) / 2,
-        },
-        "edgeMid"
-      )
-    );
-  }
-
-  return appendCenterAnchor(anchors, stroke, getStrokeBounds(stroke), centerMode);
-};
-
-const buildDiamondAnchors = (
-  stroke: Stroke,
-  centerMode: AnchorCenterMode
-): StrokeAnchorPoint[] => {
-  const corners = getDiamondContourPoints(stroke);
-  if (corners.length !== 4) return [];
-
-  const anchors: StrokeAnchorPoint[] = [];
-  for (let index = 0; index < corners.length; index += 1) {
-    const start = corners[index];
-    const end = corners[(index + 1) % corners.length];
-    if (!start || !end) continue;
-
-    anchors.push(createAnchor(start, "corner"));
-    anchors.push(
-      createAnchor(
-        {
-          x: (start.x + end.x) / 2,
-          y: (start.y + end.y) / 2,
-        },
-        "edgeMid"
+        getSegmentMidpoint(segment.start, segment.end),
+        "edgeMid",
+        segment.group
       )
     );
   }
@@ -163,9 +132,8 @@ const buildEllipseAnchors = (
   stroke: Stroke,
   centerMode: AnchorCenterMode
 ): StrokeAnchorPoint[] => {
-  const contourPoints = getStrokeContourSegments(stroke).map(
-    (segment) => segment.start
-  );
+  const contourSegments = getStrokeContourSegments(stroke);
+  const contourPoints = contourSegments.map((segment) => segment.start);
   if (contourPoints.length < 8) return [];
 
   const anchors: StrokeAnchorPoint[] = [];
@@ -173,7 +141,13 @@ const buildEllipseAnchors = (
     const contourIndex = Math.round((index * contourPoints.length) / 8) % contourPoints.length;
     const point = contourPoints[contourIndex];
     if (!point) continue;
-    anchors.push(createAnchor(point, "ellipseAxis"));
+    anchors.push(
+      createAnchor(
+        point,
+        "ellipseAxis",
+        contourSegments[contourIndex]?.group ?? "boxEdge"
+      )
+    );
   }
 
   return appendCenterAnchor(anchors, stroke, getStrokeBounds(stroke), centerMode);
@@ -181,18 +155,17 @@ const buildEllipseAnchors = (
 
 
 const buildLineLikeAnchors = (stroke: Stroke): StrokeAnchorPoint[] => {
-  const [start, end] = getStrokeEndpoints(stroke);
+  const [segment] = getStrokeContourSegments(stroke);
+  if (!segment) return [];
 
   return [
-    { ...start, kind: "lineEnd", anchorGroup: "lineSegment" },
-    { ...end, kind: "lineEnd", anchorGroup: "lineSegment" },
-    {
-      x: (start.x + end.x) / 2,
-      y: (start.y + end.y) / 2,
-      pressure: 0.5,
-      kind: "lineMid",
-      anchorGroup: "lineSegment",
-    },
+    createAnchor(segment.start, "lineEnd", segment.group),
+    createAnchor(segment.end, "lineEnd", segment.group),
+    createAnchor(
+      getSegmentMidpoint(segment.start, segment.end),
+      "lineMid",
+      segment.group
+    ),
   ];
 };
 
@@ -231,11 +204,11 @@ export const getStrokeAnchorPoints = (
   }
 
   if (stroke.tool === Tool.Rectangle) {
-    return buildRectangleAnchors(stroke, centerMode);
+    return buildBoxEdgeAnchorsFromSegments(stroke, centerMode);
   }
 
   if (stroke.tool === Tool.Diamond) {
-    return buildDiamondAnchors(stroke, centerMode);
+    return buildBoxEdgeAnchorsFromSegments(stroke, centerMode);
   }
 
   if (stroke.tool === Tool.Ellipse) {

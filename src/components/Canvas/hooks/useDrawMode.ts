@@ -8,10 +8,7 @@ import {
   type InteractionSnapResult,
   getConstrainedShapeEndpoint,
   isLineLikeSnapTool,
-  pickDiamondCornerAnchors,
-  pickEllipseCardinalAnchors,
-  pickLineLikeEndpointAnchors,
-  pickRectangleCornerAnchors,
+  pickMoveLikeDrivingAnchors,
   isShapeBoxSnapTool,
   resolveSnapInteractionPolicy,
   resolveSnapForInteraction,
@@ -71,37 +68,10 @@ const toGuidesRenderData = (snap: SnapPreview) => ({
   axisGuides: snap.axisSnap,
 });
 
-const pickDrawDrivingAnchors = (
-  draftSubject: Parameters<
-    NonNullable<Parameters<typeof resolveSnapForInteraction>[0]["drivingAnchorSelector"]>
-  >[0]
-) => {
-  if (
-    draftSubject.stroke.tool === Tool.Line ||
-    draftSubject.stroke.tool === Tool.Arrow ||
-    draftSubject.stroke.tool === Tool.Highlighter
-  ) {
-    const lineLikeAnchors = pickLineLikeEndpointAnchors(draftSubject.stroke);
-    // During draw, only the active endpoint should drive snap for line-like tools.
-    // Using both endpoints causes unstable axis hints near center alignments.
-    if (lineLikeAnchors.length > 1) return [lineLikeAnchors[1]];
-    if (lineLikeAnchors.length > 0) return lineLikeAnchors;
-  }
-  if (draftSubject.stroke.tool === Tool.Rectangle) {
-    const rectangleAnchors = pickRectangleCornerAnchors(draftSubject.stroke);
-    if (rectangleAnchors.length > 0) return rectangleAnchors;
-  }
-  if (draftSubject.stroke.tool === Tool.Ellipse) {
-    const ellipseAnchors = pickEllipseCardinalAnchors(draftSubject.stroke);
-    if (ellipseAnchors.length > 0) return ellipseAnchors;
-  }
-  if (draftSubject.stroke.tool === Tool.Diamond) {
-    const diamondAnchors = pickDiamondCornerAnchors(draftSubject.stroke);
-    if (diamondAnchors.length > 0) return diamondAnchors;
-  }
-
-  return draftSubject.anchors.map((anchor) => ({ x: anchor.x, y: anchor.y }));
-};
+const pickMoveLikeDraftDrivingAnchors: NonNullable<
+  Parameters<typeof resolveSnapForInteraction>[0]["drivingAnchorSelector"]
+> = (draftSubject) =>
+  pickMoveLikeDrivingAnchors(draftSubject.stroke, draftSubject.anchors);
 
 export const useDrawMode = ({
   ctxRef,
@@ -163,7 +133,7 @@ export const useDrawMode = ({
           segments,
           axisCandidates,
         },
-        drivingAnchorSelector: pickDrawDrivingAnchors,
+        drivingAnchorSelector: pickMoveLikeDraftDrivingAnchors,
         buildDraftStroke: (nextPointer) =>
           buildDrawSnapDraft(
             startPoint,
@@ -238,7 +208,7 @@ export const useDrawMode = ({
           segments,
           axisCandidates,
         },
-        drivingAnchorSelector: pickDrawDrivingAnchors,
+        drivingAnchorSelector: pickMoveLikeDraftDrivingAnchors,
         buildDraftStroke: (nextPointer) =>
           buildDrawSnapDraft(
             startPoint,

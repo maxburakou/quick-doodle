@@ -17,7 +17,7 @@ import {
   applySessionTransform,
   getGroupBoundsAnchors,
   getStrokeSnapAnchors,
-  pickResizeDrivingAnchors,
+  pickMoveLikeDrivingAnchors,
   resolveSelectResizeSceneSnapPolicy,
   resolveSnapInteractionPolicy,
   resolveSnapForMovingAnchors,
@@ -31,19 +31,13 @@ import { useSelectModeOverlay } from "./useSelectModeOverlay";
 import { useSceneSnapContext } from "./useSceneSnapContext";
 
 const TEXT_EDIT_SECOND_CLICK_INTERVAL_MS = 400;
-const MOVE_MID_ANCHOR_EXCLUDED_TOOLS = new Set<Tool>([
-  Tool.Arrow,
-  Tool.Line,
-  Tool.Highlighter,
-]);
-
 const getMoveDrivingAnchors = (stroke: Stroke) => {
-  const isMidAnchorExcluded = MOVE_MID_ANCHOR_EXCLUDED_TOOLS.has(stroke.tool);
-
-  return getStrokeSnapAnchors(stroke)
-    .filter((anchor) => !(isMidAnchorExcluded && anchor.kind === "lineMid"))
-    .map((anchor) => ({ x: anchor.x, y: anchor.y }));
+  return pickMoveLikeDrivingAnchors(stroke, getStrokeSnapAnchors(stroke));
 };
+const pickMoveLikeDraftDrivingAnchors: NonNullable<
+  Parameters<typeof resolveSnapForInteraction>[0]["drivingAnchorSelector"]
+> = (draftSubject) =>
+  pickMoveLikeDrivingAnchors(draftSubject.stroke, draftSubject.anchors);
 
 interface UseSelectModeParams {
   ctxRef: React.MutableRefObject<CanvasRenderingContext2D | null>;
@@ -295,8 +289,7 @@ export const useSelectMode = ({
               sceneContext: resizeSceneContext,
               buildDraftStroke: (rawPointer) =>
                 applySessionTransform(session, rawPointer, shiftKey),
-              drivingAnchorSelector: (draftSubject) =>
-                pickResizeDrivingAnchors(draftSubject, session.handle),
+              drivingAnchorSelector: pickMoveLikeDraftDrivingAnchors,
               snapDistance: SNAP_DISTANCE_PX,
               axisSnapDistance: SNAP_DISTANCE_PX,
             });
