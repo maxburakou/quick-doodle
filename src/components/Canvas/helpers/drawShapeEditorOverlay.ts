@@ -9,16 +9,18 @@ import {
   rotatePoint,
 } from "@/store/useShapeEditorStore/helpers";
 import { getStrokeContourSegments } from "@/store/useShapeEditorStore/helpers/geometry/contours";
+import { useThemeStore } from "@/store/useThemeStore";
+import {
+  MARQUEE_FILL_ALPHA,
+  PRIMARY_COLORS_BY_THEME,
+  SELECTION_HANDLE_FILL,
+} from "@/config";
 
-const SELECTION_OUTLINE_COLOR = "#0f62fe";
-const SELECTION_OUTLINE_COLOR_HOVER = "#0353e9";
-const SELECTION_FILL_COLOR = "rgba(15, 98, 254, 0.08)";
-const SELECTION_FILL_COLOR_GROUP = "rgba(15, 98, 254, 0.06)";
+const SELECTION_FILL_ALPHA = MARQUEE_FILL_ALPHA;
+const SELECTION_FILL_ALPHA_GROUP = MARQUEE_FILL_ALPHA;
 const SELECTION_OUTLINE_WIDTH = 1;
 const SELECTION_OUTLINE_WIDTH_HOVER = 1.75;
 const MIN_FILL_SIZE = 4;
-const HANDLE_FILL = "#ffffff";
-const HANDLE_STROKE = SELECTION_OUTLINE_COLOR;
 
 interface OverlayOptions {
   isHoverActive?: boolean;
@@ -30,9 +32,8 @@ interface OverlayStyle {
 }
 
 const getOverlayStyle = (options?: OverlayOptions): OverlayStyle => ({
-  outlineColor: options?.isHoverActive
-    ? SELECTION_OUTLINE_COLOR_HOVER
-    : SELECTION_OUTLINE_COLOR,
+  outlineColor:
+    PRIMARY_COLORS_BY_THEME[useThemeStore.getState().effectiveTheme],
   outlineWidth: options?.isHoverActive
     ? SELECTION_OUTLINE_WIDTH_HOVER
     : SELECTION_OUTLINE_WIDTH,
@@ -64,9 +65,13 @@ const drawLineLikeSelectionOverlay = (
   const pathPoints = points.length >= 2 ? points : [points[0], points[0]];
 
   if (drawFillArea) {
+    const accentColor =
+      PRIMARY_COLORS_BY_THEME[useThemeStore.getState().effectiveTheme];
+
     ctx.save();
     ctx.setLineDash([]);
-    ctx.strokeStyle = SELECTION_FILL_COLOR;
+    ctx.strokeStyle = accentColor;
+    ctx.globalAlpha = SELECTION_FILL_ALPHA;
     ctx.lineWidth = activeZoneWidth;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -110,9 +115,15 @@ const drawShapeBoundsOverlay = (ctx: CanvasRenderingContext2D, stroke: Stroke) =
   ].map((point) => rotatePoint(point, center, rotation));
 
   if (bounds.width >= MIN_FILL_SIZE && bounds.height >= MIN_FILL_SIZE) {
-    ctx.fillStyle = SELECTION_FILL_COLOR;
+    const accentColor =
+      PRIMARY_COLORS_BY_THEME[useThemeStore.getState().effectiveTheme];
+
+    ctx.save();
+    ctx.fillStyle = accentColor;
+    ctx.globalAlpha = SELECTION_FILL_ALPHA;
     drawPolygonFromCorners(ctx, corners);
     ctx.fill();
+    ctx.restore();
   }
 
   drawPolygonFromCorners(ctx, corners);
@@ -124,6 +135,9 @@ const drawTransformHandles = (
   stroke: Stroke,
   outlineColor: string
 ) => {
+  const accentColor =
+    PRIMARY_COLORS_BY_THEME[useThemeStore.getState().effectiveTheme];
+
   const handles = getStrokeTransformHandles(stroke, "selection");
 
   handles.forEach(({ point, handle }) => {
@@ -135,8 +149,8 @@ const drawTransformHandles = (
       return;
     }
 
-    ctx.fillStyle = HANDLE_FILL;
-    ctx.strokeStyle = HANDLE_STROKE;
+    ctx.fillStyle = SELECTION_HANDLE_FILL;
+    ctx.strokeStyle = accentColor;
     ctx.rect(point.x - 4, point.y - 4, 8, 8);
     ctx.fill();
     ctx.stroke();
@@ -236,11 +250,15 @@ export const drawGroupSelectionOverlay = (
   const bounds = getUnionBounds(strokes);
   if (!bounds) return;
   const { outlineColor, outlineWidth } = getOverlayStyle(options);
+  const accentColor =
+    PRIMARY_COLORS_BY_THEME[useThemeStore.getState().effectiveTheme];
 
   ctx.save();
   if (bounds.width >= MIN_FILL_SIZE && bounds.height >= MIN_FILL_SIZE) {
-    ctx.fillStyle = SELECTION_FILL_COLOR_GROUP;
+    ctx.fillStyle = accentColor;
+    ctx.globalAlpha = SELECTION_FILL_ALPHA_GROUP;
     ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+    ctx.globalAlpha = 1;
   }
   ctx.strokeStyle = outlineColor;
   ctx.lineWidth = outlineWidth;

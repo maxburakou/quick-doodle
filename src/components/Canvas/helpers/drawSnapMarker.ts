@@ -1,4 +1,6 @@
 import { StrokePoint } from "@/types";
+import { useThemeStore } from "@/store/useThemeStore";
+import { PRIMARY_COLORS_BY_THEME } from "@/config";
 
 export type AxisGuideRenderData = {
   snappedAxes: Array<"x" | "y">;
@@ -11,10 +13,8 @@ export interface SnapGuidesRenderData {
   axisGuides?: AxisGuideRenderData | null;
 }
 
-const SNAP_GUIDE_COLOR = "#0f62fe";
-const SNAP_GUIDE_WIDTH = 1;
-const SNAP_GUIDE_DASH = [1, 6];
-const SNAP_GUIDE_ALPHA = 0.82;
+const SNAP_GUIDE_WIDTH = 1.5;
+const SNAP_GUIDE_DASH = [0, 6];
 
 const drawAxisGuides = (
   ctx: CanvasRenderingContext2D,
@@ -45,9 +45,10 @@ export const drawSnapGuides = (
 ) => {
   if (!guides.axisGuides) return;
 
+  const accentColor = PRIMARY_COLORS_BY_THEME[useThemeStore.getState().effectiveTheme];
+
   ctx.save();
-  ctx.globalAlpha = SNAP_GUIDE_ALPHA;
-  ctx.strokeStyle = SNAP_GUIDE_COLOR;
+  ctx.strokeStyle = accentColor;
   ctx.lineWidth = SNAP_GUIDE_WIDTH;
   ctx.lineCap = "round";
   ctx.setLineDash(SNAP_GUIDE_DASH);
