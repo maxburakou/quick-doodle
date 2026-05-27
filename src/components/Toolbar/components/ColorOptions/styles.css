@@ -54,33 +54,43 @@
   border-radius: var(--app-radius-sm);
 }
 
-.custom-color-button::before {
-  content: "";
-  position: absolute;
-  inset: 1px;
-  border-radius: inherit;
-  background-color: var(--swatch-bg, transparent);
-  background-image: var(--swatch-image, none);
-  background-size: cover;
-  background-position: center;
-  pointer-events: none;
-  opacity: 1;
-  transform: scale(1);
-  transition: transform calc(var(--app-duration-medium) * 1.6)
-    cubic-bezier(0.22, 0.8, 0.2, 1);
-  transition-delay: 70ms;
-}
-
+.custom-color-button::before,
+.custom-color-button::after,
 .color-button::before {
   content: "";
   position: absolute;
   inset: 1px;
   border-radius: inherit;
-  background-color: var(--swatch-bg, transparent);
-  background-image: var(--swatch-image, none);
   background-size: cover;
   background-position: center;
   pointer-events: none;
+}
+
+.custom-color-button::before {
+  background-color: var(--swatch-bg, transparent);
+  background-image: none;
+  opacity: 0;
+  transform: scale(0.72);
+  transition:
+    background-color var(--app-duration-medium) var(--app-ease-standard),
+    opacity var(--app-duration-medium) var(--app-ease-standard),
+    transform calc(var(--app-duration-medium) * 1.6)
+      cubic-bezier(0.22, 0.8, 0.2, 1);
+}
+
+.custom-color-button::after {
+  background-image: var(--app-custom-color-mixed);
+  opacity: 0;
+  transform: scale(0.72);
+  transition:
+    opacity var(--app-duration-medium) var(--app-ease-standard),
+    transform calc(var(--app-duration-medium) * 1.6)
+      cubic-bezier(0.22, 0.8, 0.2, 1);
+}
+
+.color-button::before {
+  background-color: var(--swatch-bg, transparent);
+  background-image: var(--swatch-image, none);
   opacity: 1;
   transform: scale(1);
   transition: transform calc(var(--app-duration-medium) * 1.6)
@@ -89,19 +99,22 @@
 }
 
 .custom-color-button.--mixed {
-  background-image: var(--app-custom-color-mixed);
-  background-clip: padding-box;
+  background-color: var(--app-toolbar-control-bg) !important;
   --swatch-bg: transparent;
-  --swatch-image: var(--app-custom-color-mixed);
 }
 
-.color-button.--active {
+.custom-color-button.--mixed::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.color-button.--active,
+.custom-color-button.--active {
   overflow: hidden;
 }
 
 .custom-color-button.--active {
-  overflow: hidden;
-  background-color: var(--app-toolbar-control-bg);
+  background-color: var(--app-toolbar-control-bg) !important;
   background-image: none;
 }
 
@@ -114,7 +127,8 @@
 }
 
 .custom-color-button.--active::before {
-  transform: scale(0.992);
+  opacity: 1;
+  transform: scale(1);
 }
 
 :root[data-theme="dark"] .options-button {
