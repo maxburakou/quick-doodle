@@ -26,7 +26,10 @@ export const ColorOptions = () => {
           className={`options-button color-button ${
             color === contextColor ? "--active" : ""
           }`}
-          style={{ backgroundColor: color }}
+          style={{
+            backgroundColor: color,
+            ["--swatch-bg" as string]: color,
+          }}
         />
       ))}
       <Popover content={<ToolbarColorPicker />}>
@@ -36,7 +39,12 @@ export const ColorOptions = () => {
             isMixedGroupColor ? "--mixed" : ""
           } ${isCustomButtonActive ? "--active" : ""}`.trim()}
           style={
-            isMixedGroupColor ? undefined : { backgroundColor: contextColor ?? storeColor }
+            isMixedGroupColor
+              ? undefined
+              : {
+                  backgroundColor: contextColor ?? storeColor,
+                  ["--swatch-bg" as string]: contextColor ?? storeColor,
+                }
           }
           aria-label="Custom color"
         />

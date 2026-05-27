@@ -32,20 +32,89 @@
 }
 
 .options-button.--active {
-  box-shadow: 0 0 0 1.5px var(--app-accent);
+  border-width: 1.5px;
+  border-color: var(--app-accent);
+  box-shadow: none;
+}
+
+.options-button.--accent-border.--active {
+  border-width: 1.5px;
+  border-color: var(--app-accent);
+  box-shadow: none;
 }
 
 .color-button {
   border-radius: var(--app-radius-round);
+  transition:
+    border-color var(--app-duration-medium) var(--app-ease-standard),
+    box-shadow var(--app-duration-medium) var(--app-ease-standard);
 }
 
 .custom-color-button {
   border-radius: var(--app-radius-sm);
 }
 
+.custom-color-button::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background-color: var(--swatch-bg, transparent);
+  background-image: var(--swatch-image, none);
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+  opacity: 1;
+  transform: scale(1);
+  transition: transform calc(var(--app-duration-medium) * 1.6)
+    cubic-bezier(0.22, 0.8, 0.2, 1);
+  transition-delay: 70ms;
+}
+
+.color-button::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background-color: var(--swatch-bg, transparent);
+  background-image: var(--swatch-image, none);
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+  opacity: 1;
+  transform: scale(1);
+  transition: transform calc(var(--app-duration-medium) * 1.6)
+    cubic-bezier(0.22, 0.8, 0.2, 1);
+  transition-delay: 70ms;
+}
+
 .custom-color-button.--mixed {
   background-image: var(--app-custom-color-mixed);
   background-clip: padding-box;
+  --swatch-bg: transparent;
+  --swatch-image: var(--app-custom-color-mixed);
+}
+
+.color-button.--active {
+  overflow: hidden;
+}
+
+.custom-color-button.--active {
+  overflow: hidden;
+  background-color: var(--app-toolbar-control-bg);
+  background-image: none;
+}
+
+.color-button.--active {
+  background-color: var(--app-toolbar-control-bg) !important;
+}
+
+.color-button.--active::before {
+  transform: scale(0.97);
+}
+
+.custom-color-button.--active::before {
+  transform: scale(0.992);
 }
 
 :root[data-theme="dark"] .options-button {
