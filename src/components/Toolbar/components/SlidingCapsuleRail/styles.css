@@ -1,0 +1,121 @@
+.toolbar.toolbar-capsule-enabled {
+  --capsule-size: calc(var(--toolbar-tool-size) + var(--toolbar-tools-padding) * 2);
+  --slot-size: var(--capsule-size);
+  --lens-scale: 1.04;
+  --lens-cover: 1;
+  --lens-glow-strength: 0.6;
+  position: relative;
+  gap: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.toolbar.toolbar-capsule-enabled .toolbar-item,
+.toolbar.toolbar-capsule-enabled .toolbar-tool-button {
+  position: relative;
+  z-index: 1;
+}
+
+.toolbar.toolbar-capsule-enabled .toolbar-item {
+  flex: 0 0 auto;
+}
+
+.toolbar.toolbar-capsule-enabled .toolbar-tool-button {
+  width: var(--capsule-size);
+  height: var(--capsule-size);
+  border-radius: var(--toolbar-tools-radius);
+}
+
+.toolbar.toolbar-capsule-enabled .toolbar-hotkey {
+  right: var(--toolbar-tools-padding);
+  bottom: var(--toolbar-tools-padding);
+  z-index: 1;
+}
+
+.toolbar.toolbar-capsule-enabled .toolbar-active-capsule {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: var(--capsule-size);
+  height: var(--capsule-size);
+  border-radius: var(--toolbar-tools-radius);
+  pointer-events: none;
+  background: var(--app-toolbar-capsule-bg);
+  border: 1px solid color-mix(in srgb, var(--app-toolbar-control-border-active) 84%, transparent);
+  box-shadow:
+    var(--app-toolbar-capsule-shadow),
+    var(--app-toolbar-capsule-glow);
+  transform: translate3d(
+    calc(var(--active-index) * var(--slot-size)),
+    -50%,
+    0
+  );
+  opacity: 1;
+  transition:
+    transform var(--toolbar-motion-duration, var(--app-duration-toolbar))
+      var(--toolbar-motion-ease, var(--app-ease-capsule)),
+    opacity var(--app-duration-toolbar-fade) var(--app-ease-out);
+  will-change: transform, opacity;
+  z-index: 3;
+}
+
+.toolbar.toolbar-capsule-enabled .toolbar-lens-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 0;
+  pointer-events: none;
+  z-index: 4;
+  clip-path: inset(
+    0
+    calc((var(--item-count) - var(--active-index) - var(--lens-cover)) * var(--slot-size))
+    0
+    calc((var(--active-index) + (1 - var(--lens-cover)) * 0.5) * var(--slot-size))
+    round var(--toolbar-tools-radius)
+  );
+  transition: clip-path var(--toolbar-motion-duration, var(--app-duration-toolbar))
+    var(--toolbar-motion-ease, var(--app-ease-capsule));
+}
+
+.toolbar.toolbar-capsule-enabled .toolbar-lens-overlay .toolbar-tool-button {
+  color: var(--app-text-on-accent);
+  transform: scale(var(--lens-scale));
+  transition: transform var(--toolbar-motion-duration, var(--app-duration-toolbar))
+    var(--toolbar-motion-ease, var(--app-ease-capsule));
+}
+
+.toolbar.toolbar-capsule-enabled.--lens-glow .toolbar-lens-overlay .toolbar-tool-button svg {
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, calc(0.9 * var(--lens-glow-strength))))
+    drop-shadow(0 0 5px rgba(255, 255, 255, calc(0.35 * var(--lens-glow-strength))));
+}
+
+.toolbar.toolbar-capsule-enabled .toolbar-tool-button--lens {
+  pointer-events: none;
+}
+
+.toolbar.toolbar-capsule-enabled .toolbar-hotkey.--lens {
+  color: var(--app-text-on-accent);
+}
+
+.toolbar.toolbar-capsule-enabled.--lens-glow .toolbar-hotkey.--lens {
+  text-shadow:
+    0 0 4px rgba(255, 255, 255, calc(0.52 * var(--lens-glow-strength))),
+    0 0 8px rgba(255, 255, 255, calc(0.28 * var(--lens-glow-strength)));
+}
+
+.toolbar.toolbar-capsule-enabled .toolbar-tool-button:hover,
+.toolbar.toolbar-capsule-enabled .toolbar-tool-button:focus-visible {
+  background: transparent;
+}
+
+.toolbar.toolbar-capsule-enabled .toolbar-tool-button svg {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toolbar.toolbar-capsule-enabled .toolbar-active-capsule,
+  .toolbar-capsule-enabled .toolbar-tool-button,
+  .toolbar.toolbar-capsule-enabled .toolbar-lens-overlay {
+    transition: none;
+  }
+}

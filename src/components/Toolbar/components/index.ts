@@ -6,3 +6,4 @@ export { ToolbarColorPicker } from "./ToolbarColorPicker";
 export { ToolbarFontSizePicker } from "./ToolbarFontSizePicker";
 export { ToolbarSettingsPanel } from "./ToolbarSettingsPanel";
 export { ToolbarToolsList } from "./ToolbarToolsList";
+export { SlidingCapsuleRail } from "./SlidingCapsuleRail";

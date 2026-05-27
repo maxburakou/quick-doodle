@@ -2,6 +2,7 @@ import { resolveToolHotkeyLabel } from "@/components/Canvas/helpers/shortcutMatc
 import { Tool } from "@/types";
 import { SettingsSnapshot } from "@/types/settings";
 import { TOOL_CONFIG } from "../../config";
+import { SlidingCapsuleRail } from "../SlidingCapsuleRail";
 import "./styles.css";
 
 interface ToolbarToolsListProps {
@@ -17,30 +18,27 @@ export const ToolbarToolsList: React.FC<ToolbarToolsListProps> = ({
   onSelectTool,
   settingsSnapshot,
 }) => {
-  return (
-    <menu className="toolbar toolbar-capsule-enabled">
-      <div className="toolbar-active-capsule" aria-hidden />
-      {/* TODO: switch to TOOL_ORDER when user-defined tool ordering is implemented. */}
-      {TOOLS_LIST.map((toolValue) => {
-        const { hotkeySlot, icon } = TOOL_CONFIG[toolValue];
-        const isActive = toolValue === activeTool;
-        const hotkey = resolveToolHotkeyLabel(settingsSnapshot, hotkeySlot);
+  const renderToolVisual = (toolValue: Tool, lens = false) => {
+    const { hotkeySlot, icon } = TOOL_CONFIG[toolValue];
+    const hotkey = resolveToolHotkeyLabel(settingsSnapshot, hotkeySlot);
 
-        return (
-          <li className="toolbar-item" key={toolValue}>
-            <button
-              onClick={() => onSelectTool(toolValue)}
-              className={`toolbar-tool-button ${isActive ? "--capsule-active" : ""}`}
-              aria-pressed={isActive}
-            >
-              {icon}
-              <span className={`toolbar-hotkey ${isActive ? "--capsule-active" : ""}`}>
-                {hotkey}
-              </span>
-            </button>
-          </li>
-        );
-      })}
-    </menu>
+    return (
+      <>
+        {icon}
+        <span className={`toolbar-hotkey ${lens ? "--lens" : ""}`}>{hotkey}</span>
+      </>
+    );
+  };
+
+  return (
+    <SlidingCapsuleRail
+      items={TOOLS_LIST}
+      activeItem={activeTool}
+      onSelectItem={onSelectTool}
+      renderItem={renderToolVisual}
+      lensScale={1.04}
+      lensCover={1}
+      lensGlow={0.6}
+    />
   );
 };
