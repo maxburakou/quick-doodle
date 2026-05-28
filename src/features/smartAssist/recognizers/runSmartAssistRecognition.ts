@@ -7,10 +7,15 @@ import {
 } from "../types";
 import { buildBatchMetrics } from "../utils";
 import { arrowRecognizer } from "./arrowRecognizer";
+import { ellipseRecognizer } from "./ellipseRecognizer";
 import { resolveCandidates } from "./resolveCandidates";
 import { lineRecognizer } from "./lineRecognizer";
 
-const SHAPE_RECOGNIZERS: ShapeRecognizer[] = [arrowRecognizer, lineRecognizer];
+const SHAPE_RECOGNIZERS: ShapeRecognizer[] = [
+  ellipseRecognizer,
+  arrowRecognizer,
+  lineRecognizer,
+];
 
 export const runSmartAssistRecognition = (
   batch: SmartAssistBatch,

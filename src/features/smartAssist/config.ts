@@ -13,7 +13,7 @@ export const SMART_ASSIST_CONFIG: SmartAssistConfig = {
     arrow: 0.82,
     rectangle: 0.96,
     diamond: 0.96,
-    ellipse: 0.96,
+    ellipse: 0.62,
   },
   conflictMarginsPx: {
     overlap: 12,
