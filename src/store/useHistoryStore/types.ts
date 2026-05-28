@@ -6,6 +6,10 @@ export interface HistoryState {
   future: Stroke[][];
   commitPresent: (nextPresent: Stroke[]) => void;
   addAction: (stroke: Stroke) => void;
+  replaceStrokesWithAction: (
+    sourceIds: string[],
+    replacementStrokes: Stroke[]
+  ) => boolean;
   undo: () => void;
   redo: () => void;
   clear: () => void;
