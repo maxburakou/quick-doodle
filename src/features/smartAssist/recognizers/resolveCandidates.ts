@@ -81,6 +81,117 @@ const hasStrongHeadEvidence = (candidate: ShapeDetectionCandidate): boolean => {
   return typeof headEvidenceScore === "number" && headEvidenceScore >= 0.75;
 };
 
+const hasStrongAxisBoxEvidence = (candidate: ShapeDetectionCandidate): boolean => {
+  if (candidate.kind !== "rectangle") return false;
+
+  const debugGeometry = candidate.debugGeometry;
+  if (!debugGeometry || typeof debugGeometry !== "object") return false;
+
+  const axisBoxScore = (debugGeometry as { axisBoxScore?: unknown }).axisBoxScore;
+  return typeof axisBoxScore === "number" && axisBoxScore >= 0.86;
+};
+
+const hasAxisBoxEvidence = (candidate: ShapeDetectionCandidate): boolean => {
+  if (candidate.kind !== "rectangle") return false;
+
+  const debugGeometry = candidate.debugGeometry;
+  if (!debugGeometry || typeof debugGeometry !== "object") return false;
+
+  return typeof (debugGeometry as { axisBoxScore?: unknown }).axisBoxScore === "number";
+};
+
+const hasExtraRectangleCornerCandidates = (
+  candidate: ShapeDetectionCandidate
+): boolean => {
+  if (candidate.kind !== "rectangle") return false;
+
+  const debugGeometry = candidate.debugGeometry;
+  if (!debugGeometry || typeof debugGeometry !== "object") return false;
+
+  const rawCornerCount = (debugGeometry as { rawCornerCount?: unknown })
+    .rawCornerCount;
+  return typeof rawCornerCount === "number" && rawCornerCount > 4;
+};
+
+const hasCleanRectangleCorners = (candidate: ShapeDetectionCandidate): boolean => {
+  if (candidate.kind !== "rectangle") return false;
+
+  const debugGeometry = candidate.debugGeometry;
+  if (!debugGeometry || typeof debugGeometry !== "object") return false;
+
+  const { rawCornerCount, angleErrors, parallelErrors } = debugGeometry as {
+    rawCornerCount?: unknown;
+    angleErrors?: unknown;
+    parallelErrors?: unknown;
+  };
+  if (rawCornerCount !== 4) return false;
+  if (!Array.isArray(angleErrors) || !Array.isArray(parallelErrors)) return false;
+
+  const maxAngleError = Math.max(
+    ...angleErrors.filter((value): value is number => typeof value === "number")
+  );
+  const maxParallelError = Math.max(
+    ...parallelErrors.filter((value): value is number => typeof value === "number")
+  );
+
+  return maxAngleError <= 18 && maxParallelError <= 18;
+};
+
+const hasStrongEllipseEvidence = (candidate: ShapeDetectionCandidate): boolean => {
+  if (candidate.kind !== "ellipse") return false;
+
+  const debugGeometry = candidate.debugGeometry;
+  if (!debugGeometry || typeof debugGeometry !== "object") return false;
+
+  const {
+    radialMeanError,
+    radialStd,
+    cornerPenalty,
+    angularCoverage,
+  } = debugGeometry as {
+    radialMeanError?: unknown;
+    radialStd?: unknown;
+    cornerPenalty?: unknown;
+    angularCoverage?: unknown;
+  };
+
+  return (
+    typeof radialMeanError === "number" &&
+    typeof radialStd === "number" &&
+    typeof cornerPenalty === "number" &&
+    typeof angularCoverage === "number" &&
+    radialMeanError <= 0.08 &&
+    radialStd <= 0.1 &&
+    cornerPenalty <= 0.14 &&
+    angularCoverage >= 0.84
+  );
+};
+
+const hasStrongDiamondEvidence = (candidate: ShapeDetectionCandidate): boolean => {
+  if (candidate.kind !== "diamond") return false;
+
+  const debugGeometry = candidate.debugGeometry;
+  if (!debugGeometry || typeof debugGeometry !== "object") return false;
+
+  const { diamondAxisScore, midpointScore, vertexContactScore } =
+    debugGeometry as {
+      diamondAxisScore?: unknown;
+      midpointScore?: unknown;
+      vertexContactScore?: unknown;
+    };
+
+  if (typeof diamondAxisScore === "number" && diamondAxisScore >= 0.88) {
+    return true;
+  }
+
+  return (
+    typeof midpointScore === "number" &&
+    typeof vertexContactScore === "number" &&
+    midpointScore >= 0.8 &&
+    vertexContactScore >= 0.68
+  );
+};
+
 const getPairMargin = (
   a: SmartAssistShapeKind,
   b: SmartAssistShapeKind,
@@ -148,7 +259,11 @@ export const resolveCandidates = (
 
   const arrowAlternative = eligible.find((candidate) => candidate.kind === "arrow");
   const ellipseAlternative = eligible.find((candidate) => candidate.kind === "ellipse");
+  const diamondAlternative = eligible.find((candidate) => candidate.kind === "diamond");
   const lineAlternative = eligible.find((candidate) => candidate.kind === "line");
+  const rectangleAlternative = eligible.find(
+    (candidate) => candidate.kind === "rectangle"
+  );
 
   if (
     arrowAlternative &&
@@ -158,6 +273,88 @@ export const resolveCandidates = (
     return {
       accepted: true,
       winner: ellipseAlternative,
+      candidates,
+    };
+  }
+
+  if (
+    rectangleAlternative &&
+    ellipseAlternative &&
+    hasSameSourceStrokes(rectangleAlternative, ellipseAlternative) &&
+    (hasAxisBoxEvidence(rectangleAlternative) ||
+      hasExtraRectangleCornerCandidates(rectangleAlternative)) &&
+    !hasCleanRectangleCorners(rectangleAlternative) &&
+    hasStrongEllipseEvidence(ellipseAlternative) &&
+    ellipseAlternative.confidence >= rectangleAlternative.confidence - 0.08
+  ) {
+    return {
+      accepted: true,
+      winner: ellipseAlternative,
+      candidates,
+    };
+  }
+
+  if (
+    diamondAlternative &&
+    ellipseAlternative &&
+    hasSameSourceStrokes(diamondAlternative, ellipseAlternative) &&
+    hasStrongEllipseEvidence(ellipseAlternative) &&
+    (ellipseAlternative.confidence >= diamondAlternative.confidence + 0.03 ||
+      (!hasStrongDiamondEvidence(diamondAlternative) &&
+        ellipseAlternative.confidence >= diamondAlternative.confidence - 0.12))
+  ) {
+    return {
+      accepted: true,
+      winner: ellipseAlternative,
+      candidates,
+    };
+  }
+
+  if (
+    rectangleAlternative &&
+    diamondAlternative &&
+    hasSameSourceStrokes(rectangleAlternative, diamondAlternative)
+  ) {
+    if (rectangleAlternative.confidence >= diamondAlternative.confidence + 0.06) {
+      return {
+        accepted: true,
+        winner: rectangleAlternative,
+        candidates,
+      };
+    }
+    if (diamondAlternative.confidence >= rectangleAlternative.confidence + 0.06) {
+      return {
+        accepted: true,
+        winner: diamondAlternative,
+        candidates,
+      };
+    }
+  }
+
+  if (
+    rectangleAlternative &&
+    ellipseAlternative &&
+    hasSameSourceStrokes(rectangleAlternative, ellipseAlternative) &&
+    !hasAxisBoxEvidence(rectangleAlternative) &&
+    rectangleAlternative.confidence >= ellipseAlternative.confidence + 0.07
+  ) {
+    return {
+      accepted: true,
+      winner: rectangleAlternative,
+      candidates,
+    };
+  }
+
+  if (
+    rectangleAlternative &&
+    ellipseAlternative &&
+    hasSameSourceStrokes(rectangleAlternative, ellipseAlternative) &&
+    hasStrongAxisBoxEvidence(rectangleAlternative) &&
+    rectangleAlternative.confidence >= ellipseAlternative.confidence + 0.04
+  ) {
+    return {
+      accepted: true,
+      winner: rectangleAlternative,
       candidates,
     };
   }

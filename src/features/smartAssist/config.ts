@@ -11,8 +11,8 @@ export const SMART_ASSIST_CONFIG: SmartAssistConfig = {
   minConfidence: {
     line: 0.82,
     arrow: 0.82,
-    rectangle: 0.96,
-    diamond: 0.96,
+    rectangle: 0.82,
+    diamond: 0.82,
     ellipse: 0.62,
   },
   conflictMarginsPx: {

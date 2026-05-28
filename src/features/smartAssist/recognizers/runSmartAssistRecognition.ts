@@ -7,11 +7,15 @@ import {
 } from "../types";
 import { buildBatchMetrics } from "../utils";
 import { arrowRecognizer } from "./arrowRecognizer";
+import { diamondRecognizer } from "./diamondRecognizer";
 import { ellipseRecognizer } from "./ellipseRecognizer";
+import { rectangleRecognizer } from "./rectangleRecognizer";
 import { resolveCandidates } from "./resolveCandidates";
 import { lineRecognizer } from "./lineRecognizer";
 
 const SHAPE_RECOGNIZERS: ShapeRecognizer[] = [
+  diamondRecognizer,
+  rectangleRecognizer,
   ellipseRecognizer,
   arrowRecognizer,
   lineRecognizer,

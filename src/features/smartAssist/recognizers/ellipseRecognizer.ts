@@ -46,6 +46,10 @@ interface EllipseEvaluation {
   width: number;
   height: number;
   diagonal: number;
+  orientedWidth: number;
+  orientedHeight: number;
+  rotation: number;
+  rotationReliable: boolean;
   bbox: NonNullable<ReturnType<typeof getPointsBBox>>;
 }
 
@@ -269,7 +273,8 @@ const computeCornerPenalty = (
 const buildEllipseReplacementStroke = (
   source: Stroke,
   topLeft: StrokePoint,
-  bottomRight: StrokePoint
+  bottomRight: StrokePoint,
+  rotation = 0
 ): Stroke => ({
   id: createStrokeId(),
   tool: Tool.Ellipse,
@@ -277,7 +282,79 @@ const buildEllipseReplacementStroke = (
   color: source.color,
   thickness: source.thickness,
   drawableSeed: source.drawableSeed,
+  rotation,
 });
+
+const computeOrientedEllipseBounds = (
+  points: StrokePoint[]
+): {
+  width: number;
+  height: number;
+  rotation: number;
+  rotationReliable: boolean;
+} => {
+  if (points.length < 3) {
+    return { width: 0, height: 0, rotation: 0, rotationReliable: false };
+  }
+
+  let cx = 0;
+  let cy = 0;
+  for (const point of points) {
+    cx += point.x;
+    cy += point.y;
+  }
+  cx /= points.length;
+  cy /= points.length;
+
+  let xx = 0;
+  let yy = 0;
+  let xy = 0;
+  for (const point of points) {
+    const dx = point.x - cx;
+    const dy = point.y - cy;
+    xx += dx * dx;
+    yy += dy * dy;
+    xy += dx * dy;
+  }
+  xx /= points.length;
+  yy /= points.length;
+  xy /= points.length;
+
+  const rotation = 0.5 * Math.atan2(2 * xy, xx - yy);
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+
+  for (const point of points) {
+    const dx = point.x - cx;
+    const dy = point.y - cy;
+    const x = dx * cos + dy * sin;
+    const y = -dx * sin + dy * cos;
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
+  }
+
+  const width = maxX - minX;
+  const height = maxY - minY;
+  const aspect = safeDivide(Math.min(width, height), Math.max(width, height), 1);
+  const rotationReliable = aspect < 0.82;
+
+  if (width >= height) {
+    return { width, height, rotation, rotationReliable };
+  }
+
+  return {
+    width: height,
+    height: width,
+    rotation: rotation + Math.PI / 2,
+    rotationReliable,
+  };
+};
 
 const evaluateEllipseTrace = (trace: LoopTrace): EllipseEvaluation | null => {
   const loopPoints = trace.points;
@@ -300,6 +377,11 @@ const evaluateEllipseTrace = (trace: LoopTrace): EllipseEvaluation | null => {
   const cy = (bbox.minY + bbox.maxY) / 2;
   const rx = Math.max(width / 2, 1e-3);
   const ry = Math.max(height / 2, 1e-3);
+  const orientedBounds = computeOrientedEllipseBounds(loopPoints);
+  const orientedRx = Math.max(orientedBounds.width / 2, 1e-3);
+  const orientedRy = Math.max(orientedBounds.height / 2, 1e-3);
+  const cos = Math.cos(orientedBounds.rotation);
+  const sin = Math.sin(orientedBounds.rotation);
 
   const quadrantCoverage = computeQuadrantCoverage(loopPoints, cx, cy);
   if (quadrantCoverage < QUADRANT_FULL_COVERAGE) return null;
@@ -311,22 +393,45 @@ const evaluateEllipseTrace = (trace: LoopTrace): EllipseEvaluation | null => {
     angularCoverage >= MIN_ANGULAR_COVERAGE;
   if (!isClosedEnough && !isLooseFullLoop) return null;
 
-  const radialErrors = loopPoints.map((point) => {
+  const axisRadialErrors = loopPoints.map((point) => {
     const dx = safeDivide(point.x - cx, rx);
     const dy = safeDivide(point.y - cy, ry);
     const radius = Math.sqrt(dx * dx + dy * dy);
     return radius - 1;
   });
+  const orientedRadialErrors = loopPoints.map((point) => {
+    const dx = point.x - cx;
+    const dy = point.y - cy;
+    const localX = dx * cos + dy * sin;
+    const localY = -dx * sin + dy * cos;
+    const radius = Math.sqrt(
+      safeDivide(localX, orientedRx) ** 2 + safeDivide(localY, orientedRy) ** 2
+    );
+    return radius - 1;
+  });
 
-  const radialMeanError =
-    radialErrors.reduce((sum, err) => sum + Math.abs(err), 0) / radialErrors.length;
-  const radialMeanSigned = radialErrors.reduce((sum, err) => sum + err, 0) / radialErrors.length;
-  const radialVariance =
-    radialErrors.reduce((sum, err) => {
-      const centered = err - radialMeanSigned;
-      return sum + centered * centered;
-    }, 0) / radialErrors.length;
-  const radialStd = Math.sqrt(radialVariance);
+  const getRadialStats = (errors: number[]) => {
+    const meanAbs =
+      errors.reduce((sum, err) => sum + Math.abs(err), 0) / errors.length;
+    const meanSigned = errors.reduce((sum, err) => sum + err, 0) / errors.length;
+    const variance =
+      errors.reduce((sum, err) => {
+        const centered = err - meanSigned;
+        return sum + centered * centered;
+      }, 0) / errors.length;
+    return { meanAbs, std: Math.sqrt(variance) };
+  };
+
+  const axisRadialStats = getRadialStats(axisRadialErrors);
+  const orientedRadialStats = getRadialStats(orientedRadialErrors);
+  const useOrientedFit =
+    orientedBounds.rotationReliable &&
+    orientedRadialStats.meanAbs + orientedRadialStats.std <
+      axisRadialStats.meanAbs + axisRadialStats.std;
+  const radialMeanError = useOrientedFit
+    ? orientedRadialStats.meanAbs
+    : axisRadialStats.meanAbs;
+  const radialStd = useOrientedFit ? orientedRadialStats.std : axisRadialStats.std;
 
   const { cornerPenalty } = computeCornerPenalty(loopPoints, rx, ry);
 
@@ -367,6 +472,10 @@ const evaluateEllipseTrace = (trace: LoopTrace): EllipseEvaluation | null => {
     width,
     height,
     diagonal,
+    orientedWidth: orientedBounds.width,
+    orientedHeight: orientedBounds.height,
+    rotation: useOrientedFit && orientedBounds.rotationReliable ? orientedBounds.rotation : 0,
+    rotationReliable: orientedBounds.rotationReliable,
     bbox,
   };
 };
@@ -403,6 +512,10 @@ export const ellipseRecognizer: ShapeRecognizer = {
       width,
       height,
       diagonal,
+      orientedWidth,
+      orientedHeight,
+      rotation,
+      rotationReliable,
       bbox,
     } = bestEvaluation;
 
@@ -421,7 +534,9 @@ export const ellipseRecognizer: ShapeRecognizer = {
       kind: "ellipse",
       confidence,
       sourceStrokeIds: sourceStrokes.map((stroke) => stroke.id),
-      replacementStrokes: [buildEllipseReplacementStroke(sourceStrokes[0], topLeft, bottomRight)],
+      replacementStrokes: [
+        buildEllipseReplacementStroke(sourceStrokes[0], topLeft, bottomRight),
+      ],
       reasons: [
         `closedness:${closedness.toFixed(3)}`,
         `angularCoverage:${angularCoverage.toFixed(3)}`,
@@ -440,6 +555,10 @@ export const ellipseRecognizer: ShapeRecognizer = {
         width,
         height,
         diagonal,
+        orientedWidth,
+        orientedHeight,
+        rotation,
+        rotationReliable,
         loopClosureGap: trace.closureGap,
         loopStartIndex: trace.startIndex,
         loopEndIndex: trace.endIndex,
