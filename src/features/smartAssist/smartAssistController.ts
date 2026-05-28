@@ -2,7 +2,13 @@ import { Stroke, StrokePoint, Tool } from "@/types";
 import { useHistoryStore } from "@/store/useHistoryStore";
 import { useToolStore } from "@/store/useToolStore";
 import { SMART_ASSIST_CONFIG } from "./config";
-import { SmartAssistBatch, SmartAssistClearReason } from "./types";
+import { runSmartAssistRecognition } from "./recognizers";
+import {
+  RecognizerContext,
+  ShapeDetectionCandidate,
+  SmartAssistBatch,
+  SmartAssistClearReason,
+} from "./types";
 import { useSmartAssistStore } from "./useSmartAssistStore";
 import { expandBBox, getStrokesBBox, isPointInBBox } from "./utils";
 
@@ -89,7 +95,7 @@ export class SmartAssistController {
 
     this.cancelPendingTimer();
     this.recognitionTimer = window.setTimeout(() => {
-      this.runRecognitionStub();
+      this.runRecognition();
     }, SMART_ASSIST_CONFIG.debounceMs);
   }
 
@@ -154,7 +160,21 @@ export class SmartAssistController {
     }
   }
 
-  private runRecognitionStub() {
+  private buildRecognizerContext(batch: SmartAssistBatch): RecognizerContext {
+    const baseStroke = batch.strokes[0];
+    return {
+      color: baseStroke?.color ?? "#000000",
+      thickness: baseStroke?.thickness ?? 1,
+      drawableSeed: baseStroke?.drawableSeed ?? Date.now(),
+      shapeFill: baseStroke?.shapeFill,
+    };
+  }
+
+  private scheduleReplacement(_winner: ShapeDetectionCandidate, _batch: SmartAssistBatch) {
+    // Replacement is intentionally deferred until concrete recognizers are introduced.
+  }
+
+  private runRecognition() {
     const { batch } = useSmartAssistStore.getState();
     if (!batch) return;
 
@@ -164,7 +184,14 @@ export class SmartAssistController {
       updatedAt: Date.now(),
     });
 
-    this.clearBatch("timeout");
+    const result = runSmartAssistRecognition(batch, this.buildRecognizerContext(batch));
+    if (!result.accepted || !result.winner) {
+      this.clearBatch("rejected");
+      return;
+    }
+
+    this.scheduleReplacement(result.winner, batch);
+    this.clearBatch("recognized");
   }
 }
 

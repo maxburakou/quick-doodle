@@ -1,0 +1,29 @@
+import { SMART_ASSIST_CONFIG } from "../config";
+import {
+  DetectionResult,
+  RecognizerContext,
+  ShapeRecognizer,
+  SmartAssistBatch,
+} from "../types";
+import { buildBatchMetrics } from "../utils";
+import { resolveCandidates } from "./resolveCandidates";
+
+const SHAPE_RECOGNIZERS: ShapeRecognizer[] = [];
+
+export const runSmartAssistRecognition = (
+  batch: SmartAssistBatch,
+  context: RecognizerContext
+): DetectionResult => {
+  const metrics = buildBatchMetrics(batch.strokes);
+  const candidates = SHAPE_RECOGNIZERS
+    .map((recognizer) => recognizer.detect(metrics, context))
+    .filter((candidate): candidate is NonNullable<typeof candidate> =>
+      candidate !== null
+    );
+
+  return resolveCandidates(candidates, {
+    minConfidence: SMART_ASSIST_CONFIG.minConfidence,
+  });
+};
+
+export { SHAPE_RECOGNIZERS };
