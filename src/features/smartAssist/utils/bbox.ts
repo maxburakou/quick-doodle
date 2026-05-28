@@ -1,5 +1,5 @@
 import { Stroke, StrokePoint } from "@/types";
-import { SmartAssistBatch } from "./types";
+import { distance } from "./geometry";
 
 export interface BBox {
   minX: number;
@@ -8,16 +8,16 @@ export interface BBox {
   maxY: number;
 }
 
-export const getStrokeBBox = (stroke: Stroke): BBox | null => {
-  if (stroke.points.length === 0) return null;
+export const getPointsBBox = (points: StrokePoint[]): BBox | null => {
+  if (points.length === 0) return null;
 
-  let minX = stroke.points[0].x;
-  let minY = stroke.points[0].y;
-  let maxX = stroke.points[0].x;
-  let maxY = stroke.points[0].y;
+  let minX = points[0].x;
+  let minY = points[0].y;
+  let maxX = points[0].x;
+  let maxY = points[0].y;
 
-  for (let i = 1; i < stroke.points.length; i += 1) {
-    const point = stroke.points[i];
+  for (let i = 1; i < points.length; i += 1) {
+    const point = points[i];
     if (point.x < minX) minX = point.x;
     if (point.y < minY) minY = point.y;
     if (point.x > maxX) maxX = point.x;
@@ -27,10 +27,13 @@ export const getStrokeBBox = (stroke: Stroke): BBox | null => {
   return { minX, minY, maxX, maxY };
 };
 
-export const getBatchBBox = (batch: SmartAssistBatch): BBox | null => {
+export const getStrokeBBox = (stroke: Stroke): BBox | null =>
+  getPointsBBox(stroke.points);
+
+export const getStrokesBBox = (strokes: Stroke[]): BBox | null => {
   let bbox: BBox | null = null;
 
-  for (const stroke of batch.strokes) {
+  for (const stroke of strokes) {
     const strokeBBox = getStrokeBBox(stroke);
     if (!strokeBBox) continue;
 
@@ -48,6 +51,18 @@ export const getBatchBBox = (batch: SmartAssistBatch): BBox | null => {
   return bbox;
 };
 
+export const getBBoxCenter = (bbox: BBox): StrokePoint => ({
+  x: (bbox.minX + bbox.maxX) / 2,
+  y: (bbox.minY + bbox.maxY) / 2,
+  pressure: 0.5,
+});
+
+export const getBBoxDiagonal = (bbox: BBox): number =>
+  distance(
+    { x: bbox.minX, y: bbox.minY },
+    { x: bbox.maxX, y: bbox.maxY }
+  );
+
 export const expandBBox = (bbox: BBox, paddingPx: number): BBox => ({
   minX: bbox.minX - paddingPx,
   minY: bbox.minY - paddingPx,
@@ -60,6 +75,3 @@ export const isPointInBBox = (point: StrokePoint, bbox: BBox): boolean =>
   point.x <= bbox.maxX &&
   point.y >= bbox.minY &&
   point.y <= bbox.maxY;
-
-export const countBatchRawPoints = (batch: SmartAssistBatch): number =>
-  batch.strokes.reduce((acc, stroke) => acc + stroke.points.length, 0);

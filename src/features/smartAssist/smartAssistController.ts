@@ -4,15 +4,13 @@ import { useToolStore } from "@/store/useToolStore";
 import { SMART_ASSIST_CONFIG } from "./config";
 import { SmartAssistBatch, SmartAssistClearReason } from "./types";
 import { useSmartAssistStore } from "./useSmartAssistStore";
-import {
-  countBatchRawPoints,
-  expandBBox,
-  getBatchBBox,
-  isPointInBBox,
-} from "./utils";
+import { expandBBox, getStrokesBBox, isPointInBBox } from "./utils";
 
 const createBatchId = () =>
   `sa_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
+const countBatchRawPoints = (batch: SmartAssistBatch): number =>
+  batch.strokes.reduce((acc, stroke) => acc + stroke.points.length, 0);
 
 export class SmartAssistController {
   private recognitionTimer: number | null = null;
@@ -103,7 +101,7 @@ export class SmartAssistController {
     if (!batch || batch.status !== "collecting") return;
 
     this.cancelPendingTimer();
-    const bbox = getBatchBBox(batch);
+    const bbox = getStrokesBBox(batch.strokes);
     if (!bbox) return;
 
     const expandedBBox = expandBBox(bbox, SMART_ASSIST_CONFIG.batchJoinPaddingPx);
