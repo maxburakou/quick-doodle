@@ -18,13 +18,23 @@ import {
   ToolbarSettingDefinition,
   ToolbarToolConfig,
 } from "./types";
-import { ColorOptions, FillOptions, FontSizeOptions, ThicknessOptions } from "./components";
+import {
+  ColorOptions,
+  FillOptions,
+  FontSizeOptions,
+  SmartAssistOptions,
+  ThicknessOptions,
+} from "./components";
 
 export const TOOL_CONFIG: Record<Tool, ToolbarToolConfig> = {
   [Tool.Pen]: {
     hotkeySlot: 1,
     icon: createElement(Pen, { size: 14 }),
-    settings: [TOOLBAR_SETTING_CONTROL.COLOR, TOOLBAR_SETTING_CONTROL.STROKE],
+    settings: [
+      TOOLBAR_SETTING_CONTROL.COLOR,
+      TOOLBAR_SETTING_CONTROL.STROKE,
+      TOOLBAR_SETTING_CONTROL.SMART_ASSIST,
+    ],
   },
   [Tool.Highlighter]: {
     hotkeySlot: 2,
@@ -121,5 +131,11 @@ export const SETTING_REGISTRY: Record<
     isVisible: ({ tool, context }) =>
       isFillableShapeTool(tool) &&
       context !== TOOLBAR_SETTINGS_CONTEXT.GROUP_SELECTION,
+  },
+  [TOOLBAR_SETTING_CONTROL.SMART_ASSIST]: {
+    id: TOOLBAR_SETTING_CONTROL.SMART_ASSIST,
+    component: createElement(SmartAssistOptions),
+    isVisible: ({ tool, context }) =>
+      tool === Tool.Pen && context === TOOLBAR_SETTINGS_CONTEXT.ACTIVE_TOOL,
   },
 };

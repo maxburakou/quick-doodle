@@ -8,6 +8,7 @@ export const TOOLBAR_SETTING_CONTROL = {
   STROKE: "stroke",
   TEXT_SIZE: "textSize",
   FILL: "fill",
+  SMART_ASSIST: "smartAssist",
 } as const;
 
 export type ToolbarSettingControl = ValueOf<typeof TOOLBAR_SETTING_CONTROL>;

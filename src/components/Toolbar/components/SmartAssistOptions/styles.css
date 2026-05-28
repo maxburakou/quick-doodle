@@ -1,0 +1,15 @@
+.smart-assist-button {
+  border-radius: var(--app-radius-sm);
+}
+
+.smart-assist-button.--active {
+  color: var(--app-accent);
+}
+
+.smart-assist-icon {
+  opacity: 0.76;
+}
+
+.smart-assist-button.--active .smart-assist-icon {
+  opacity: 1;
+}
