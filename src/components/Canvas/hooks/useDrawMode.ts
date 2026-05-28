@@ -14,6 +14,7 @@ import {
 } from "@/store/useShapeEditorStore/helpers";
 import { pickDrawDrivingAnchors } from "@/store/useShapeEditorStore/helpers/snap/selectors";
 import { SNAP_DISTANCE_PX } from "@/config/snapConfig";
+import { getSmartAssistController } from "@/features/smartAssist";
 import {
   clearCanvas,
   drawCanvas,
@@ -76,6 +77,7 @@ const pickDrawDraftDrivingAnchors: NonNullable<
 export const useDrawMode = ({
   ctxRef,
 }: UseDrawModeParams) => {
+  const smartAssistController = useMemo(() => getSmartAssistController(), []);
   const pointsRef = useRef<StrokePoint[]>([]);
   const isDrawingRef = useRef(false);
   const drawableSeedRef = useRef<number>(Date.now());
@@ -248,6 +250,9 @@ export const useDrawMode = ({
 
   const handlePointerDown = useCallback(
     ({ point }: CanvasPointerPayload) => {
+      if (tool === Tool.Pen) {
+        smartAssistController.handlePenPointerDown(point);
+      }
       const { color, thickness, shapeFill } = getToolSettings();
       startDrawing();
       drawableSeedRef.current = Date.now();
@@ -267,7 +272,7 @@ export const useDrawMode = ({
 
       drawCanvas([stroke], ctxRef.current);
     },
-    [tool, ctxRef]
+    [tool, ctxRef, smartAssistController]
   );
 
   const processPointerMove = useCallback(
@@ -362,6 +367,9 @@ export const useDrawMode = ({
       };
 
       useHistoryStore.getState().addAction(stroke);
+      if (stroke.tool === Tool.Pen) {
+        smartAssistController.enqueueCommittedPenStroke(stroke);
+      }
       pointsRef.current = [];
       strokeIdRef.current = "";
       clearCanvas(ctxRef.current);
@@ -371,6 +379,7 @@ export const useDrawMode = ({
       flushPendingMove,
       tool,
       withSnappedEndpoint,
+      smartAssistController,
     ]
   );
 
@@ -381,8 +390,9 @@ export const useDrawMode = ({
         rafMoveIdRef.current = null;
       }
       pendingMoveRef.current = null;
+      smartAssistController.dispose();
     };
-  }, []);
+  }, [smartAssistController]);
 
   return useMemo(
     () => ({
