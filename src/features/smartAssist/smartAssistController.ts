@@ -18,6 +18,16 @@ const createBatchId = () =>
 const countBatchRawPoints = (batch: SmartAssistBatch): number =>
   batch.strokes.reduce((acc, stroke) => acc + stroke.points.length, 0);
 
+const shouldLogSmartAssistDebug = (): boolean => {
+  if (!import.meta.env.DEV || typeof window === "undefined") return false;
+
+  try {
+    return window.localStorage.getItem("quickDoodle.smartAssistDebug") === "1";
+  } catch {
+    return false;
+  }
+};
+
 export class SmartAssistController {
   private recognitionTimer: number | null = null;
   private unsubscribeTool: (() => void) | null = null;
@@ -112,7 +122,7 @@ export class SmartAssistController {
 
     const expandedBBox = expandBBox(bbox, SMART_ASSIST_CONFIG.batchJoinPaddingPx);
     if (isPointInBBox(point, expandedBBox)) return;
-    this.clearBatch("pointer-down-far");
+    this.runRecognition();
   }
 
   clearBatch(reason: SmartAssistClearReason) {
@@ -206,6 +216,26 @@ export class SmartAssistController {
     });
 
     const result = runSmartAssistRecognition(batch, this.buildRecognizerContext(batch));
+    if (shouldLogSmartAssistDebug()) {
+      console.debug("[Smart Assist] recognition", {
+        accepted: result.accepted,
+        rejectedReason: result.rejectedReason,
+        winner: result.winner
+          ? {
+              kind: result.winner.kind,
+              confidence: result.winner.confidence,
+              reasons: result.winner.reasons,
+              debugGeometry: result.winner.debugGeometry,
+            }
+          : null,
+        candidates: result.candidates.map((candidate) => ({
+          kind: candidate.kind,
+          confidence: candidate.confidence,
+          reasons: candidate.reasons,
+          debugGeometry: candidate.debugGeometry,
+        })),
+      });
+    }
     if (!result.accepted || !result.winner) {
       this.clearBatch("rejected");
       return;

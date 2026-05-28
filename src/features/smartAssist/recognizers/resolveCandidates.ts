@@ -84,15 +84,31 @@ export const resolveCandidates = (
     };
   }
 
+  const arrowAlternative = eligible.find((candidate) => candidate.kind === "arrow");
+  const lineAlternative = eligible.find((candidate) => candidate.kind === "line");
+  if (
+    arrowAlternative &&
+    lineAlternative &&
+    arrowAlternative.confidence >= 0.82 &&
+    hasStrongHeadEvidence(arrowAlternative)
+  ) {
+    return {
+      accepted: true,
+      winner: arrowAlternative,
+      candidates,
+    };
+  }
+
   if (best.kind === "arrow") {
-    const lineAlternative = eligible.find((candidate) => candidate.kind === "line");
-    if (lineAlternative && !hasStrongHeadEvidence(best)) {
-      return {
-        accepted: false,
-        winner: null,
-        candidates,
-        rejectedReason: "arrow-head-evidence-weak",
-      };
+    if (lineAlternative) {
+      const arrowCanBeatLine = best.confidence >= 0.82 && hasStrongHeadEvidence(best);
+      if (!arrowCanBeatLine) {
+        return {
+          accepted: true,
+          winner: lineAlternative,
+          candidates,
+        };
+      }
     }
   }
 

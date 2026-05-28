@@ -5,8 +5,8 @@ import { distanceToSegment, safeDivide } from "../utils";
 
 const MIN_CHORD_LENGTH_PX = 24;
 const STRAIGHTNESS_STRONG = 0.94;
-const DEVIATION_AVG_STRONG = 0.02;
-const DEVIATION_MAX_STRONG = 0.06;
+const DEVIATION_AVG_STRONG = 0.05;
+const DEVIATION_MAX_STRONG = 0.14;
 const CLOSEDNESS_LOOKS_CLOSED = 0.2;
 
 const buildLineReplacementStroke = (stroke: Stroke): Stroke => {
@@ -67,7 +67,7 @@ export const lineRecognizer: ShapeRecognizer = {
     const avgDeviationScore = 1 - Math.min(1, safeDivide(avgDeviation, DEVIATION_AVG_STRONG));
     const maxDeviationScore = 1 - Math.min(1, safeDivide(maxDeviation, DEVIATION_MAX_STRONG));
     const confidence =
-      straightnessScore * 0.5 + avgDeviationScore * 0.25 + maxDeviationScore * 0.25;
+      straightnessScore * 0.65 + avgDeviationScore * 0.25 + maxDeviationScore * 0.1;
 
     return {
       kind: "line",

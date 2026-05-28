@@ -10,7 +10,7 @@ export const SMART_ASSIST_CONFIG: SmartAssistConfig = {
   transitionDurationMs: 180,
   minConfidence: {
     line: 0.82,
-    arrow: 0.95,
+    arrow: 0.82,
     rectangle: 0.96,
     diamond: 0.96,
     ellipse: 0.96,

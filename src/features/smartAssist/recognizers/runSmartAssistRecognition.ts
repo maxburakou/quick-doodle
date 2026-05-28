@@ -6,10 +6,11 @@ import {
   SmartAssistBatch,
 } from "../types";
 import { buildBatchMetrics } from "../utils";
+import { arrowRecognizer } from "./arrowRecognizer";
 import { resolveCandidates } from "./resolveCandidates";
 import { lineRecognizer } from "./lineRecognizer";
 
-const SHAPE_RECOGNIZERS: ShapeRecognizer[] = [lineRecognizer];
+const SHAPE_RECOGNIZERS: ShapeRecognizer[] = [arrowRecognizer, lineRecognizer];
 
 export const runSmartAssistRecognition = (
   batch: SmartAssistBatch,
