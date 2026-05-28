@@ -9,7 +9,7 @@ export const SMART_ASSIST_CONFIG: SmartAssistConfig = {
   batchJoinPaddingPx: 28,
   transitionDurationMs: 180,
   minConfidence: {
-    line: 0.93,
+    line: 0.82,
     arrow: 0.95,
     rectangle: 0.96,
     diamond: 0.96,

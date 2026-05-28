@@ -74,6 +74,7 @@ export interface RecognizerContext {
   thickness: number;
   drawableSeed: number;
   shapeFill?: Stroke["shapeFill"];
+  sourceStrokes: Stroke[];
 }
 
 export interface ShapeRecognizer {

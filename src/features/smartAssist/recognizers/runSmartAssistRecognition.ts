@@ -7,8 +7,9 @@ import {
 } from "../types";
 import { buildBatchMetrics } from "../utils";
 import { resolveCandidates } from "./resolveCandidates";
+import { lineRecognizer } from "./lineRecognizer";
 
-const SHAPE_RECOGNIZERS: ShapeRecognizer[] = [];
+const SHAPE_RECOGNIZERS: ShapeRecognizer[] = [lineRecognizer];
 
 export const runSmartAssistRecognition = (
   batch: SmartAssistBatch,

@@ -167,11 +167,32 @@ export class SmartAssistController {
       thickness: baseStroke?.thickness ?? 1,
       drawableSeed: baseStroke?.drawableSeed ?? Date.now(),
       shapeFill: baseStroke?.shapeFill,
+      sourceStrokes: batch.strokes,
     };
   }
 
-  private scheduleReplacement(_winner: ShapeDetectionCandidate, _batch: SmartAssistBatch) {
-    // Replacement is intentionally deferred until concrete recognizers are introduced.
+  private scheduleReplacement(winner: ShapeDetectionCandidate) {
+    const historyState = useHistoryStore.getState();
+    const presentIdSet = new Set(historyState.present.map((stroke) => stroke.id));
+    const allSourceStrokesStillPresent = winner.sourceStrokeIds.every((id) =>
+      presentIdSet.has(id)
+    );
+
+    if (!allSourceStrokesStillPresent) {
+      this.clearBatch("history-change");
+      return false;
+    }
+
+    const replaced = historyState.replaceStrokesWithAction(
+      winner.sourceStrokeIds,
+      winner.replacementStrokes
+    );
+    if (!replaced) {
+      this.clearBatch("history-change");
+      return false;
+    }
+
+    return true;
   }
 
   private runRecognition() {
@@ -190,7 +211,8 @@ export class SmartAssistController {
       return;
     }
 
-    this.scheduleReplacement(result.winner, batch);
+    const replaced = this.scheduleReplacement(result.winner);
+    if (!replaced) return;
     this.clearBatch("recognized");
   }
 }
