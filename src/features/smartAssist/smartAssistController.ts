@@ -4,21 +4,15 @@ import { useToolStore } from "@/store/useToolStore";
 import { SMART_ASSIST_CONFIG } from "./config";
 import { SmartAssistBatch, SmartAssistClearReason } from "./types";
 import { useSmartAssistStore } from "./useSmartAssistStore";
+import {
+  countBatchRawPoints,
+  expandBBox,
+  getBatchBBox,
+  isPointInBBox,
+} from "./utils";
 
 const createBatchId = () =>
   `sa_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-
-const getLastStrokeLastPoint = (batch: SmartAssistBatch): StrokePoint | null => {
-  const lastStroke = batch.strokes[batch.strokes.length - 1];
-  if (!lastStroke) return null;
-  return lastStroke.points[lastStroke.points.length - 1] ?? null;
-};
-
-const distance = (a: StrokePoint, b: StrokePoint) =>
-  Math.hypot(a.x - b.x, a.y - b.y);
-
-const sumRawPoints = (strokes: Stroke[]) =>
-  strokes.reduce((acc, stroke) => acc + stroke.points.length, 0);
 
 export class SmartAssistController {
   private recognitionTimer: number | null = null;
@@ -59,50 +53,41 @@ export class SmartAssistController {
 
   enqueueCommittedPenStroke(stroke: Stroke) {
     const { enabled, batch } = useSmartAssistStore.getState();
-    if (!enabled) return;
     if (stroke.tool !== Tool.Pen) return;
+    if (!enabled) return;
 
     const now = Date.now();
-    let nextBatch = batch;
+    const nextBatch = batch ?? {
+      id: createBatchId(),
+      strokeIds: [],
+      strokes: [],
+      startedAt: now,
+      updatedAt: now,
+      status: "collecting" as const,
+    };
 
-    if (nextBatch && now - nextBatch.startedAt > SMART_ASSIST_CONFIG.maxBatchAgeMs) {
-      this.clearBatch("max-age");
-      nextBatch = null;
-    }
-
-    if (nextBatch && nextBatch.strokes.length >= SMART_ASSIST_CONFIG.maxBatchStrokes) {
-      this.clearBatch("max-strokes");
-      nextBatch = null;
-    }
-
-    if (
-      nextBatch &&
-      sumRawPoints(nextBatch.strokes) + stroke.points.length >
-        SMART_ASSIST_CONFIG.maxRawPoints
-    ) {
-      this.clearBatch("max-points");
-      nextBatch = null;
-    }
-
-    if (!nextBatch) {
-      nextBatch = {
-        id: createBatchId(),
-        strokeIds: [],
-        strokes: [],
-        startedAt: now,
-        updatedAt: now,
-        status: "collecting",
-      };
-    }
-
-    const updatedBatch: SmartAssistBatch = {
+    const candidateBatch: SmartAssistBatch = {
       ...nextBatch,
       strokeIds: [...nextBatch.strokeIds, stroke.id],
       strokes: [...nextBatch.strokes, stroke],
       updatedAt: now,
       status: "collecting",
     };
-    useSmartAssistStore.getState().setBatch(updatedBatch);
+
+    if (candidateBatch.strokes.length > SMART_ASSIST_CONFIG.maxBatchStrokes) {
+      this.clearBatch("max-strokes");
+      return;
+    }
+    if (now - candidateBatch.startedAt > SMART_ASSIST_CONFIG.maxBatchAgeMs) {
+      this.clearBatch("max-age");
+      return;
+    }
+    if (countBatchRawPoints(candidateBatch) > SMART_ASSIST_CONFIG.maxRawPoints) {
+      this.clearBatch("max-points");
+      return;
+    }
+
+    useSmartAssistStore.getState().setBatch(candidateBatch);
 
     this.cancelPendingTimer();
     this.recognitionTimer = window.setTimeout(() => {
@@ -111,12 +96,18 @@ export class SmartAssistController {
   }
 
   handlePenPointerDown(point: StrokePoint) {
-    const { enabled, batch } = useSmartAssistStore.getState();
-    if (!enabled || !batch || batch.status !== "collecting") return;
+    const { transition, batch } = useSmartAssistStore.getState();
+    if (transition) {
+      this.finishTransitionNow();
+    }
+    if (!batch || batch.status !== "collecting") return;
 
-    const anchor = getLastStrokeLastPoint(batch);
-    if (!anchor) return;
-    if (distance(anchor, point) <= SMART_ASSIST_CONFIG.batchJoinPaddingPx) return;
+    this.cancelPendingTimer();
+    const bbox = getBatchBBox(batch);
+    if (!bbox) return;
+
+    const expandedBBox = expandBBox(bbox, SMART_ASSIST_CONFIG.batchJoinPaddingPx);
+    if (isPointInBBox(point, expandedBBox)) return;
     this.clearBatch("pointer-down-far");
   }
 
@@ -175,7 +166,7 @@ export class SmartAssistController {
       updatedAt: Date.now(),
     });
 
-    this.clearBatch("rejected");
+    this.clearBatch("timeout");
   }
 }
 
