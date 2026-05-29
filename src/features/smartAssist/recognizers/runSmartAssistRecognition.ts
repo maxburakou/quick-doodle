@@ -40,6 +40,7 @@ const runRecognizers = (
 
   return resolveCandidates(candidates, {
     minConfidence: SMART_ASSIST_CONFIG.minConfidence,
+    sourceStrokeIds: batch.strokeIds,
   });
 };
 
@@ -67,6 +68,7 @@ export const runSmartAssistRecognition = (
   const candidates = [...geometryResult.candidates, ...templateResult.candidates];
   return resolveCandidates(candidates, {
     minConfidence: SMART_ASSIST_CONFIG.minConfidence,
+    sourceStrokeIds: batch.strokeIds,
   });
 };
 

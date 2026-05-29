@@ -9,11 +9,11 @@ export const SMART_ASSIST_CONFIG: SmartAssistConfig = {
   batchJoinPaddingPx: 140,
   transitionDurationMs: 180,
   minConfidence: {
-    line: 0.82,
+    line: 0.84,
     arrow: 0.82,
-    rectangle: 0.82,
-    diamond: 0.82,
-    ellipse: 0.62,
+    rectangle: 0.8,
+    diamond: 0.84,
+    ellipse: 0.61,
   },
   conflictMarginsPx: {
     overlap: 12,

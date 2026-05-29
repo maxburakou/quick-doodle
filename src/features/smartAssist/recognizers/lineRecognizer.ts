@@ -2,6 +2,7 @@ import { createStrokeId } from "@/store/useShapeEditorStore/helpers";
 import { Stroke, Tool } from "@/types";
 import { ShapeRecognizer } from "../types";
 import { distanceToSegment, safeDivide } from "../utils";
+import { getAngleSnapIntent } from "./angleSnapIntent";
 
 const MIN_CHORD_LENGTH_PX = 24;
 const STRAIGHTNESS_STRONG = 0.94;
@@ -12,6 +13,7 @@ const CLOSEDNESS_LOOKS_CLOSED = 0.2;
 const buildLineReplacementStroke = (stroke: Stroke): Stroke => {
   const first = stroke.points[0];
   const last = stroke.points[stroke.points.length - 1] ?? first;
+  const snapIntent = getAngleSnapIntent(first, last);
 
   return {
     id: createStrokeId(),
@@ -20,6 +22,7 @@ const buildLineReplacementStroke = (stroke: Stroke): Stroke => {
     color: stroke.color,
     thickness: stroke.thickness,
     drawableSeed: stroke.drawableSeed,
+    isShiftPressed: snapIntent.shouldSnap,
   };
 };
 
@@ -36,6 +39,7 @@ export const lineRecognizer: ShapeRecognizer = {
 
     const first = stroke.points[0];
     const last = stroke.points[stroke.points.length - 1] ?? first;
+    const snapIntent = getAngleSnapIntent(first, last);
 
     let totalDistance = 0;
     let maxDistance = 0;
@@ -78,6 +82,9 @@ export const lineRecognizer: ShapeRecognizer = {
         `straightness:${strokeMetrics.straightness.toFixed(3)}`,
         `avgDeviation:${avgDeviation.toFixed(3)}`,
         `maxDeviation:${maxDeviation.toFixed(3)}`,
+        ...(snapIntent.shouldSnap
+          ? [`angleSnap:${snapIntent.snappedAngleDeg.toFixed(0)}`]
+          : []),
       ],
       debugGeometry: {
         chordLength: strokeMetrics.chordLength,
@@ -86,6 +93,11 @@ export const lineRecognizer: ShapeRecognizer = {
         avgDeviation,
         maxDeviation,
         closedness,
+        angleDeg: snapIntent.angleDeg,
+        angleSnapDeltaDeg: snapIntent.deltaDeg,
+        angleSnapEndpointShiftPx: snapIntent.endpointShiftPx,
+        snappedAngleDeg: snapIntent.snappedAngleDeg,
+        angleSnapApplied: snapIntent.shouldSnap,
       },
     };
   },

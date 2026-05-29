@@ -44,6 +44,11 @@ export interface SmartAssistDebugResult {
   confidence: number;
   reason: SmartAssistClearReason;
   createdAt: number;
+  rejectedReason?: DetectionRejectedReason;
+  candidates?: ShapeDetectionCandidate[];
+  winner?: ShapeDetectionCandidate | null;
+  runnerUp?: ShapeDetectionCandidate | null;
+  margin?: number | null;
 }
 
 export type SmartAssistShapeKind =
@@ -62,11 +67,21 @@ export interface ShapeDetectionCandidate {
   debugGeometry?: Record<string, unknown>;
 }
 
+export type DetectionRejectedReason =
+  | "below-threshold"
+  | "ambiguous"
+  | "insufficient-margin"
+  | "weak-arrow-head"
+  | "partial-batch-not-supported"
+  | "no-candidates";
+
 export interface DetectionResult {
   accepted: boolean;
   winner: ShapeDetectionCandidate | null;
   candidates: ShapeDetectionCandidate[];
-  rejectedReason?: string;
+  runnerUp?: ShapeDetectionCandidate | null;
+  margin?: number | null;
+  rejectedReason?: DetectionRejectedReason;
 }
 
 export interface RecognizerContext {

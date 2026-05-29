@@ -4,6 +4,7 @@ import { useToolStore } from "@/store/useToolStore";
 import { SMART_ASSIST_CONFIG } from "./config";
 import { runSmartAssistRecognition } from "./recognizers";
 import {
+  DetectionResult,
   RecognizerContext,
   ShapeDetectionCandidate,
   SmartAssistBatch,
@@ -138,17 +139,24 @@ export class SmartAssistController {
     this.runRecognition();
   }
 
-  clearBatch(reason: SmartAssistClearReason) {
+  clearBatch(reason: SmartAssistClearReason, detectionResult?: DetectionResult) {
     this.cancelPendingTimer();
     const { debugEnabled, batch, setBatch, setLastDebugResult } =
       useSmartAssistStore.getState();
 
     if (debugEnabled) {
+      const winner = detectionResult?.winner ?? null;
       setLastDebugResult({
         batchId: batch?.id ?? null,
-        recognizedShape: null,
-        confidence: 0,
+        recognizedShape:
+          detectionResult?.accepted && winner ? winner.kind : null,
+        confidence: winner?.confidence ?? 0,
         reason,
+        rejectedReason: detectionResult?.rejectedReason,
+        candidates: detectionResult?.candidates,
+        winner,
+        runnerUp: detectionResult?.runnerUp ?? null,
+        margin: detectionResult?.margin ?? null,
         createdAt: Date.now(),
       });
     }
@@ -241,6 +249,15 @@ export class SmartAssistController {
               debugGeometry: result.winner.debugGeometry,
             }
           : null,
+        runnerUp: result.runnerUp
+          ? {
+              kind: result.runnerUp.kind,
+              confidence: result.runnerUp.confidence,
+              reasons: result.runnerUp.reasons,
+              debugGeometry: result.runnerUp.debugGeometry,
+            }
+          : null,
+        margin: result.margin,
         candidates: result.candidates.map((candidate) => ({
           kind: candidate.kind,
           confidence: candidate.confidence,
@@ -250,13 +267,13 @@ export class SmartAssistController {
       });
     }
     if (!result.accepted || !result.winner) {
-      this.clearBatch("rejected");
+      this.clearBatch("rejected", result);
       return;
     }
 
     const replaced = this.scheduleReplacement(result.winner);
     if (!replaced) return;
-    this.clearBatch("recognized");
+    this.clearBatch("recognized", result);
   }
 }
 

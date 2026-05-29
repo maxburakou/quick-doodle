@@ -12,6 +12,7 @@ import {
   safeDivide,
   simplifyStroke,
 } from "../utils";
+import { getAngleSnapIntent } from "./angleSnapIntent";
 
 const MIN_SHAFT_LENGTH_PX = 32;
 const MIN_ARM_LENGTH_PX = 8;
@@ -85,14 +86,19 @@ const buildArrowReplacementStroke = (
   source: Stroke,
   shaftStart: StrokePoint,
   tip: StrokePoint
-): Stroke => ({
-  id: createStrokeId(),
-  tool: Tool.Arrow,
-  points: [shaftStart, tip],
-  color: source.color,
-  thickness: source.thickness,
-  drawableSeed: source.drawableSeed,
-});
+): Stroke => {
+  const snapIntent = getAngleSnapIntent(shaftStart, tip);
+
+  return {
+    id: createStrokeId(),
+    tool: Tool.Arrow,
+    points: [shaftStart, tip],
+    color: source.color,
+    thickness: source.thickness,
+    drawableSeed: source.drawableSeed,
+    isShiftPressed: snapIntent.shouldSnap,
+  };
+};
 
 const scoreShaftStraightness = (
   rawPoints: StrokePoint[],
@@ -460,6 +466,7 @@ const buildSingleStrokeArrowCandidate = (
   tipCandidateCount: number
 ): ShapeDetectionCandidate | null => {
   const { tip, shaftStart, shaftLength, straightnessScore } = tipCandidate;
+  const snapIntent = getAngleSnapIntent(shaftStart, tip);
   const {
     arms,
     headEvidence,
@@ -553,6 +560,9 @@ const buildSingleStrokeArrowCandidate = (
       `shaftLength:${shaftLength.toFixed(1)}`,
       `headArmCount:${arms.length}`,
       `headAngles:${headAngles.map((angle) => angle.toFixed(1)).join(",") || "none"}`,
+      ...(snapIntent.shouldSnap
+        ? [`angleSnap:${snapIntent.snappedAngleDeg.toFixed(0)}`]
+        : []),
     ],
     debugGeometry: {
       bbox: strokeBBox,
@@ -580,6 +590,11 @@ const buildSingleStrokeArrowCandidate = (
       terminalToShaftRatio,
       tipCandidateCount,
       selfOverlapNearTipBonus,
+      angleDeg: snapIntent.angleDeg,
+      angleSnapDeltaDeg: snapIntent.deltaDeg,
+      angleSnapEndpointShiftPx: snapIntent.endpointShiftPx,
+      snappedAngleDeg: snapIntent.snappedAngleDeg,
+      angleSnapApplied: snapIntent.shouldSnap,
     },
   };
 };

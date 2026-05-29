@@ -12,6 +12,7 @@ import {
   safeDivide,
   simplifyStroke,
 } from "../utils";
+import { getAngleSnapIntent } from "./angleSnapIntent";
 
 const SAMPLE_COUNT = 64;
 const CLOUD_MATCH_EPSILON = 0.5;
@@ -740,6 +741,7 @@ const buildArrowReplacementStroke = (
       distance(start, current) > distance(start, best) ? current : best,
     start
   );
+  const snapIntent = getAngleSnapIntent(start, tip);
 
   return {
     id: createStrokeId(),
@@ -748,6 +750,7 @@ const buildArrowReplacementStroke = (
     color: source.color,
     thickness: source.thickness,
     drawableSeed: source.drawableSeed,
+    isShiftPressed: snapIntent.shouldSnap,
   };
 };
 
@@ -781,12 +784,6 @@ export const templateRecognizer: ShapeRecognizer = {
     if (!bbox) return null;
     const diagonal = getBBoxDiagonal(bbox);
     if (diagonal < MIN_BBOX_DIAGONAL) return null;
-    if (!hasConnectedStrokePoints(context.sourceStrokes, diagonal)) return null;
-    const strokePathLength = context.sourceStrokes.reduce(
-      (sum, stroke) => sum + pathLength(stroke.points),
-      0
-    );
-    if (strokePathLength <= 0) return null;
 
     const rectangleIntent = getMultiStrokeRectangleIntent(
       context.sourceStrokes,
@@ -814,6 +811,13 @@ export const templateRecognizer: ShapeRecognizer = {
       };
     }
 
+    if (!hasConnectedStrokePoints(context.sourceStrokes, diagonal)) return null;
+    const strokePathLength = context.sourceStrokes.reduce(
+      (sum, stroke) => sum + pathLength(stroke.points),
+      0
+    );
+    if (strokePathLength <= 0) return null;
+
     const preferFullPolygon = hasMultiStrokePolygonStructure(
       context.sourceStrokes,
       points,
@@ -830,6 +834,17 @@ export const templateRecognizer: ShapeRecognizer = {
     if (!isTemplateGesturePlausible(match, quality, chordToPathRatio)) {
       return null;
     }
+    const arrowSnapIntent =
+      match.template.kind === "arrow"
+        ? getAngleSnapIntent(
+            first,
+            match.sourcePoints.reduce(
+              (best, current) =>
+                distance(first, current) > distance(first, best) ? current : best,
+              first
+            )
+          )
+        : null;
 
     return {
       kind: match.template.kind,
@@ -843,6 +858,9 @@ export const templateRecognizer: ShapeRecognizer = {
         `templateName:${match.template.name}`,
         `templateDistance:${match.distance.toFixed(3)}`,
         `templateMargin:${match.confidenceMargin.toFixed(3)}`,
+        ...(arrowSnapIntent?.shouldSnap
+          ? [`angleSnap:${arrowSnapIntent.snappedAngleDeg.toFixed(0)}`]
+          : []),
       ],
       debugGeometry: {
         mode: "template",
@@ -853,6 +871,15 @@ export const templateRecognizer: ShapeRecognizer = {
         templateSecondBestConfidence: match.secondBestConfidence,
         templateSource: match.source,
         chordToPathRatio,
+        ...(arrowSnapIntent
+          ? {
+              angleDeg: arrowSnapIntent.angleDeg,
+              angleSnapDeltaDeg: arrowSnapIntent.deltaDeg,
+              angleSnapEndpointShiftPx: arrowSnapIntent.endpointShiftPx,
+              snappedAngleDeg: arrowSnapIntent.snappedAngleDeg,
+              angleSnapApplied: arrowSnapIntent.shouldSnap,
+            }
+          : {}),
         ...quality,
       },
     };
