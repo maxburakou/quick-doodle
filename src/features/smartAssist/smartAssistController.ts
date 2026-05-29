@@ -18,6 +18,18 @@ const createBatchId = () =>
 const countBatchRawPoints = (batch: SmartAssistBatch): number =>
   batch.strokes.reduce((acc, stroke) => acc + stroke.points.length, 0);
 
+const isAppendCommittedPenStroke = (
+  present: Stroke[],
+  prevPresent: Stroke[]
+): boolean => {
+  if (present.length !== prevPresent.length + 1) return false;
+  if (!prevPresent.every((stroke, index) => present[index]?.id === stroke.id)) {
+    return false;
+  }
+
+  return present[present.length - 1]?.tool === Tool.Pen;
+};
+
 const shouldLogSmartAssistDebug = (): boolean => {
   if (!import.meta.env.DEV || typeof window === "undefined") return false;
 
@@ -50,6 +62,7 @@ export class SmartAssistController {
         state.future !== prevState.future;
       if (!historyChanged) return;
       if (!useSmartAssistStore.getState().batch) return;
+      if (isAppendCommittedPenStroke(state.present, prevState.present)) return;
       this.clearBatch("history-change");
     });
 

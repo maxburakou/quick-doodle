@@ -5,4 +5,5 @@ export { diamondRecognizer } from "./diamondRecognizer";
 export { ellipseRecognizer } from "./ellipseRecognizer";
 export { lineRecognizer } from "./lineRecognizer";
 export { rectangleRecognizer } from "./rectangleRecognizer";
+export { templateRecognizer } from "./templateRecognizer";
 export type { ResolveCandidatesConfig } from "./resolveCandidates";

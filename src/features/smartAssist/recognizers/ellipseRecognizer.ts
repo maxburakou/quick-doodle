@@ -14,8 +14,7 @@ import {
 const MIN_BBOX_SIZE_PX = 16;
 const MIN_BBOX_DIAGONAL_PX = 24;
 const MAX_CLOSEDNESS = 0.16;
-const MAX_LOOSE_CLOSEDNESS = 0.46;
-const MAX_ARC_JOIN_RATIO = 0.2;
+const MAX_LOOSE_CLOSEDNESS = 0.56;
 const MAX_LOOP_JOIN_RATIO = 0.14;
 const MIN_LOOP_INDEX_SPAN_RATIO = 0.45;
 const MIN_LOOP_PATH_TO_DIAGONAL_RATIO = 1.6;
@@ -157,41 +156,6 @@ const buildCandidateTraces = (points: StrokePoint[]): LoopTrace[] => {
   }
 
   return traces;
-};
-
-const connectTwoArcsIfLoopLike = (strokes: Stroke[]): StrokePoint[] | null => {
-  if (strokes.length !== 2) return null;
-
-  const a = strokes[0]?.points ?? [];
-  const b = strokes[1]?.points ?? [];
-  if (a.length < 2 || b.length < 2) return null;
-
-  const aStart = a[0];
-  const aEnd = a[a.length - 1];
-  const bStart = b[0];
-  const bEnd = b[b.length - 1];
-
-  const bbox = getPointsBBox([...a, ...b]);
-  if (!bbox) return null;
-  const diagonal = getBBoxDiagonal(bbox);
-  const maxJoinDistance = Math.max(10, diagonal * MAX_ARC_JOIN_RATIO);
-
-  const directJoinA = distance(aEnd, bStart);
-  const directJoinB = distance(bEnd, aStart);
-  const reverseJoinA = distance(aEnd, bEnd);
-  const reverseJoinB = distance(bStart, aStart);
-
-  const directSum = directJoinA + directJoinB;
-  const reverseSum = reverseJoinA + reverseJoinB;
-
-  const useReverse = reverseSum < directSum;
-  const join1 = useReverse ? reverseJoinA : directJoinA;
-  const join2 = useReverse ? reverseJoinB : directJoinB;
-
-  if (join1 > maxJoinDistance || join2 > maxJoinDistance) return null;
-
-  const orientedB = useReverse ? [...b].reverse() : b;
-  return [...a, ...orientedB];
 };
 
 const computeQuadrantCoverage = (
@@ -453,12 +417,12 @@ const evaluateEllipseTrace = (trace: LoopTrace): EllipseEvaluation | null => {
 
   const confidenceRaw =
     closureScore * 0.14 +
-    radialFitScore * 0.36 +
+    radialFitScore * 0.4 +
     quadrantCoverageScore * 0.08 +
     angularCoverageScore * 0.12 +
-    smoothnessScore * 0.2 +
+    smoothnessScore * 0.16 +
     sizeScore * 0.1;
-  const confidence = clamp01(confidenceRaw - cornerPenalty * 0.6 - trimPenalty);
+  const confidence = clamp01(confidenceRaw - cornerPenalty * 0.42 - trimPenalty);
 
   return {
     trace,
@@ -483,15 +447,12 @@ const evaluateEllipseTrace = (trace: LoopTrace): EllipseEvaluation | null => {
 export const ellipseRecognizer: ShapeRecognizer = {
   kind: "ellipse",
   detect: (metrics, context) => {
-    if (metrics.strokeCount !== 1 && metrics.strokeCount !== 2) return null;
+    if (metrics.strokeCount !== 1) return null;
 
     const sourceStrokes = context.sourceStrokes;
-    const mergedPoints =
-      metrics.strokeCount === 1
-        ? sourceStrokes[0]?.points ?? []
-        : connectTwoArcsIfLoopLike(sourceStrokes);
+    const mergedPoints = sourceStrokes[0]?.points ?? [];
 
-    if (!mergedPoints || mergedPoints.length < 8) return null;
+    if (mergedPoints.length < 8) return null;
 
     const bestEvaluation = buildCandidateTraces(mergedPoints)
       .map(evaluateEllipseTrace)

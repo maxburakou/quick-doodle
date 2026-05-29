@@ -167,6 +167,86 @@ const hasStrongEllipseEvidence = (candidate: ShapeDetectionCandidate): boolean =
   );
 };
 
+const hasTemplateEvidence = (candidate: ShapeDetectionCandidate): boolean => {
+  const debugGeometry = candidate.debugGeometry;
+  if (!debugGeometry || typeof debugGeometry !== "object") return false;
+
+  const { mode, templateConfidence } = debugGeometry as {
+    mode?: unknown;
+    templateConfidence?: unknown;
+  };
+
+  return (
+    mode === "template" &&
+    typeof templateConfidence === "number" &&
+    templateConfidence >= 0.86
+  );
+};
+
+const hasRoundedLoopEvidence = (candidate: ShapeDetectionCandidate): boolean => {
+  if (candidate.kind !== "ellipse") return false;
+
+  const debugGeometry = candidate.debugGeometry;
+  if (!debugGeometry || typeof debugGeometry !== "object") return false;
+
+  if (hasTemplateEvidence(candidate)) return true;
+
+  const {
+    radialMeanError,
+    radialStd,
+    cornerPenalty,
+    angularCoverage,
+  } = debugGeometry as {
+    radialMeanError?: unknown;
+    radialStd?: unknown;
+    cornerPenalty?: unknown;
+    angularCoverage?: unknown;
+  };
+
+  return (
+    typeof radialMeanError === "number" &&
+    typeof radialStd === "number" &&
+    typeof cornerPenalty === "number" &&
+    typeof angularCoverage === "number" &&
+    radialMeanError <= 0.16 &&
+    radialStd <= 0.18 &&
+    cornerPenalty <= 0.38 &&
+    angularCoverage >= 0.9
+  );
+};
+
+const hasLoopTailEllipseEvidence = (
+  candidate: ShapeDetectionCandidate
+): boolean => {
+  if (candidate.kind !== "ellipse") return false;
+
+  const debugGeometry = candidate.debugGeometry;
+  if (!debugGeometry || typeof debugGeometry !== "object") return false;
+
+  const {
+    radialMeanError,
+    radialStd,
+    angularCoverage,
+    trimmedEndpointCount,
+  } = debugGeometry as {
+    radialMeanError?: unknown;
+    radialStd?: unknown;
+    angularCoverage?: unknown;
+    trimmedEndpointCount?: unknown;
+  };
+
+  return (
+    typeof radialMeanError === "number" &&
+    typeof radialStd === "number" &&
+    typeof angularCoverage === "number" &&
+    typeof trimmedEndpointCount === "number" &&
+    trimmedEndpointCount >= 2 &&
+    radialMeanError <= 0.08 &&
+    radialStd <= 0.09 &&
+    angularCoverage >= 0.9
+  );
+};
+
 const hasStrongDiamondEvidence = (candidate: ShapeDetectionCandidate): boolean => {
   if (candidate.kind !== "diamond") return false;
 
@@ -230,13 +310,23 @@ export const resolveCandidates = (
     };
   }
 
-  const eligible = candidates
+  const eligibleByKind = candidates
     .filter((candidate) => !isClosedLoopArrowCandidate(candidate))
     .filter((candidate) => {
       const min = resolvedConfig.minConfidence[candidate.kind] ?? 1;
       return candidate.confidence >= min;
     })
-    .sort((left, right) => right.confidence - left.confidence);
+    .reduce((acc, candidate) => {
+      const existing = acc.get(candidate.kind);
+      if (!existing || candidate.confidence > existing.confidence) {
+        acc.set(candidate.kind, candidate);
+      }
+      return acc;
+    }, new Map<SmartAssistShapeKind, ShapeDetectionCandidate>());
+
+  const eligible = [...eligibleByKind.values()].sort(
+    (left, right) => right.confidence - left.confidence
+  );
 
   if (eligible.length === 0) {
     return {
@@ -284,8 +374,11 @@ export const resolveCandidates = (
     (hasAxisBoxEvidence(rectangleAlternative) ||
       hasExtraRectangleCornerCandidates(rectangleAlternative)) &&
     !hasCleanRectangleCorners(rectangleAlternative) &&
-    hasStrongEllipseEvidence(ellipseAlternative) &&
-    ellipseAlternative.confidence >= rectangleAlternative.confidence - 0.08
+    (hasStrongEllipseEvidence(ellipseAlternative) ||
+      hasRoundedLoopEvidence(ellipseAlternative)) &&
+    (ellipseAlternative.confidence >= rectangleAlternative.confidence - 0.08 ||
+      (hasLoopTailEllipseEvidence(ellipseAlternative) &&
+        ellipseAlternative.confidence >= rectangleAlternative.confidence - 0.18))
   ) {
     return {
       accepted: true,
@@ -298,14 +391,45 @@ export const resolveCandidates = (
     diamondAlternative &&
     ellipseAlternative &&
     hasSameSourceStrokes(diamondAlternative, ellipseAlternative) &&
-    hasStrongEllipseEvidence(ellipseAlternative) &&
+    (hasStrongEllipseEvidence(ellipseAlternative) ||
+      hasRoundedLoopEvidence(ellipseAlternative)) &&
     (ellipseAlternative.confidence >= diamondAlternative.confidence + 0.03 ||
+      (hasLoopTailEllipseEvidence(ellipseAlternative) &&
+        ellipseAlternative.confidence >= diamondAlternative.confidence - 0.18) ||
       (!hasStrongDiamondEvidence(diamondAlternative) &&
         ellipseAlternative.confidence >= diamondAlternative.confidence - 0.12))
   ) {
     return {
       accepted: true,
       winner: ellipseAlternative,
+      candidates,
+    };
+  }
+
+  if (
+    rectangleAlternative &&
+    ellipseAlternative &&
+    hasSameSourceStrokes(rectangleAlternative, ellipseAlternative) &&
+    hasStrongAxisBoxEvidence(rectangleAlternative) &&
+    hasTemplateEvidence(ellipseAlternative)
+  ) {
+    return {
+      accepted: true,
+      winner: rectangleAlternative,
+      candidates,
+    };
+  }
+
+  if (
+    diamondAlternative &&
+    ellipseAlternative &&
+    hasSameSourceStrokes(diamondAlternative, ellipseAlternative) &&
+    hasStrongDiamondEvidence(diamondAlternative) &&
+    hasTemplateEvidence(ellipseAlternative)
+  ) {
+    return {
+      accepted: true,
+      winner: diamondAlternative,
       candidates,
     };
   }

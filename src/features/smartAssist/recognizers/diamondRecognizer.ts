@@ -26,7 +26,7 @@ const MAX_CANDIDATES = 8;
 const DIAMOND_SIDE_BAND = 0.2;
 const MIN_DIAMOND_SIDE_COVERAGE = 0.34;
 const MIN_DIAMOND_AREA_RATIO = 0.26;
-const MAX_DIAMOND_AREA_RATIO = 0.72;
+const MAX_DIAMOND_AREA_RATIO = 0.6;
 
 type BBox = NonNullable<ReturnType<typeof getPointsBBox>>;
 
@@ -118,6 +118,31 @@ const getDiamondVertices = (bbox: BBox): StrokePoint[] => {
     { x: bbox.minX + width / 2, y: bbox.maxY, pressure: 1 },
     { x: bbox.minX, y: bbox.minY + height / 2, pressure: 1 },
   ];
+};
+
+const getLoopAreaRatio = (points: StrokePoint[], bbox: BBox): number => {
+  const width = bbox.maxX - bbox.minX;
+  const height = bbox.maxY - bbox.minY;
+  if (width <= 0 || height <= 0 || points.length < 3) return 0;
+
+  let signedArea = 0;
+  for (let i = 0; i < points.length; i += 1) {
+    const current = points[i];
+    const next = points[(i + 1) % points.length];
+    signedArea += current.x * next.y - next.x * current.y;
+  }
+
+  return safeDivide(Math.abs(signedArea) / 2, width * height);
+};
+
+const isDiamondLikeAreaRatio = (areaRatio: number): boolean =>
+  areaRatio >= MIN_DIAMOND_AREA_RATIO && areaRatio <= MAX_DIAMOND_AREA_RATIO;
+
+const getPathRatio = (points: StrokePoint[], bbox: BBox): number => {
+  const width = bbox.maxX - bbox.minX;
+  const height = bbox.maxY - bbox.minY;
+  const expectedPerimeter = 4 * Math.hypot(width / 2, height / 2);
+  return safeDivide(pathLength(points), expectedPerimeter);
 };
 
 const extractCandidates = (
@@ -362,21 +387,13 @@ const evaluateDiamondAxisEvidence = (
   const height = bbox.maxY - bbox.minY;
   if (width <= 0 || height <= 0) return null;
 
-  let signedArea = 0;
-  for (let i = 0; i < points.length; i += 1) {
-    const current = points[i];
-    const next = points[(i + 1) % points.length];
-    signedArea += current.x * next.y - next.x * current.y;
-  }
-
-  const areaRatio = safeDivide(Math.abs(signedArea) / 2, width * height);
-  if (areaRatio < MIN_DIAMOND_AREA_RATIO || areaRatio > MAX_DIAMOND_AREA_RATIO) {
+  const areaRatio = getLoopAreaRatio(points, bbox);
+  if (!isDiamondLikeAreaRatio(areaRatio)) {
     return null;
   }
 
   const strokePathLength = pathLength(points);
-  const expectedPerimeter = 4 * Math.hypot(width / 2, height / 2);
-  const pathRatio = safeDivide(strokePathLength, expectedPerimeter);
+  const pathRatio = getPathRatio(points, bbox);
   if (pathRatio < 0.52 || pathRatio > 2.05) return null;
 
   const samples = resamplePolyline(
@@ -507,8 +524,13 @@ export const diamondRecognizer: ShapeRecognizer = {
       strokePathLength
     );
     const closureScore = 1 - clamp01(safeDivide(closedness, MAX_OPEN_CLOSEDNESS));
+    const areaRatio = getLoopAreaRatio(stroke.points, bbox);
+    const pathRatio = getPathRatio(stroke.points, bbox);
     const cornerEval =
-      closedness <= MAX_CLOSEDNESS
+      closedness <= MAX_CLOSEDNESS &&
+      isDiamondLikeAreaRatio(areaRatio) &&
+      pathRatio >= 0.52 &&
+      pathRatio <= 2.05
         ? findBestDiamond(stroke.points, diagonal, closureScore)
         : null;
     const axisEval = closedness <= MAX_OPEN_CLOSEDNESS
@@ -542,7 +564,8 @@ export const diamondRecognizer: ShapeRecognizer = {
         midpointScore: evaluation.midpointScore,
         diamondAxisScore: evaluation.diamondAxisScore,
         edgeCoverages: evaluation.edgeCoverages,
-        areaRatio: evaluation.areaRatio,
+        areaRatio: evaluation.areaRatio ?? areaRatio,
+        pathRatio,
         vertexContactScore: evaluation.vertexContactScore,
         angleErrors: evaluation.angleErrors,
         parallelErrors: evaluation.parallelErrors,

@@ -19,6 +19,9 @@ const MIN_ARM_ANGLE_RAD = (6 * Math.PI) / 180;
 const MAX_ARM_ANGLE_RAD = (88 * Math.PI) / 180;
 const MAX_HEAD_SCAN_FROM_PATH_START = 0.45;
 const HEAD_SCAN_SEGMENT_COUNT = 8;
+const MAX_PATH_TO_SHAFT_RATIO = 3.2;
+const MAX_TERMINAL_TO_SHAFT_RATIO = 1.8;
+const CLOSED_LOOP_CHORD_TO_PATH_RATIO = 0.24;
 
 interface TipCandidate {
   tip: StrokePoint;
@@ -481,6 +484,9 @@ const buildSingleStrokeArrowCandidate = (
     headEvidence === "strong" ? 0.95 : headEvidence === "weak" ? 0.45 : 0;
 
   const headAngles = arms.map((arm) => (arm.angleRad * 180) / Math.PI);
+  const chordToPathRatio = safeDivide(strokeChordLength, strokePathLength);
+  const pathToShaftRatio = safeDivide(strokePathLength, shaftLength);
+  const terminalToShaftRatio = safeDivide(terminalPathLength, shaftLength);
   const headAngleScore =
     arms.length === 0
       ? 0
@@ -525,6 +531,16 @@ const buildSingleStrokeArrowCandidate = (
     confidence = Math.max(confidence, 0.84 + terminalSpreadScore * 0.05);
   }
 
+  if (pathToShaftRatio > MAX_PATH_TO_SHAFT_RATIO) {
+    confidence *= 0.35;
+  }
+  if (terminalToShaftRatio > MAX_TERMINAL_TO_SHAFT_RATIO) {
+    confidence *= 0.35;
+  }
+  if (chordToPathRatio < CLOSED_LOOP_CHORD_TO_PATH_RATIO) {
+    confidence *= 0.35;
+  }
+
   confidence = clamp01(confidence);
 
   return {
@@ -559,6 +575,9 @@ const buildSingleStrokeArrowCandidate = (
       terminalLateralSpan,
       terminalSpreadScore,
       maxHeadReach,
+      chordToPathRatio,
+      pathToShaftRatio,
+      terminalToShaftRatio,
       tipCandidateCount,
       selfOverlapNearTipBonus,
     },
@@ -600,19 +619,13 @@ const detectSingleStrokeArrow = (
     })[0] ?? null;
 };
 
-const detectMultiStrokeArrow = (): ShapeDetectionCandidate | null => {
-  return null;
-};
-
 export const arrowRecognizer: ShapeRecognizer = {
   kind: "arrow",
   detect: (metrics, context) => {
-    if (metrics.strokeCount === 1) {
-      const stroke = context.sourceStrokes[0];
-      if (!stroke || stroke.points.length < 2) return null;
-      return detectSingleStrokeArrow(stroke);
-    }
+    if (metrics.strokeCount !== 1) return null;
 
-    return detectMultiStrokeArrow();
+    const stroke = context.sourceStrokes[0];
+    if (!stroke || stroke.points.length < 2) return null;
+    return detectSingleStrokeArrow(stroke);
   },
 };
