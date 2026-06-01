@@ -9,6 +9,8 @@ import {
   getConstrainedShapeEndpoint,
   isLineLikeSnapTool,
   isShapeBoxSnapTool,
+  resolveNearestSegmentSnap,
+  resolveNearestSnap,
   resolveSnapInteractionPolicy,
   resolveSnapForInteraction,
 } from "@/store/useShapeEditorStore/helpers";
@@ -69,6 +71,9 @@ const toGuidesRenderData = (snap: SnapPreview) => ({
   axisGuides: snap.axisSnap,
 });
 
+const isTwoPointSnapTool = (tool: Tool) =>
+  isLineLikeSnapTool(tool) || isShapeBoxSnapTool(tool);
+
 const pickDrawDraftDrivingAnchors: NonNullable<
   Parameters<typeof resolveSnapForInteraction>[0]["drivingAnchorSelector"]
 > = (draftSubject) =>
@@ -93,6 +98,49 @@ export const useDrawMode = ({
     autoPrecomputeExcludedIds: EMPTY_EXCLUDED_IDS,
   });
 
+  const resolveStartSnap = useCallback(
+    (point: StrokePoint, shiftKey: boolean): StrokePoint => {
+      if (!isSnapEnabled || !isTwoPointSnapTool(tool)) {
+        return point;
+      }
+
+      const policy = resolveSnapInteractionPolicy({
+        mode: "draw",
+        tool,
+        shiftKey,
+      });
+      if (policy.snapDisabled) {
+        return point;
+      }
+
+      const { anchors, segments } = getSceneSnapContext();
+      const pointSnap = resolveNearestSnap(point, anchors, SNAP_DISTANCE_PX);
+      if (pointSnap) {
+        return {
+          ...point,
+          x: pointSnap.snappedX,
+          y: pointSnap.snappedY,
+        };
+      }
+
+      const segmentSnap = resolveNearestSegmentSnap(
+        point,
+        segments,
+        SNAP_DISTANCE_PX
+      );
+      if (!segmentSnap) {
+        return point;
+      }
+
+      return {
+        ...point,
+        x: segmentSnap.snappedX,
+        y: segmentSnap.snappedY,
+      };
+    },
+    [getSceneSnapContext, isSnapEnabled, tool]
+  );
+
   const resolveCreateSnap = useCallback(
     (point: StrokePoint, shiftKey: boolean): SnapPreview => {
       if (!isSnapEnabled) {
@@ -103,7 +151,7 @@ export const useDrawMode = ({
         return { point, pointTarget: null, axisSnap: null };
       }
 
-      if (!isLineLikeSnapTool(tool) && !isShapeBoxSnapTool(tool)) {
+      if (!isTwoPointSnapTool(tool)) {
         return { point, pointTarget: null, axisSnap: null };
       }
       const policy = resolveSnapInteractionPolicy({
@@ -167,7 +215,7 @@ export const useDrawMode = ({
     (finalizedPoints: StrokePoint[], shiftKey: boolean) => {
       if (finalizedPoints.length < 2) return finalizedPoints;
       if (!isSnapEnabled) return finalizedPoints;
-      if (!isLineLikeSnapTool(tool) && !isShapeBoxSnapTool(tool)) {
+      if (!isTwoPointSnapTool(tool)) {
         return finalizedPoints;
       }
 
@@ -249,7 +297,7 @@ export const useDrawMode = ({
   };
 
   const handlePointerDown = useCallback(
-    ({ point }: CanvasPointerPayload) => {
+    ({ point, shiftKey }: CanvasPointerPayload) => {
       if (tool === Tool.Pen) {
         smartAssistController.handlePenPointerDown(point);
       }
@@ -258,7 +306,8 @@ export const useDrawMode = ({
       drawableSeedRef.current = Date.now();
       strokeIdRef.current = createStrokeId();
 
-      pointsRef.current = [point];
+      const startPoint = resolveStartSnap(point, shiftKey);
+      pointsRef.current = [startPoint];
 
       const stroke: Stroke = {
         id: strokeIdRef.current,
@@ -272,7 +321,7 @@ export const useDrawMode = ({
 
       drawCanvas([stroke], ctxRef.current);
     },
-    [tool, ctxRef, smartAssistController]
+    [tool, ctxRef, smartAssistController, resolveStartSnap]
   );
 
   const processPointerMove = useCallback(

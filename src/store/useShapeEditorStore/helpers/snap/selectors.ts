@@ -1,5 +1,6 @@
-import { Stroke, Tool, TransformHandle } from "@/types";
+import { isShapeBoxTool, Stroke, Tool, TransformHandle } from "@/types";
 import {
+  getBoundsCenter,
   getStrokeAABB,
   getStrokeBounds,
   getStrokeEndpoints,
@@ -29,6 +30,33 @@ const SIDE_RESIZE_HANDLES = new Set<TransformHandle>(["n", "s", "e", "w"]);
 const CORNER_RESIZE_HANDLES = new Set<TransformHandle>(["nw", "ne", "sw", "se"]);
 const SIDE_ANCHOR_EPSILON = 0.5;
 const LINE_LIKE_TOOLS = new Set<Tool>([Tool.Line, Tool.Arrow, Tool.Highlighter]);
+const getDrawCornerHandle = (stroke: Stroke): TransformHandle => {
+  const [start, end] = getStrokeEndpoints(stroke);
+  const isWest = end.x < start.x;
+  const isNorth = end.y < start.y;
+
+  if (isWest && isNorth) return "nw";
+  if (isWest) return "sw";
+  if (isNorth) return "ne";
+  return "se";
+};
+
+const getVisualBoundsCornerAnchor = (
+  stroke: Stroke,
+  handle: TransformHandle
+): PointLike | null => {
+  if (!CORNER_RESIZE_HANDLES.has(handle)) return null;
+
+  const bounds = getStrokeBounds(stroke);
+  const center = getBoundsCenter(bounds);
+  const rotation = getStrokeRotation(stroke);
+  const point = {
+    x: handle === "nw" || handle === "sw" ? bounds.x : bounds.x + bounds.width,
+    y: handle === "nw" || handle === "ne" ? bounds.y : bounds.y + bounds.height,
+  };
+
+  return rotatePoint(point, center, rotation);
+};
 
 interface LocalizedAnchor {
   world: PointLike;
@@ -244,6 +272,11 @@ export const pickResizeDrivingAnchors = (
     return [start, end].filter(Boolean) as PointLike[];
   }
 
+  if (CORNER_RESIZE_HANDLES.has(handle) && isShapeBoxTool(stroke.tool)) {
+    const cornerAnchor = getVisualBoundsCornerAnchor(stroke, handle);
+    return cornerAnchor ? [cornerAnchor] : filtered;
+  }
+
   if (SIDE_RESIZE_HANDLES.has(handle)) {
     return pickSideAnchorsForHandle(stroke, filtered, handle);
   }
@@ -255,44 +288,20 @@ export const pickResizeDrivingAnchors = (
   return filtered;
 };
 
-const pickBoxLikeCornersForDraw = (stroke: Stroke): PointLike[] => {
-  if (stroke.tool === Tool.Diamond) {
-    return pickDiamondCornerAnchors(stroke);
-  }
-
-  if (stroke.tool === Tool.Ellipse) {
-    const bounds = getStrokeBounds(stroke);
-    const center = {
-      x: bounds.x + bounds.width / 2,
-      y: bounds.y + bounds.height / 2,
-    };
-    const rotation = getStrokeRotation(stroke);
-    return [
-      { x: bounds.x, y: bounds.y },
-      { x: bounds.x + bounds.width, y: bounds.y },
-      { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
-      { x: bounds.x, y: bounds.y + bounds.height },
-    ].map((point) => rotatePoint(point, center, rotation));
-  }
-
-  return [];
-};
-
 export const pickDrawDrivingAnchors = (
   stroke: Stroke,
   anchors: SnapDrivingAnchor[]
 ): PointLike[] => {
-  if (stroke.tool === Tool.Rectangle) {
-    const contourCorners = anchors
-      .filter((anchor) => anchor.kind === "corner")
-      .map((anchor) => ({ x: anchor.x, y: anchor.y }));
-    return contourCorners.length > 0
-      ? contourCorners
-      : pickResizeDrivingAnchors(stroke, anchors);
+  if (LINE_LIKE_TOOLS.has(stroke.tool)) {
+    const [, end] = getStrokeEndpoints(stroke);
+    return end ? [{ x: end.x, y: end.y }] : [];
   }
 
-  const boxLikeCorners = pickBoxLikeCornersForDraw(stroke);
-  if (boxLikeCorners.length > 0) return boxLikeCorners;
+  if (isShapeBoxTool(stroke.tool)) {
+    return pickResizeDrivingAnchors(stroke, anchors, {
+      handle: getDrawCornerHandle(stroke),
+    });
+  }
 
   return pickResizeDrivingAnchors(stroke, anchors);
 };

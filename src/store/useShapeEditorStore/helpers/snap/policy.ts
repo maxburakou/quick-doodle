@@ -123,6 +123,14 @@ export const resolveSelectResizeSceneSnapPolicy = (
     };
   }
 
+  if (CORNER_RESIZE_HANDLES.has(handle) && isShapeBoxTool(tool)) {
+    return {
+      includeAnchors: false,
+      includeSegments: false,
+      includeAxisCandidates: true,
+    };
+  }
+
   if (CORNER_RESIZE_HANDLES.has(handle)) {
     return {
       includeAnchors: true,
