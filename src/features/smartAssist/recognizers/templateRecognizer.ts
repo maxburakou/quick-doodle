@@ -746,11 +746,10 @@ const buildArrowReplacementStroke = (
   return {
     id: createStrokeId(),
     tool: Tool.Arrow,
-    points: [start, tip],
+    points: [start, snapIntent.snappedEnd],
     color: source.color,
     thickness: source.thickness,
     drawableSeed: source.drawableSeed,
-    isShiftPressed: snapIntent.shouldSnap,
   };
 };
 
@@ -859,7 +858,10 @@ export const templateRecognizer: ShapeRecognizer = {
         `templateDistance:${match.distance.toFixed(3)}`,
         `templateMargin:${match.confidenceMargin.toFixed(3)}`,
         ...(arrowSnapIntent?.shouldSnap
-          ? [`angleSnap:${arrowSnapIntent.snappedAngleDeg.toFixed(0)}`]
+          ? [
+              `guideSnap:${arrowSnapIntent.guideKind}`,
+              `guideAngle:${arrowSnapIntent.snappedAngleDeg.toFixed(0)}`,
+            ]
           : []),
       ],
       debugGeometry: {
@@ -878,6 +880,8 @@ export const templateRecognizer: ShapeRecognizer = {
               angleSnapEndpointShiftPx: arrowSnapIntent.endpointShiftPx,
               snappedAngleDeg: arrowSnapIntent.snappedAngleDeg,
               angleSnapApplied: arrowSnapIntent.shouldSnap,
+              snapGuideKind: arrowSnapIntent.guideKind,
+              snappedEnd: arrowSnapIntent.snappedEnd,
             }
           : {}),
         ...quality,

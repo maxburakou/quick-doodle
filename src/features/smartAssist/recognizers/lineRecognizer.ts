@@ -18,11 +18,10 @@ const buildLineReplacementStroke = (stroke: Stroke): Stroke => {
   return {
     id: createStrokeId(),
     tool: Tool.Line,
-    points: [first, last],
+    points: [first, snapIntent.snappedEnd],
     color: stroke.color,
     thickness: stroke.thickness,
     drawableSeed: stroke.drawableSeed,
-    isShiftPressed: snapIntent.shouldSnap,
   };
 };
 
@@ -83,7 +82,10 @@ export const lineRecognizer: ShapeRecognizer = {
         `avgDeviation:${avgDeviation.toFixed(3)}`,
         `maxDeviation:${maxDeviation.toFixed(3)}`,
         ...(snapIntent.shouldSnap
-          ? [`angleSnap:${snapIntent.snappedAngleDeg.toFixed(0)}`]
+          ? [
+              `guideSnap:${snapIntent.guideKind}`,
+              `guideAngle:${snapIntent.snappedAngleDeg.toFixed(0)}`,
+            ]
           : []),
       ],
       debugGeometry: {
@@ -98,6 +100,8 @@ export const lineRecognizer: ShapeRecognizer = {
         angleSnapEndpointShiftPx: snapIntent.endpointShiftPx,
         snappedAngleDeg: snapIntent.snappedAngleDeg,
         angleSnapApplied: snapIntent.shouldSnap,
+        snapGuideKind: snapIntent.guideKind,
+        snappedEnd: snapIntent.snappedEnd,
       },
     };
   },

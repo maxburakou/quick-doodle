@@ -92,11 +92,10 @@ const buildArrowReplacementStroke = (
   return {
     id: createStrokeId(),
     tool: Tool.Arrow,
-    points: [shaftStart, tip],
+    points: [shaftStart, snapIntent.snappedEnd],
     color: source.color,
     thickness: source.thickness,
     drawableSeed: source.drawableSeed,
-    isShiftPressed: snapIntent.shouldSnap,
   };
 };
 
@@ -561,7 +560,10 @@ const buildSingleStrokeArrowCandidate = (
       `headArmCount:${arms.length}`,
       `headAngles:${headAngles.map((angle) => angle.toFixed(1)).join(",") || "none"}`,
       ...(snapIntent.shouldSnap
-        ? [`angleSnap:${snapIntent.snappedAngleDeg.toFixed(0)}`]
+        ? [
+            `guideSnap:${snapIntent.guideKind}`,
+            `guideAngle:${snapIntent.snappedAngleDeg.toFixed(0)}`,
+          ]
         : []),
     ],
     debugGeometry: {
@@ -595,6 +597,8 @@ const buildSingleStrokeArrowCandidate = (
       angleSnapEndpointShiftPx: snapIntent.endpointShiftPx,
       snappedAngleDeg: snapIntent.snappedAngleDeg,
       angleSnapApplied: snapIntent.shouldSnap,
+      snapGuideKind: snapIntent.guideKind,
+      snappedEnd: snapIntent.snappedEnd,
     },
   };
 };

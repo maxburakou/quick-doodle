@@ -817,9 +817,9 @@ export const resolveCandidates = (
   if (
     arrowAlternative &&
     lineAlternative &&
+    hasSameSourceStrokes(arrowAlternative, lineAlternative) &&
     arrowAlternative.confidence >= 0.82 &&
-    hasStrongHeadEvidence(arrowAlternative) &&
-    hasRequiredMargin(arrowAlternative, lineAlternative, resolvedConfig)
+    hasStrongHeadEvidence(arrowAlternative)
   ) {
     return {
       accepted: true,
