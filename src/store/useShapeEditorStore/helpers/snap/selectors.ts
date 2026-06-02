@@ -41,6 +41,13 @@ const getDrawCornerHandle = (stroke: Stroke): TransformHandle => {
   return "se";
 };
 
+const getOppositeCornerHandle = (handle: TransformHandle): TransformHandle => {
+  if (handle === "nw") return "se";
+  if (handle === "ne") return "sw";
+  if (handle === "sw") return "ne";
+  return "nw";
+};
+
 const getVisualBoundsCornerAnchor = (
   stroke: Stroke,
   handle: TransformHandle
@@ -304,4 +311,14 @@ export const pickDrawDrivingAnchors = (
   }
 
   return pickResizeDrivingAnchors(stroke, anchors);
+};
+
+export const pickDrawStartDrivingAnchors = (stroke: Stroke): PointLike[] => {
+  if (!isShapeBoxTool(stroke.tool)) {
+    return [];
+  }
+
+  const startHandle = getOppositeCornerHandle(getDrawCornerHandle(stroke));
+  const cornerAnchor = getVisualBoundsCornerAnchor(stroke, startHandle);
+  return cornerAnchor ? [cornerAnchor] : [];
 };

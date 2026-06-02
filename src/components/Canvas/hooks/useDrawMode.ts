@@ -14,7 +14,10 @@ import {
   resolveSnapInteractionPolicy,
   resolveSnapForInteraction,
 } from "@/store/useShapeEditorStore/helpers";
-import { pickDrawDrivingAnchors } from "@/store/useShapeEditorStore/helpers/snap/selectors";
+import {
+  pickDrawDrivingAnchors,
+  pickDrawStartDrivingAnchors,
+} from "@/store/useShapeEditorStore/helpers/snap/selectors";
 import { SNAP_DISTANCE_PX } from "@/config/snapConfig";
 import { getSmartAssistController } from "@/features/smartAssist";
 import {
@@ -32,9 +35,12 @@ interface UseDrawModeParams {
 
 interface SnapPreview {
   point: StrokePoint;
+  startPoint?: StrokePoint;
   pointTarget: StrokePoint | null;
   axisSnap: InteractionSnapResult["axisGuide"];
 }
+
+type ShapeStartSnapLock = NonNullable<InteractionSnapResult["axisGuide"]>;
 
 const EMPTY_EXCLUDED_IDS: string[] = [];
 
@@ -79,6 +85,43 @@ const pickDrawDraftDrivingAnchors: NonNullable<
 > = (draftSubject) =>
   pickDrawDrivingAnchors(draftSubject.stroke, draftSubject.anchors);
 
+const pickDrawStartDraftDrivingAnchors: NonNullable<
+  Parameters<typeof resolveSnapForInteraction>[0]["drivingAnchorSelector"]
+> = (draftSubject) =>
+  pickDrawStartDrivingAnchors(draftSubject.stroke);
+
+const translatePoint = (
+  point: StrokePoint,
+  delta: Pick<StrokePoint, "x" | "y">
+): StrokePoint => ({
+  ...point,
+  x: point.x + delta.x,
+  y: point.y + delta.y,
+});
+
+const getLockedAxisCandidates = (axisSnap: ShapeStartSnapLock) => [
+  ...(axisSnap.guideX === undefined
+    ? []
+    : [
+        {
+          strokeId: "__draw-start-snap__",
+          kind: "left" as const,
+          x: axisSnap.guideX,
+          y: 0,
+        },
+      ]),
+  ...(axisSnap.guideY === undefined
+    ? []
+    : [
+        {
+          strokeId: "__draw-start-snap__",
+          kind: "top" as const,
+          x: 0,
+          y: axisSnap.guideY,
+        },
+      ]),
+];
+
 export const useDrawMode = ({
   ctxRef,
 }: UseDrawModeParams) => {
@@ -87,6 +130,8 @@ export const useDrawMode = ({
   const isDrawingRef = useRef(false);
   const drawableSeedRef = useRef<number>(Date.now());
   const strokeIdRef = useRef<string>("");
+  const rawStartPointRef = useRef<StrokePoint | null>(null);
+  const shapeStartSnapRef = useRef<ShapeStartSnapLock | null>(null);
   const pendingMoveRef = useRef<CanvasPointerPayload | null>(null);
   const rafMoveIdRef = useRef<number | null>(null);
 
@@ -100,7 +145,7 @@ export const useDrawMode = ({
 
   const resolveStartSnap = useCallback(
     (point: StrokePoint, shiftKey: boolean): StrokePoint => {
-      if (!isSnapEnabled || !isTwoPointSnapTool(tool)) {
+      if (!isSnapEnabled || !isLineLikeSnapTool(tool)) {
         return point;
       }
 
@@ -172,21 +217,87 @@ export const useDrawMode = ({
       }
 
       const { color, thickness, shapeFill } = getToolSettings();
+      const rawStartPoint = rawStartPointRef.current ?? startPoint;
       const rawPointer = isShapeBoxSnapTool(tool)
-        ? getConstrainedShapeEndpoint(startPoint, point, tool, shiftKey)
+        ? getConstrainedShapeEndpoint(rawStartPoint, point, tool, shiftKey)
         : point;
       const { anchors, segments, axisCandidates } = getSceneSnapContext();
+      if (isShapeBoxSnapTool(tool) && !shapeStartSnapRef.current) {
+        const startSnap = resolveSnapForInteraction({
+          rawPointer: rawStartPoint,
+          sceneContext: {
+            anchors: [],
+            segments: [],
+            axisCandidates,
+          },
+          drivingAnchorSelector: pickDrawStartDraftDrivingAnchors,
+          buildDraftStroke: (nextStartPoint) =>
+            buildDrawSnapDraft(
+              nextStartPoint,
+              rawPointer,
+              tool,
+              drawableSeedRef.current,
+              thickness,
+              getShapeFillData(color, shapeFill, tool),
+              "__draw-start-draft__"
+            ),
+          snapDistance: SNAP_DISTANCE_PX,
+          axisSnapDistance: SNAP_DISTANCE_PX,
+        });
+        if (startSnap.axisGuide) {
+          shapeStartSnapRef.current = startSnap.axisGuide;
+        }
+      }
+
+      const startSnap = shapeStartSnapRef.current
+        ? resolveSnapForInteraction({
+            rawPointer: rawStartPoint,
+            sceneContext: {
+              anchors: [],
+              segments: [],
+              axisCandidates: getLockedAxisCandidates(shapeStartSnapRef.current),
+            },
+            drivingAnchorSelector: pickDrawStartDraftDrivingAnchors,
+            buildDraftStroke: (nextStartPoint) =>
+              buildDrawSnapDraft(
+                nextStartPoint,
+                rawPointer,
+                tool,
+                drawableSeedRef.current,
+                thickness,
+                getShapeFillData(color, shapeFill, tool),
+                "__draw-start-locked-draft__"
+              ),
+            snapDistance: SNAP_DISTANCE_PX,
+            axisSnapDistance: SNAP_DISTANCE_PX,
+          })
+        : null;
+      const startDelta = startSnap
+        ? {
+            x: startSnap.snappedPointer.x - rawStartPoint.x,
+            y: startSnap.snappedPointer.y - rawStartPoint.y,
+          }
+        : { x: 0, y: 0 };
+      const snappedStartPoint = startSnap?.snappedPointer ?? startPoint;
+      const snapPointer = startSnap ? translatePoint(rawPointer, startDelta) : rawPointer;
+      const snapSceneContext = isShapeBoxSnapTool(tool)
+        ? {
+            anchors: [],
+            segments: [],
+            axisCandidates,
+          }
+        : {
+            anchors,
+            segments,
+            axisCandidates,
+          };
       const snap = resolveSnapForInteraction({
-        rawPointer,
-        sceneContext: {
-          anchors,
-          segments,
-          axisCandidates,
-        },
+        rawPointer: snapPointer,
+        sceneContext: snapSceneContext,
         drivingAnchorSelector: pickDrawDraftDrivingAnchors,
         buildDraftStroke: (nextPointer) =>
           buildDrawSnapDraft(
-            startPoint,
+            snappedStartPoint,
             nextPointer,
             tool,
             drawableSeedRef.current,
@@ -200,8 +311,9 @@ export const useDrawMode = ({
 
       return {
         point: snap.snappedPointer,
+        startPoint: startSnap ? snappedStartPoint : undefined,
         pointTarget: snap.pointGuide,
-        axisSnap: snap.axisGuide,
+        axisSnap: snap.axisGuide ?? startSnap?.axisGuide ?? null,
       };
     },
     [
@@ -251,13 +363,20 @@ export const useDrawMode = ({
         ? getConstrainedShapeEndpoint(startPoint, endpointCandidate, tool, shiftKey)
         : endpointCandidate;
       const { anchors, axisCandidates, segments } = getSceneSnapContext();
+      const snapSceneContext = isShapeBoxSnapTool(tool)
+        ? {
+            anchors: [],
+            segments: [],
+            axisCandidates,
+          }
+        : {
+            anchors,
+            segments,
+            axisCandidates,
+          };
       const snap = resolveSnapForInteraction({
         rawPointer,
-        sceneContext: {
-          anchors,
-          segments,
-          axisCandidates,
-        },
+        sceneContext: snapSceneContext,
         drivingAnchorSelector: pickDrawDraftDrivingAnchors,
         buildDraftStroke: (nextPointer) =>
           buildDrawSnapDraft(
@@ -307,6 +426,8 @@ export const useDrawMode = ({
       strokeIdRef.current = createStrokeId();
 
       const startPoint = resolveStartSnap(point, shiftKey);
+      rawStartPointRef.current = isShapeBoxSnapTool(tool) ? point : null;
+      shapeStartSnapRef.current = null;
       pointsRef.current = [startPoint];
 
       const stroke: Stroke = {
@@ -335,6 +456,9 @@ export const useDrawMode = ({
       });
 
       const snap = resolveCreateSnap(point, shiftKey);
+      if (snap.startPoint) {
+        pointsRef.current[0] = snap.startPoint;
+      }
       pointsRef.current.push(snap.point);
 
       const stroke: Stroke = {
@@ -420,6 +544,8 @@ export const useDrawMode = ({
         smartAssistController.enqueueCommittedPenStroke(stroke);
       }
       pointsRef.current = [];
+      rawStartPointRef.current = null;
+      shapeStartSnapRef.current = null;
       strokeIdRef.current = "";
       clearCanvas(ctxRef.current);
     },
@@ -439,6 +565,8 @@ export const useDrawMode = ({
         rafMoveIdRef.current = null;
       }
       pendingMoveRef.current = null;
+      rawStartPointRef.current = null;
+      shapeStartSnapRef.current = null;
       smartAssistController.dispose();
     };
   }, [smartAssistController]);
