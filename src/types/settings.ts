@@ -24,6 +24,9 @@ export interface SettingsSnapshot {
   tray: {
     inactive_click_action: "open_previous_canvas" | "open_new_canvas";
   };
+  activation_frame: {
+    enabled: boolean;
+  };
   shortcuts: {
     policy: {
       conflicts: {

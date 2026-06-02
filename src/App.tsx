@@ -1,5 +1,5 @@
 import "./App.css";
-import { Canvas, TextEditor, Toolbar } from "./components";
+import { ActivationFrame, Canvas, TextEditor, Toolbar } from "./components";
 import { useMainWindowVisibility } from "./hooks/useMainWindowVisibility";
 import { useThemeBootstrap } from "./hooks/useThemeBootstrap";
 
@@ -9,6 +9,7 @@ function App() {
 
   return (
     <main className={`app-container ${!isVisible ? "--hidden" : ""}`}>
+      <ActivationFrame isAppVisible={isVisible} />
       <Toolbar />
       <TextEditor />
       <Canvas />

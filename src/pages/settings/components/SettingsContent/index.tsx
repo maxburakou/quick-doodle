@@ -1,6 +1,7 @@
 import { useSettingsStore } from "@/store";
 import { SHORTCUT_SECTIONS } from "../../constants/shortcutActions";
 import { ShortcutSection } from "../ShortcutSection";
+import { ActivationFrameSection } from "../ActivationFrameSection";
 import { AutostartSection } from "../AutostartSection";
 import { TraySection } from "../TraySection";
 import "./styles.css";
@@ -25,6 +26,7 @@ export const SettingsContent = () => {
 
       <AutostartSection />
       <TraySection />
+      <ActivationFrameSection />
     </section>
   );
 };

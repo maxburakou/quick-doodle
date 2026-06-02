@@ -1,0 +1,89 @@
+.activation-frame-section {
+  border: 1px solid var(--settings-border);
+  border-radius: var(--settings-radius-panel);
+  background: var(--settings-surface);
+  box-shadow: var(--settings-shadow-panel);
+  overflow: hidden;
+}
+
+.activation-frame-section__title {
+  margin: 0;
+  padding: 11px 14px;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--settings-text-primary);
+  border-bottom: 1px solid var(--settings-border-soft);
+  background: color-mix(in srgb, var(--settings-surface-subtle) 86%, transparent);
+}
+
+.activation-frame-section__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.activation-frame-section__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.activation-frame-section__label {
+  font-size: 13px;
+  color: var(--settings-text-primary);
+  font-weight: 500;
+}
+
+.activation-frame-section__description {
+  font-size: 12px;
+  color: var(--settings-text-secondary);
+}
+
+.activation-frame-section__radio-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 210px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.activation-frame-section__radio-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--settings-text-primary);
+  font-family: var(--app-font-family-sans);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.activation-frame-section__radio-control {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border-radius: 999px;
+  border: 1px solid var(--settings-control-border);
+  background: var(--settings-control-bg);
+  box-shadow: var(--app-toolbar-control-shadow);
+  cursor: pointer;
+}
+
+.activation-frame-section__radio-control:checked {
+  border-color: var(--settings-accent);
+  background: var(--settings-accent);
+  box-shadow:
+    inset 0 0 0 3.5px var(--settings-surface),
+    var(--app-toolbar-control-shadow);
+}
+
+.activation-frame-section__radio-control:focus-visible {
+  outline: none;
+  box-shadow: var(--settings-focus-ring);
+}

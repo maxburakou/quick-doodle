@@ -1,0 +1,33 @@
+.activation-frame {
+  position: fixed;
+  inset: 0;
+  z-index: 11;
+  box-sizing: border-box;
+  pointer-events: none;
+  opacity: 0;
+  border: 3px solid var(--app-accent);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+    0 0 0 1px rgba(10, 132, 255, 0.08),
+    0 0 16px rgba(10, 132, 255, 0.18);
+  animation: activation-frame-fade 560ms var(--app-ease-out) both;
+}
+
+@keyframes activation-frame-fade {
+  0% {
+    opacity: 0;
+  }
+  22%,
+  78% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activation-frame {
+    animation: activation-frame-fade 420ms var(--app-ease-out) both;
+  }
+}

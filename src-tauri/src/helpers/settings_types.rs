@@ -11,6 +11,8 @@ pub struct SettingsSnapshot {
 	pub theme: ThemeSettings,
 	#[serde(default = "default_tray_settings")]
 	pub tray: TraySettings,
+	#[serde(default = "default_activation_frame_settings")]
+	pub activation_frame: ActivationFrameSettings,
 	pub shortcuts: ShortcutsConfig,
 }
 
@@ -29,6 +31,12 @@ pub struct ThemeSettings {
 pub struct TraySettings {
 	#[serde(default)]
 	pub inactive_click_action: TrayInactiveClickAction,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActivationFrameSettings {
+	#[serde(default = "default_activation_frame_enabled")]
+	pub enabled: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -156,6 +164,16 @@ fn default_tray_settings() -> TraySettings {
 	}
 }
 
+fn default_activation_frame_enabled() -> bool {
+	true
+}
+
+fn default_activation_frame_settings() -> ActivationFrameSettings {
+	ActivationFrameSettings {
+		enabled: default_activation_frame_enabled(),
+	}
+}
+
 impl SettingsSnapshot {
 	pub fn defaults() -> Self {
 		Self {
@@ -163,6 +181,7 @@ impl SettingsSnapshot {
 			autostart: AutostartSettings { enabled: false },
 			theme: default_theme_settings(),
 			tray: default_tray_settings(),
+			activation_frame: default_activation_frame_settings(),
 			shortcuts: ShortcutsConfig {
 				policy: ShortcutPolicy {
 					conflicts: ConflictsPolicy {
@@ -323,7 +342,8 @@ mod tests {
 
 	#[test]
 	fn legacy_snapshot_without_tray_uses_default_tray_settings() {
-		let mut value = serde_json::to_value(SettingsSnapshot::defaults()).expect("serialize defaults");
+		let mut value =
+			serde_json::to_value(SettingsSnapshot::defaults()).expect("serialize defaults");
 
 		if let Value::Object(map) = &mut value {
 			map.remove("tray");
@@ -334,5 +354,24 @@ mod tests {
 			parsed.tray.inactive_click_action,
 			TrayInactiveClickAction::OpenPreviousCanvas
 		);
+	}
+
+	#[test]
+	fn defaults_enable_activation_frame() {
+		let snapshot = SettingsSnapshot::defaults();
+		assert!(snapshot.activation_frame.enabled);
+	}
+
+	#[test]
+	fn legacy_snapshot_without_activation_frame_uses_default_activation_frame_settings() {
+		let mut value =
+			serde_json::to_value(SettingsSnapshot::defaults()).expect("serialize defaults");
+
+		if let Value::Object(map) = &mut value {
+			map.remove("activation_frame");
+		}
+
+		let parsed: SettingsSnapshot = serde_json::from_value(value).expect("deserialize snapshot");
+		assert!(parsed.activation_frame.enabled);
 	}
 }

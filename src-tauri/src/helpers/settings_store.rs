@@ -41,6 +41,10 @@ pub fn load_settings(app: &AppHandle) -> Result<SettingsSnapshot, String> {
 			.get("tray")
 			.and_then(|value| serde_json::from_value(value).ok())
 			.unwrap_or(defaults.tray),
+		activation_frame: store
+			.get("activation_frame")
+			.and_then(|value| serde_json::from_value(value).ok())
+			.unwrap_or(defaults.activation_frame),
 		shortcuts: store
 			.get("shortcuts")
 			.and_then(|value| serde_json::from_value(value).ok())
@@ -118,6 +122,7 @@ pub fn load_settings(app: &AppHandle) -> Result<SettingsSnapshot, String> {
 		|| !store.has("autostart")
 		|| !store.has("theme")
 		|| !store.has("tray")
+		|| !store.has("activation_frame")
 		|| !store.has("shortcuts")
 	{
 		save_settings(app, &snapshot)?;
@@ -146,6 +151,10 @@ pub fn save_settings(app: &AppHandle, snapshot: &SettingsSnapshot) -> Result<(),
 	store.set(
 		"tray",
 		serde_json::to_value(&snapshot.tray).map_err(|err| err.to_string())?,
+	);
+	store.set(
+		"activation_frame",
+		serde_json::to_value(&snapshot.activation_frame).map_err(|err| err.to_string())?,
 	);
 	store.set(
 		"shortcuts",
