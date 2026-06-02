@@ -1,8 +1,10 @@
 import { Stroke, StrokePoint, Tool } from "@/types";
 import { useHistoryStore } from "@/store/useHistoryStore";
+import { useSnapStore } from "@/store/useSnapStore";
 import { useToolStore } from "@/store/useToolStore";
 import { SMART_ASSIST_CONFIG } from "./config";
 import { runSmartAssistRecognition } from "./recognizers";
+import { snapSmartAssistReplacementStrokes } from "./snapReplacementStrokes";
 import {
   DetectionResult,
   RecognizerContext,
@@ -202,7 +204,30 @@ export class SmartAssistController {
     };
   }
 
-  private scheduleReplacement(winner: ShapeDetectionCandidate) {
+  private getSnappedReplacementCandidate(
+    winner: ShapeDetectionCandidate,
+    present: Stroke[]
+  ): ShapeDetectionCandidate {
+    if (!useSnapStore.getState().enabled) return winner;
+
+    const snapResult = snapSmartAssistReplacementStrokes({
+      present,
+      sourceStrokeIds: winner.sourceStrokeIds,
+      replacementStrokes: winner.replacementStrokes,
+    });
+
+    if (!snapResult.changed) return winner;
+
+    return {
+      ...winner,
+      replacementStrokes: snapResult.replacementStrokes,
+      reasons: [...winner.reasons, "sceneSnap"],
+    };
+  }
+
+  private scheduleReplacement(
+    winner: ShapeDetectionCandidate
+  ): ShapeDetectionCandidate | null {
     const historyState = useHistoryStore.getState();
     const presentIdSet = new Set(historyState.present.map((stroke) => stroke.id));
     const allSourceStrokesStillPresent = winner.sourceStrokeIds.every((id) =>
@@ -211,19 +236,23 @@ export class SmartAssistController {
 
     if (!allSourceStrokesStillPresent) {
       this.clearBatch("history-change");
-      return false;
+      return null;
     }
 
+    const replacementCandidate = this.getSnappedReplacementCandidate(
+      winner,
+      historyState.present
+    );
     const replaced = historyState.replaceStrokesWithAction(
-      winner.sourceStrokeIds,
-      winner.replacementStrokes
+      replacementCandidate.sourceStrokeIds,
+      replacementCandidate.replacementStrokes
     );
     if (!replaced) {
       this.clearBatch("history-change");
-      return false;
+      return null;
     }
 
-    return true;
+    return replacementCandidate;
   }
 
   private runRecognition() {
@@ -271,9 +300,16 @@ export class SmartAssistController {
       return;
     }
 
-    const replaced = this.scheduleReplacement(result.winner);
-    if (!replaced) return;
-    this.clearBatch("recognized", result);
+    const replacementWinner = this.scheduleReplacement(result.winner);
+    if (!replacementWinner) return;
+
+    this.clearBatch("recognized", {
+      ...result,
+      winner: replacementWinner,
+      candidates: result.candidates.map((candidate) =>
+        candidate === result.winner ? replacementWinner : candidate
+      ),
+    });
   }
 }
 

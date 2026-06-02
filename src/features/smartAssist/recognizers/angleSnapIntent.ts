@@ -1,4 +1,5 @@
 import { StrokePoint } from "@/types";
+import { SMART_ASSIST_CONFIG } from "../config";
 
 type SnapGuideKind = "axis" | "diagonal";
 
@@ -8,15 +9,6 @@ const GUIDE_ANGLES = [
   { angleDeg: 90, kind: "axis" },
   { angleDeg: 135, kind: "diagonal" },
 ] as const;
-
-const AXIS_MAX_ANGLE_DELTA_DEG = 8;
-const DIAGONAL_MAX_ANGLE_DELTA_DEG = 5;
-const AXIS_MAX_ENDPOINT_SHIFT_RATIO = 0.14;
-const DIAGONAL_MAX_ENDPOINT_SHIFT_RATIO = 0.1;
-const AXIS_MIN_ENDPOINT_SHIFT_PX = 16;
-const DIAGONAL_MIN_ENDPOINT_SHIFT_PX = 14;
-const AXIS_MAX_ENDPOINT_SHIFT_PX = 36;
-const DIAGONAL_MAX_ENDPOINT_SHIFT_PX = 30;
 
 const radiansToDegrees = (radians: number): number => (radians * 180) / Math.PI;
 const degreesToRadians = (degrees: number): number => (degrees * Math.PI) / 180;
@@ -44,23 +36,25 @@ const getLineAngleDelta = (angleDeg: number, guideAngleDeg: number): number =>
   );
 
 const getGuideThresholds = (kind: SnapGuideKind, length: number) => {
+  const { angleIntent } = SMART_ASSIST_CONFIG.snap;
+
   if (kind === "axis") {
     return {
-      maxAngleDeltaDeg: AXIS_MAX_ANGLE_DELTA_DEG,
+      maxAngleDeltaDeg: angleIntent.axisMaxAngleDeltaDeg,
       maxEndpointShiftPx: clamp(
-        length * AXIS_MAX_ENDPOINT_SHIFT_RATIO,
-        AXIS_MIN_ENDPOINT_SHIFT_PX,
-        AXIS_MAX_ENDPOINT_SHIFT_PX
+        length * angleIntent.axisMaxEndpointShiftRatio,
+        angleIntent.axisMinEndpointShiftPx,
+        angleIntent.axisMaxEndpointShiftPx
       ),
     };
   }
 
   return {
-    maxAngleDeltaDeg: DIAGONAL_MAX_ANGLE_DELTA_DEG,
+    maxAngleDeltaDeg: angleIntent.diagonalMaxAngleDeltaDeg,
     maxEndpointShiftPx: clamp(
-      length * DIAGONAL_MAX_ENDPOINT_SHIFT_RATIO,
-      DIAGONAL_MIN_ENDPOINT_SHIFT_PX,
-      DIAGONAL_MAX_ENDPOINT_SHIFT_PX
+      length * angleIntent.diagonalMaxEndpointShiftRatio,
+      angleIntent.diagonalMinEndpointShiftPx,
+      angleIntent.diagonalMaxEndpointShiftPx
     ),
   };
 };

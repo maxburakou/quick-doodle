@@ -110,4 +110,18 @@ export interface SmartAssistConfig {
   transitionDurationMs: number;
   minConfidence: Record<SmartAssistShapeKind, number>;
   conflictMarginsPx: Record<string, number>;
+  snap: {
+    distancePx: number;
+    axisDistancePx: number;
+    angleIntent: {
+      axisMaxAngleDeltaDeg: number;
+      diagonalMaxAngleDeltaDeg: number;
+      axisMaxEndpointShiftRatio: number;
+      diagonalMaxEndpointShiftRatio: number;
+      axisMinEndpointShiftPx: number;
+      diagonalMinEndpointShiftPx: number;
+      axisMaxEndpointShiftPx: number;
+      diagonalMaxEndpointShiftPx: number;
+    };
+  };
 }

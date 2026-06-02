@@ -20,4 +20,18 @@ export const SMART_ASSIST_CONFIG: SmartAssistConfig = {
     endpoint: 16,
     axis: 10,
   },
+  snap: {
+    distancePx: 16,
+    axisDistancePx: 16,
+    angleIntent: {
+      axisMaxAngleDeltaDeg: 12,
+      diagonalMaxAngleDeltaDeg: 5,
+      axisMaxEndpointShiftRatio: 0.18,
+      diagonalMaxEndpointShiftRatio: 0.1,
+      axisMinEndpointShiftPx: 20,
+      diagonalMinEndpointShiftPx: 14,
+      axisMaxEndpointShiftPx: 48,
+      diagonalMaxEndpointShiftPx: 30,
+    },
+  },
 };
