@@ -313,7 +313,8 @@ export const useDrawMode = ({
         point: snap.snappedPointer,
         startPoint: startSnap ? snappedStartPoint : undefined,
         pointTarget: snap.pointGuide,
-        axisSnap: snap.axisGuide ?? startSnap?.axisGuide ?? null,
+        axisSnap:
+          snap.axisGuide ?? (snap.pointGuide ? null : startSnap?.axisGuide ?? null),
       };
     },
     [

@@ -175,6 +175,8 @@ interface AxisSnapSelection {
   guide: number;
 }
 
+const AXIS_GUIDE_ANCHOR_GUARD_MULTIPLIER = Math.SQRT2;
+
 export const isLineLikeSnapTool = (tool: Tool) =>
   isLineLikeGeometryTool(tool);
 
@@ -538,6 +540,26 @@ const resolveTranslationSegmentSnap = (
   };
 };
 
+const isNearNonCenterAnchor = (
+  movingPoints: PointLike[],
+  anchors: SnapAnchor[],
+  guardDistance: number
+) => {
+  for (const movingPoint of movingPoints) {
+    for (const anchor of anchors) {
+      if (anchor.kind === "center") continue;
+      if (
+        Math.hypot(anchor.x - movingPoint.x, anchor.y - movingPoint.y) <=
+        guardDistance
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+};
+
 const resolveInteractionSnapCore = ({
   rawPointer,
   movingAnchors,
@@ -561,8 +583,6 @@ const resolveInteractionSnapCore = ({
       y: anchor.y + pointSnap.delta.y,
     }));
     const axisGuide =
-      // By default axis guides are suppressed for anchor/segment snaps.
-      // Keep an explicit exception for center-anchor snaps to show the cross.
       pointSnap.snapTargetKind === "center"
         ? resolveNearestAxisSnap(
             translatedMovingAnchors,
@@ -594,6 +614,20 @@ const resolveInteractionSnapCore = ({
     return {
       snappedPointer,
       pointGuide: segmentSnap.pointTarget,
+      axisGuide: null,
+    };
+  }
+
+  if (
+    isNearNonCenterAnchor(
+      movingAnchors,
+      sceneContext.anchors,
+      Math.max(snapDistance, axisSnapDistance) * AXIS_GUIDE_ANCHOR_GUARD_MULTIPLIER
+    )
+  ) {
+    return {
+      snappedPointer: rawPointer,
+      pointGuide: null,
       axisGuide: null,
     };
   }
