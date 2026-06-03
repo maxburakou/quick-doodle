@@ -26,9 +26,17 @@ const resolveSettingsContext = ({
   }
 
   if (selectedStrokeIds.length > 1) {
+    const selectedIdSet = new Set(selectedStrokeIds);
+    const selectedStrokes = present.filter((stroke) =>
+      selectedIdSet.has(stroke.id),
+    );
+    const firstTool = selectedStrokes[0]?.tool ?? null;
+    const hasSingleTool =
+      Boolean(firstTool) && selectedStrokes.every((stroke) => stroke.tool === firstTool);
+
     return {
       context: TOOLBAR_SETTINGS_CONTEXT.GROUP_SELECTION,
-      tool: Tool.Select,
+      tool: hasSingleTool ? firstTool : Tool.Select,
     };
   }
 
@@ -65,12 +73,11 @@ export const useToolbarSettingsContext = () => {
     present,
   });
   const effectiveTool =
-    resolvedContext.context === TOOLBAR_SETTINGS_CONTEXT.GROUP_SELECTION
-      ? null
-      : resolvedContext.tool;
+    resolvedContext.tool === Tool.Select ? null : resolvedContext.tool;
 
   const visibleSettings =
-    resolvedContext.context === TOOLBAR_SETTINGS_CONTEXT.GROUP_SELECTION
+    resolvedContext.context === TOOLBAR_SETTINGS_CONTEXT.GROUP_SELECTION &&
+    !effectiveTool
       ? (() => {
           const selectedIdSet = new Set(selectedStrokeIds);
           const selectedStrokes = present.filter((stroke) =>
@@ -86,7 +93,6 @@ export const useToolbarSettingsContext = () => {
           const orderedSettings = [
             TOOLBAR_SETTING_CONTROL.COLOR,
             TOOLBAR_SETTING_CONTROL.STROKE,
-            TOOLBAR_SETTING_CONTROL.TEXT_SIZE,
             TOOLBAR_SETTING_CONTROL.FILL,
           ].filter((settingId) => settingIds.has(settingId));
 
