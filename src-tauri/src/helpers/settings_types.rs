@@ -37,6 +37,8 @@ pub struct TraySettings {
 pub struct ActivationFrameSettings {
 	#[serde(default = "default_activation_frame_enabled")]
 	pub enabled: bool,
+	#[serde(default = "default_activation_frame_hide_when_canvas_has_drawing")]
+	pub hide_when_canvas_has_drawing: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -168,9 +170,14 @@ fn default_activation_frame_enabled() -> bool {
 	true
 }
 
+fn default_activation_frame_hide_when_canvas_has_drawing() -> bool {
+	false
+}
+
 fn default_activation_frame_settings() -> ActivationFrameSettings {
 	ActivationFrameSettings {
 		enabled: default_activation_frame_enabled(),
+		hide_when_canvas_has_drawing: default_activation_frame_hide_when_canvas_has_drawing(),
 	}
 }
 
@@ -360,6 +367,7 @@ mod tests {
 	fn defaults_enable_activation_frame() {
 		let snapshot = SettingsSnapshot::defaults();
 		assert!(snapshot.activation_frame.enabled);
+		assert!(!snapshot.activation_frame.hide_when_canvas_has_drawing);
 	}
 
 	#[test]
@@ -373,5 +381,6 @@ mod tests {
 
 		let parsed: SettingsSnapshot = serde_json::from_value(value).expect("deserialize snapshot");
 		assert!(parsed.activation_frame.enabled);
+		assert!(!parsed.activation_frame.hide_when_canvas_has_drawing);
 	}
 }

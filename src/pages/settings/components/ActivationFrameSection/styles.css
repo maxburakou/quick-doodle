@@ -25,6 +25,14 @@
   padding: 12px 14px;
 }
 
+.activation-frame-section__row + .activation-frame-section__row {
+  border-top: 1px solid var(--settings-border-soft);
+}
+
+.activation-frame-section__row--disabled {
+  opacity: 0.55;
+}
+
 .activation-frame-section__copy {
   display: flex;
   flex-direction: column;

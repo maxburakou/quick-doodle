@@ -26,6 +26,7 @@ export interface SettingsSnapshot {
   };
   activation_frame: {
     enabled: boolean;
+    hide_when_canvas_has_drawing: boolean;
   };
   shortcuts: {
     policy: {
