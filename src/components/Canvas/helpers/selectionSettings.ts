@@ -49,10 +49,12 @@ interface ApplySingleSelectionSettingsParams {
   storeColor: string;
   storeThickness: number;
   storeFontSize: number;
+  storeShapeFill: boolean;
   isTransforming: boolean;
   applyColor?: boolean;
   applyThickness?: boolean;
   applyFontSize?: boolean;
+  applyShapeFill?: boolean;
 }
 
 interface ApplyGroupSelectionSettingsParams {
@@ -61,10 +63,12 @@ interface ApplyGroupSelectionSettingsParams {
   storeColor: string;
   storeThickness: number;
   storeFontSize: number;
+  storeShapeFill: boolean;
   isTransforming: boolean;
   applyColor?: boolean;
   applyThickness?: boolean;
   applyFontSize?: boolean;
+  applyShapeFill?: boolean;
 }
 
 interface UpdateStrokeByIdParams {
@@ -241,6 +245,16 @@ export const resolveGroupFontSizeContext = (
   );
 };
 
+export const resolveGroupShapeFillContext = (
+  selectedStrokes: Stroke[]
+): boolean | null => {
+  return resolveUniformValue(
+    selectedStrokes,
+    (stroke) => supportsShapeFill(stroke.tool),
+    (stroke) => Boolean(stroke.shapeFill)
+  );
+};
+
 export const applyColorToStroke = ({
   present,
   strokeId,
@@ -315,10 +329,12 @@ export const applyGroupSelectionSettings = ({
   storeColor,
   storeThickness,
   storeFontSize,
+  storeShapeFill,
   isTransforming,
   applyColor = true,
   applyThickness = true,
   applyFontSize = true,
+  applyShapeFill = false,
 }: ApplyGroupSelectionSettingsParams): Stroke[] | null => {
   if (isTransforming || selectedStrokeIds.length === 0) return null;
 
@@ -356,6 +372,18 @@ export const applyGroupSelectionSettings = ({
       }
     }
 
+    if (
+      applyShapeFill &&
+      supportsShapeFill(nextStroke.tool) &&
+      Boolean(nextStroke.shapeFill) !== storeShapeFill
+    ) {
+      nextStroke = {
+        ...nextStroke,
+        shapeFill: storeShapeFill ? buildShapeFill(nextStroke.color) : undefined,
+      };
+      hasChanges = true;
+    }
+
     return nextStroke;
   });
 
@@ -368,10 +396,12 @@ export const applySingleSelectionSettings = ({
   storeColor,
   storeThickness,
   storeFontSize,
+  storeShapeFill,
   isTransforming,
   applyColor = true,
   applyThickness = true,
   applyFontSize = true,
+  applyShapeFill = false,
 }: ApplySingleSelectionSettingsParams): Stroke[] | null => {
   let nextPresent: Stroke[] | null = null;
   let workingPresent = present;
@@ -417,6 +447,20 @@ export const applySingleSelectionSettings = ({
 
     if (thicknessResult) {
       nextPresent = thicknessResult;
+      workingPresent = thicknessResult;
+    }
+  }
+
+  if (applyShapeFill) {
+    const shapeFillResult = applyShapeFillToStroke({
+      present: workingPresent,
+      strokeId: selectedStroke.id,
+      enabled: storeShapeFill,
+      isTransforming,
+    });
+
+    if (shapeFillResult) {
+      nextPresent = shapeFillResult;
     }
   }
 

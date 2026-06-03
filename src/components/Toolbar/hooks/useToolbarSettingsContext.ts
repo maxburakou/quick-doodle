@@ -87,6 +87,7 @@ export const useToolbarSettingsContext = () => {
             TOOLBAR_SETTING_CONTROL.COLOR,
             TOOLBAR_SETTING_CONTROL.STROKE,
             TOOLBAR_SETTING_CONTROL.TEXT_SIZE,
+            TOOLBAR_SETTING_CONTROL.FILL,
           ].filter((settingId) => settingIds.has(settingId));
 
           return orderedSettings

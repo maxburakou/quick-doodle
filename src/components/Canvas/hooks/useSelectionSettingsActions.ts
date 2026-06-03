@@ -5,11 +5,10 @@ import {
   useTool,
   useToolSettingsStore,
 } from "@/store";
-import { isFillableShapeTool, Tool } from "@/types";
+import { Tool } from "@/types";
 import { useCallback, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import {
-  applyShapeFillToStroke,
   applyGroupSelectionSettings,
   applySingleSelectionSettings,
 } from "../helpers/selectionSettings";
@@ -34,7 +33,14 @@ export const useSelectionSettingsActions = () => {
   );
 
   const applyToSelection = useCallback(
-    (overrides: Partial<{ color: string; thickness: number; fontSize: number }>) => {
+    (
+      overrides: Partial<{
+        color: string;
+        thickness: number;
+        fontSize: number;
+        shapeFill: boolean;
+      }>
+    ) => {
       if (activeTool !== Tool.Select || session) return;
 
       const hasSingleSelection = Boolean(selectedStroke);
@@ -46,9 +52,12 @@ export const useSelectionSettingsActions = () => {
         overrides.thickness ?? useToolSettingsStore.getState().thickness;
       const resolvedFontSize =
         overrides.fontSize ?? useTextSettingsStore.getState().fontSize;
+      const resolvedShapeFill =
+        overrides.shapeFill ?? useToolSettingsStore.getState().shapeFill;
       const applyColor = overrides.color !== undefined;
       const applyThickness = overrides.thickness !== undefined;
       const applyFontSize = overrides.fontSize !== undefined;
+      const applyShapeFill = overrides.shapeFill !== undefined;
 
       const currentPresent = useHistoryStore.getState().present;
 
@@ -59,10 +68,12 @@ export const useSelectionSettingsActions = () => {
             storeColor: resolvedColor,
             storeThickness: resolvedThickness,
             storeFontSize: resolvedFontSize,
+            storeShapeFill: resolvedShapeFill,
             isTransforming: false,
             applyColor,
             applyThickness,
             applyFontSize,
+            applyShapeFill,
           })
         : applyGroupSelectionSettings({
             present: currentPresent,
@@ -70,10 +81,12 @@ export const useSelectionSettingsActions = () => {
             storeColor: resolvedColor,
             storeThickness: resolvedThickness,
             storeFontSize: resolvedFontSize,
+            storeShapeFill: resolvedShapeFill,
             isTransforming: false,
             applyColor,
             applyThickness,
             applyFontSize,
+            applyShapeFill,
           });
 
       if (nextPresent) {
@@ -133,29 +146,9 @@ export const useSelectionSettingsActions = () => {
       if (enabled !== prevEnabled) {
         useToolSettingsStore.getState().setShapeFill(enabled);
       }
-
-      if (
-        activeTool !== Tool.Select ||
-        session ||
-        !selectedStroke ||
-        !isFillableShapeTool(selectedStroke.tool)
-      ) {
-        return;
-      }
-
-      const currentPresent = useHistoryStore.getState().present;
-      const nextPresent = applyShapeFillToStroke({
-        present: currentPresent,
-        strokeId: selectedStroke.id,
-        enabled,
-        isTransforming: false,
-      });
-
-      if (nextPresent) {
-        commitPresent(nextPresent);
-      }
+      applyToSelection({ shapeFill: enabled });
     },
-    [activeTool, commitPresent, selectedStroke, session]
+    [applyToSelection]
   );
 
   return {

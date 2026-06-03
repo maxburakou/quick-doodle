@@ -128,9 +128,7 @@ export const SETTING_REGISTRY: Record<
   [TOOLBAR_SETTING_CONTROL.FILL]: {
     id: TOOLBAR_SETTING_CONTROL.FILL,
     component: createElement(FillOptions),
-    isVisible: ({ tool, context }) =>
-      isFillableShapeTool(tool) &&
-      context !== TOOLBAR_SETTINGS_CONTEXT.GROUP_SELECTION,
+    isVisible: ({ tool }) => isFillableShapeTool(tool),
   },
   [TOOLBAR_SETTING_CONTROL.SMART_ASSIST]: {
     id: TOOLBAR_SETTING_CONTROL.SMART_ASSIST,
