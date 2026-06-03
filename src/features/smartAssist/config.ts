@@ -21,8 +21,8 @@ export const SMART_ASSIST_CONFIG: SmartAssistConfig = {
     axis: 10,
   },
   snap: {
-    distancePx: 16,
-    axisDistancePx: 16,
+    distancePx: 18,
+    axisDistancePx: 18,
     angleIntent: {
       axisMaxAngleDeltaDeg: 12,
       diagonalMaxAngleDeltaDeg: 5,
