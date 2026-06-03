@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Generated Vite copy of committed model assets.
+public/models/online-htr/model.onnx
+public/models/online-htr/alphabet.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

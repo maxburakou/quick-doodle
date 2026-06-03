@@ -7,7 +7,6 @@ use components::tray::{apply_tray_accelerators_from_settings, create_tray_menu};
 use helpers::{
 	autostart::{get_autostart_enabled, set_autostart_enabled},
 	macos_panel::setup_macos_window_config,
-	online_htr::{online_htr_recognize, OnlineHtrState},
 	settings::{
 		emit_settings_updated, open_settings_window, register_settings_close_handler,
 		settings_get_snapshot, settings_hide_window, settings_restore_defaults, settings_save,
@@ -66,8 +65,7 @@ pub fn run() {
 			settings_set_theme_mode,
 			settings_save,
 			settings_restore_defaults,
-			settings_hide_window,
-			online_htr_recognize
+			settings_hide_window
 		])
 		.setup(|app| {
 			#[cfg(target_os = "macos")]
@@ -75,7 +73,6 @@ pub fn run() {
 
 			let window_state = WindowState::new();
 			app.manage(window_state);
-			app.manage(OnlineHtrState::default());
 			warm_tray_icon_cache(app.app_handle());
 			register_settings_close_handler(app.app_handle());
 

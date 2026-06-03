@@ -1,6 +1,5 @@
 pub mod autostart;
 pub mod macos_panel;
-pub mod online_htr;
 pub mod settings;
 pub mod settings_store;
 pub mod settings_types;
