@@ -7,7 +7,7 @@ export const ActivationFrameSection = () => {
     (state) => state.draft?.activation_frame.enabled ?? true
   );
   const hideWhenCanvasHasDrawing = useSettingsStore(
-    (state) => state.draft?.activation_frame.hide_when_canvas_has_drawing ?? false
+    (state) => state.draft?.activation_frame.hide_when_canvas_has_drawing ?? true
   );
   const setDraft = useSettingsStore((state) => state.setDraft);
 
