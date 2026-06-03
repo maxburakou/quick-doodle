@@ -14,6 +14,7 @@ export interface StrokePoint {
   x: number;
   y: number;
   pressure: number;
+  t?: number;
 }
 
 export interface TextElement {

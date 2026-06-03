@@ -22,6 +22,7 @@ const getPointerPayloadFromEvent = (
     x: e?.nativeEvent.offsetX ?? 0,
     y: e?.nativeEvent.offsetY ?? 0,
     pressure: e?.pressure ?? 0.5,
+    t: e?.timeStamp,
   },
   shiftKey: e?.shiftKey ?? false,
 });

@@ -3,7 +3,9 @@ import { SmartBatchMetrics } from "./utils";
 
 export type SmartAssistBatchStatus =
   | "collecting"
-  | "recognizing"
+  | "recognizing-shape"
+  | "text-candidate"
+  | "recognizing-text"
   | "transitioning";
 
 export type SmartAssistClearReason =
@@ -19,7 +21,13 @@ export type SmartAssistClearReason =
   | "history-change"
   | "manual"
   | "undo-redo"
-  | "window-blur";
+  | "window-blur"
+  | "text-intent"
+  | "text-recognized"
+  | "text-empty"
+  | "text-timeout"
+  | "text-error"
+  | "text-stale-source";
 
 export interface SmartAssistBatch {
   id: string;
@@ -49,6 +57,10 @@ export interface SmartAssistDebugResult {
   winner?: ShapeDetectionCandidate | null;
   runnerUp?: ShapeDetectionCandidate | null;
   margin?: number | null;
+  recognizedText?: string | null;
+  textIntentScore?: number;
+  textIntentReasons?: string[];
+  textError?: string;
 }
 
 export type SmartAssistShapeKind =
@@ -102,12 +114,21 @@ export interface ShapeRecognizer {
 
 export interface SmartAssistConfig {
   enabledByDefault: boolean;
-  debounceMs: number;
+  shapeDebounceMs: number;
   maxBatchStrokes: number;
   maxBatchAgeMs: number;
   maxRawPoints: number;
   batchJoinPaddingPx: number;
   transitionDurationMs: number;
+  text: {
+    idleDebounceMs: number;
+    maxBatchStrokes: number;
+    maxBatchAgeMs: number;
+    maxRawPoints: number;
+    joinPaddingPx: number;
+    intentThreshold: number;
+    recognitionTimeoutMs: number;
+  };
   minConfidence: Record<SmartAssistShapeKind, number>;
   conflictMarginsPx: Record<string, number>;
   snap: {

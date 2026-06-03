@@ -2,12 +2,21 @@ import { SmartAssistConfig } from "./types";
 
 export const SMART_ASSIST_CONFIG: SmartAssistConfig = {
   enabledByDefault: false,
-  debounceMs: 650,
+  shapeDebounceMs: 650,
   maxBatchStrokes: 6,
   maxBatchAgeMs: 3000,
   maxRawPoints: 1800,
   batchJoinPaddingPx: 140,
   transitionDurationMs: 180,
+  text: {
+    idleDebounceMs: 1400,
+    maxBatchStrokes: 32,
+    maxBatchAgeMs: 10000,
+    maxRawPoints: 6000,
+    joinPaddingPx: 110,
+    intentThreshold: 0.65,
+    recognitionTimeoutMs: 3000,
+  },
   minConfidence: {
     line: 0.84,
     arrow: 0.82,

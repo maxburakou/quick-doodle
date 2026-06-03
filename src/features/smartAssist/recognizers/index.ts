@@ -1,4 +1,8 @@
-export { runSmartAssistRecognition, SHAPE_RECOGNIZERS } from "./runSmartAssistRecognition";
+export {
+  runSingleStrokeShapeRecognition,
+  runSmartAssistRecognition,
+  SHAPE_RECOGNIZERS,
+} from "./runSmartAssistRecognition";
 export { resolveCandidates } from "./resolveCandidates";
 export { arrowRecognizer } from "./arrowRecognizer";
 export { diamondRecognizer } from "./diamondRecognizer";

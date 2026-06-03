@@ -44,6 +44,28 @@ const runRecognizers = (
   });
 };
 
+export const runSingleStrokeShapeRecognition = (
+  stroke: SmartAssistBatch["strokes"][number],
+  context: RecognizerContext
+): DetectionResult => {
+  const now = Date.now();
+  return runRecognizers(
+    GEOMETRY_RECOGNIZERS,
+    {
+      id: `probe_${stroke.id}`,
+      strokeIds: [stroke.id],
+      strokes: [stroke],
+      startedAt: now,
+      updatedAt: now,
+      status: "recognizing-shape",
+    },
+    {
+      ...context,
+      sourceStrokes: [stroke],
+    }
+  );
+};
+
 export const runSmartAssistRecognition = (
   batch: SmartAssistBatch,
   context: RecognizerContext
