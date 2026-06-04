@@ -7,10 +7,8 @@ import { runSmartAssistRecognition } from "./recognizers";
 import { snapSmartAssistReplacementStrokes } from "./snapReplacementStrokes";
 import { recognizeOnlineHandwriting } from "./textRecognition";
 import { correctRecognizedText } from "./textCorrection";
-import { recordTextRecognitionSample } from "./textRecognitionTelemetry";
 import { buildTextReplacementAction } from "./textReplacement";
 import { detectTextIntent, isPointLikelyContinuingTextBatch } from "./textIntent";
-import { logSmartAssistDebug } from "./debug";
 import {
   DetectionResult,
   RecognizerContext,
@@ -138,15 +136,6 @@ export class SmartAssistController {
     }
 
     useSmartAssistStore.getState().setBatch(candidateBatch);
-    logSmartAssistDebug("queued pen stroke for smart assist", {
-      batchId: candidateBatch.id,
-      batchStatus: candidateBatch.status,
-      strokeCount: candidateBatch.strokes.length,
-      rawPointCount: countBatchRawPoints(candidateBatch),
-      strokeId: stroke.id,
-      pointCount: stroke.points.length,
-    });
-
     this.cancelPendingTimer();
     this.recognitionTimer = window.setTimeout(() => {
       if (candidateBatch.status === "text-candidate") {
@@ -196,13 +185,6 @@ export class SmartAssistController {
     this.cancelPendingTimer();
     const { debugEnabled, batch, setBatch, setLastDebugResult } =
       useSmartAssistStore.getState();
-    logSmartAssistDebug("clearing smart assist batch", {
-      batchId: batch?.id ?? null,
-      reason,
-      recognizedShape: detectionResult?.winner?.kind ?? null,
-      recognizedText: textDebug?.recognizedText ?? null,
-      textError: textDebug?.textError,
-    });
 
     if (debugEnabled) {
       const winner = detectionResult?.winner ?? null;
@@ -281,18 +263,7 @@ export class SmartAssistController {
       this.buildRecognizerContext(batch)
     );
 
-    const predicted = predictedIntent.score >= SMART_ASSIST_CONFIG.text.earlyIntentThreshold;
-    logSmartAssistDebug("early text batch prediction", {
-      batchId: batch.id,
-      predicted,
-      score: predictedIntent.score,
-      threshold: SMART_ASSIST_CONFIG.text.earlyIntentThreshold,
-      reasons: predictedIntent.reasons,
-      debug: predictedIntent.debug,
-      strokeCount: batch.strokes.length,
-    });
-
-    return predicted;
+    return predictedIntent.score >= SMART_ASSIST_CONFIG.text.earlyIntentThreshold;
   }
 
   private getSnappedReplacementCandidate(
@@ -371,48 +342,12 @@ export class SmartAssistController {
     });
 
     const result = runSmartAssistRecognition(batch, this.buildRecognizerContext(batch));
-    logSmartAssistDebug("shape recognition finished", {
-      batchId: batch.id,
-      accepted: result.accepted,
-      rejectedReason: result.rejectedReason,
-      winner: result.winner
-        ? {
-            kind: result.winner.kind,
-            confidence: result.winner.confidence,
-            reasons: result.winner.reasons,
-            debugGeometry: result.winner.debugGeometry,
-          }
-        : null,
-      runnerUp: result.runnerUp
-        ? {
-            kind: result.runnerUp.kind,
-            confidence: result.runnerUp.confidence,
-            reasons: result.runnerUp.reasons,
-            debugGeometry: result.runnerUp.debugGeometry,
-          }
-        : null,
-      margin: result.margin,
-      candidates: result.candidates.map((candidate) => ({
-        kind: candidate.kind,
-        confidence: candidate.confidence,
-        reasons: candidate.reasons,
-        debugGeometry: candidate.debugGeometry,
-      })),
-    });
     if (!result.accepted || !result.winner) {
       const textIntent = detectTextIntent(
         batch,
         result,
         this.buildRecognizerContext(batch)
       );
-      logSmartAssistDebug("text intent evaluated", {
-        batchId: batch.id,
-        probableText: textIntent.probableText,
-        score: textIntent.score,
-        reasons: textIntent.reasons,
-        strokeCount: batch.strokes.length,
-        debug: textIntent.debug,
-      });
       if (textIntent.probableText) {
         useSmartAssistStore.getState().setBatch({
           ...batch,
@@ -462,12 +397,6 @@ export class SmartAssistController {
   private async runTextRecognition(snapshotBatch?: SmartAssistBatch) {
     const batch = snapshotBatch ?? useSmartAssistStore.getState().batch;
     if (!batch) return;
-    logSmartAssistDebug("starting text recognition", {
-      batchId: batch.id,
-      snapshotBatch: Boolean(snapshotBatch),
-      strokeCount: batch.strokes.length,
-      rawPointCount: countBatchRawPoints(batch),
-    });
 
     const currentBatch = useSmartAssistStore.getState().batch;
     if (!snapshotBatch && currentBatch?.id === batch.id) {
@@ -484,34 +413,11 @@ export class SmartAssistController {
       const result = await recognizeOnlineHandwriting(batch.strokes);
       rawText = result.text.trim();
       text = (await correctRecognizedText(rawText, result.candidates)).trim();
-      recordTextRecognitionSample({
-        batchId: batch.id,
-        candidates: result.candidates,
-        createdAt: Date.now(),
-        engineMs: result.engineMs,
-        finalText: text,
-        rawText,
-        runtime: result.runtime,
-        strokes: batch.strokes,
-      });
-      logSmartAssistDebug("text recognition result", {
-        batchId: batch.id,
-        runtime: result.runtime,
-        engineMs: result.engineMs,
-        rawText,
-        alternatives: result.alternatives,
-        text,
-      });
     } catch (error) {
       const reason =
         error instanceof Error && error.message === "text-recognition-timeout"
           ? "text-timeout"
           : "text-error";
-      logSmartAssistDebug("text recognition failed", {
-        batchId: batch.id,
-        reason,
-        error: error instanceof Error ? error.message : String(error),
-      });
       if (useSmartAssistStore.getState().batch?.id === batch.id) {
         this.clearBatch(reason, undefined, {
           textError: error instanceof Error ? error.message : String(error),
@@ -565,15 +471,6 @@ export class SmartAssistController {
       }
       return;
     }
-
-    logSmartAssistDebug("text replacement committed", {
-      batchId: batch.id,
-      text,
-      mode: replacementAction.mode,
-      appendTargetId: replacementAction.appendTargetId ?? null,
-      placementReasons: replacementAction.placementReasons,
-      replacementStrokeId: replacementAction.replacementStroke.id,
-    });
 
     if (useSmartAssistStore.getState().batch?.id === batch.id) {
       this.clearBatch("text-recognized", undefined, { recognizedText: text });

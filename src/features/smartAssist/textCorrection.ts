@@ -5,11 +5,6 @@ import {
   getDeveloperWordRank,
   isKnownDeveloperWord,
 } from "./developerLexicon";
-import { logSmartAssistDebug } from "./debug";
-import {
-  getPersonalTextCandidates,
-  scorePersonalTextCandidate,
-} from "./textAdaptation";
 import {
   LANGUAGE_BIGRAM_RANK,
   LANGUAGE_BIGRAMS,
@@ -183,10 +178,7 @@ const analyzeSpelling = async (
     });
     cacheSpellAnalysis(key, result);
     return result;
-  } catch (error) {
-    logSmartAssistDebug("batch spell analysis failed", {
-      error: error instanceof Error ? error.message : String(error),
-    });
+  } catch {
     const fallback = {
       candidates: candidateTexts.map((candidate) => ({
         candidate,
@@ -381,23 +373,8 @@ const correctToken = async (
         word: token,
       }));
 
-    const corrected = chooseBestSuggestion(token, suggestionResult, alternatives);
-    if (corrected !== token) {
-      logSmartAssistDebug("spell-corrected recognized token", {
-        token,
-        corrected,
-        correction: suggestionResult.correction,
-        guesses: suggestionResult.guesses,
-        alternatives,
-      });
-    }
-
-    return corrected;
-  } catch (error) {
-    logSmartAssistDebug("spell correction failed", {
-      token,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    return chooseBestSuggestion(token, suggestionResult, alternatives);
+  } catch {
     return token;
   }
 };
@@ -507,11 +484,6 @@ const applyContextCorrections = (
       continue;
     }
 
-    logSmartAssistDebug("context-corrected recognized text pair", {
-      before: `${nextSegments[leftIndex]} ${nextSegments[rightIndex]}`,
-      after: `${nextLeft} ${nextRight}`,
-      score: best.score,
-    });
     nextSegments[leftIndex] = nextLeft;
     nextSegments[rightIndex] = nextRight;
   }
@@ -550,11 +522,6 @@ export const correctRecognizedText = async (
   );
   const correctedText = contextCorrectedSegments.join("");
   if (correctedText !== text) {
-    logSmartAssistDebug("corrected recognized text", {
-      raw: text,
-      corrected: correctedText,
-      alternatives: candidates.map(({ text: candidateText }) => candidateText),
-    });
     return correctedText;
   }
 
@@ -568,8 +535,6 @@ export const correctRecognizedText = async (
   const bestAlternative = unique([
     correctedText,
     ...candidates.map((candidate) => candidate.text),
-    ...getPersonalTextCandidates(correctedText),
-    ...getPersonalTextCandidates(text),
   ])
     .map((candidate, index) => ({
       candidate,
@@ -582,7 +547,6 @@ export const correctRecognizedText = async (
         return (
           scoreTextLanguageCandidate(candidate) +
           getDeveloperPhraseScore(candidate) * 0.45 +
-          scorePersonalTextCandidate(candidate) +
           spellPhraseScore +
           (scoreByCandidate.get(candidate) ?? 0) -
           index * 0.35
@@ -590,14 +554,6 @@ export const correctRecognizedText = async (
       })(),
     }))
     .sort((left, right) => right.score - left.score)[0]?.candidate ?? correctedText;
-
-  if (bestAlternative !== text) {
-    logSmartAssistDebug("corrected recognized text", {
-      raw: text,
-      corrected: bestAlternative,
-      alternatives: candidates.map(({ text: candidateText }) => candidateText),
-    });
-  }
 
   return bestAlternative;
 };

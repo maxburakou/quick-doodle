@@ -1,617 +1,97 @@
-import * as ort from "onnxruntime-web/wasm";
-import ortWasmUrl from "onnxruntime-web/ort-wasm-simd-threaded.wasm?url";
+import TextRecognitionWorker from "./textRecognition.worker?worker";
 import { Stroke } from "@/types";
 import { SMART_ASSIST_CONFIG } from "./config";
-import { logSmartAssistDebug, shouldLogSmartAssistDebug } from "./debug";
-import { scoreTextLanguageCandidate } from "./textLanguageModel";
+import type {
+  TextRecognitionCandidate,
+  TextRecognitionResult,
+} from "./textRecognition.worker";
 
-const MODEL_URL = new URL(
-  "../../../models/online-htr/model.onnx",
-  import.meta.url
-).href;
-const ALPHABET_URL = new URL(
-  "../../../models/online-htr/alphabet.json",
-  import.meta.url
-).href;
-const POINTS_PER_UNIT_LENGTH = 20;
-const BLANK_INDEX = 0;
-const CTC_BEAM_WIDTH = 64;
-const CTC_TOP_CLASS_COUNT = 8;
-const CTC_ALTERNATIVE_COUNT = 12;
-const CTC_TOKEN_PRUNE_LOGP = -7.5;
-const CTC_LANGUAGE_WEIGHT = 1.35;
-const CTC_LENGTH_BONUS = 0.025;
+export type { TextRecognitionCandidate, TextRecognitionResult };
 
-interface NormalizedSamplePoint {
-  x: number;
-  y: number;
-  t: number;
-  strokeNr: number;
+interface WorkerResponse {
+  jobId: number;
+  result?: TextRecognitionResult;
+  error?: string;
 }
 
-interface InkFeatures {
-  data: Float32Array;
-  sequenceLength: number;
+interface PendingRecognition {
+  reject: (error: Error) => void;
+  resolve: (result: TextRecognitionResult) => void;
+  timeoutId: ReturnType<typeof setTimeout>;
 }
 
-interface OnlineHtrRuntime {
-  session: ort.InferenceSession;
-  alphabet: string[];
-}
+let workerInstance: Worker | null = null;
+let currentJobId = 0;
+const pendingRecognitions = new Map<number, PendingRecognition>();
 
-type OnlineHtrAlphabetAsset = string[] | { alphabet: string[] };
+const clearPendingRecognition = (jobId: number) => {
+  const pending = pendingRecognitions.get(jobId);
+  if (!pending) return null;
 
-export interface TextRecognitionResult {
-  text: string;
-  alternatives: string[];
-  candidates: TextRecognitionCandidate[];
-  engineMs: number;
-  runtime: "onnx-wasm" | "unavailable";
-}
-
-export interface TextRecognitionCandidate {
-  text: string;
-  acousticScore?: number;
-  languageScore?: number;
-  totalScore?: number;
-  source: "beam" | "greedy";
-}
-
-let runtimePromise: Promise<OnlineHtrRuntime> | null = null;
-let ortConfigured = false;
-
-const logRuntimeError = (error: unknown) => {
-  if (!shouldLogSmartAssistDebug()) return;
-  console.warn("[smart-assist] Online HTR failed", error);
+  clearTimeout(pending.timeoutId);
+  pendingRecognitions.delete(jobId);
+  return pending;
 };
 
-const withTimeout = async <T>(
-  promise: Promise<T>,
-  timeoutMs: number
-): Promise<T> => {
-  let timeoutId: number | null = null;
-  const timeout = new Promise<never>((_, reject) => {
-    timeoutId = window.setTimeout(() => {
-      reject(new Error("text-recognition-timeout"));
-    }, timeoutMs);
+const rejectAllPendingRecognitions = (error: Error) => {
+  pendingRecognitions.forEach((pending, jobId) => {
+    clearTimeout(pending.timeoutId);
+    pending.reject(error);
+    pendingRecognitions.delete(jobId);
   });
-
-  try {
-    return await Promise.race([promise, timeout]);
-  } finally {
-    if (timeoutId !== null) {
-      window.clearTimeout(timeoutId);
-    }
-  }
 };
 
-const loadJson = async <T>(url: string): Promise<T> => {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`failed to load ${url}: ${response.status}`);
-  }
-  return response.json() as Promise<T>;
-};
+const getTextRecognitionWorker = () => {
+  if (!workerInstance) {
+    workerInstance = new TextRecognitionWorker({ name: "text-recognition" });
+    workerInstance.onmessage = (event: MessageEvent<WorkerResponse>) => {
+      const { jobId, result, error } = event.data;
+      const pending = clearPendingRecognition(jobId);
+      if (!pending) return;
 
-const normalizeAlphabet = (asset: OnlineHtrAlphabetAsset): string[] => {
-  const alphabet = Array.isArray(asset) ? asset : asset.alphabet;
-  if (!Array.isArray(alphabet)) {
-    throw new Error("invalid-online-htr-alphabet");
-  }
-  return alphabet;
-};
-
-const configureOnnxRuntime = () => {
-  if (ortConfigured) return;
-
-  // Keep the browser runtime on a simple, explicit path. This avoids Vite/dev-server
-  // resolution issues where ORT ends up fetching JS/HTML instead of the wasm binary.
-  ort.env.wasm.proxy = false;
-  ort.env.wasm.numThreads = 1;
-  ort.env.wasm.wasmPaths = {
-    wasm: ortWasmUrl,
-  };
-
-  logSmartAssistDebug("configured onnx runtime", {
-    wasmUrl: ortWasmUrl,
-    numThreads: ort.env.wasm.numThreads,
-    proxy: ort.env.wasm.proxy,
-  });
-
-  ortConfigured = true;
-};
-
-const loadRuntime = async (): Promise<OnlineHtrRuntime> => {
-  if (!runtimePromise) {
-    configureOnnxRuntime();
-    logSmartAssistDebug("loading online htr runtime", {
-      modelUrl: MODEL_URL,
-      alphabetUrl: ALPHABET_URL,
-      wasmUrl: ortWasmUrl,
-    });
-    runtimePromise = Promise.all([
-      ort.InferenceSession.create(MODEL_URL, {
-        executionProviders: ["wasm"],
-      }),
-      loadJson<OnlineHtrAlphabetAsset>(ALPHABET_URL),
-    ])
-      .then(([session, alphabetAsset]) => {
-        const alphabet = normalizeAlphabet(alphabetAsset);
-        logSmartAssistDebug("online htr runtime ready", {
-          inputNames: session.inputNames,
-          outputNames: session.outputNames,
-          alphabetSize: alphabet.length,
-        });
-
-        return {
-          session,
-          alphabet,
-        };
-      })
-      .catch((error) => {
-        runtimePromise = null;
-        throw error;
-      });
-  }
-
-  return runtimePromise;
-};
-
-const flattenStrokes = (strokes: Stroke[]): NormalizedSamplePoint[] => {
-  const rawPoints: NormalizedSamplePoint[] = [];
-  let firstTimeMs: number | null = null;
-  let fallbackIndex = 0;
-
-  strokes.forEach((stroke, strokeNr) => {
-    stroke.points.forEach((point) => {
-      const timeMs = point.t ?? fallbackIndex * 16;
-      if (firstTimeMs === null) {
-        firstTimeMs = timeMs;
+      if (error) {
+        pending.reject(new Error(error));
+        return;
       }
-      rawPoints.push({
-        x: point.x,
-        y: -point.y,
-        t: (timeMs - firstTimeMs) / 1000,
-        strokeNr,
-      });
-      fallbackIndex += 1;
-    });
-  });
-
-  if (rawPoints.length === 0) return [];
-
-  const firstX = rawPoints[0].x;
-  const minY = Math.min(...rawPoints.map((point) => point.y));
-  const maxY = Math.max(...rawPoints.map((point) => point.y));
-  const minX = Math.min(...rawPoints.map((point) => point.x));
-  const maxX = Math.max(...rawPoints.map((point) => point.x));
-  const yScale = maxY - minY;
-  const fallbackScale = Math.max(maxX - minX, 1);
-  const scale = yScale > 1e-6 ? yScale : fallbackScale;
-
-  return rawPoints.map((point) => ({
-    ...point,
-    x: (point.x - firstX) / scale,
-    y: (point.y - minY) / scale,
-  }));
-};
-
-const distance = (a: NormalizedSamplePoint, b: NormalizedSamplePoint) =>
-  Math.hypot(a.x - b.x, a.y - b.y);
-
-const interpolate = (
-  points: NormalizedSamplePoint[],
-  targetTime: number,
-  channel: "x" | "y" | "t"
-) => {
-  if (points.length === 1) return points[0][channel];
-  if (targetTime <= points[0].t) return points[0][channel];
-  const last = points[points.length - 1];
-  if (targetTime >= last.t) return last[channel];
-
-  for (let index = 1; index < points.length; index += 1) {
-    const prev = points[index - 1];
-    const next = points[index];
-    if (targetTime > next.t) continue;
-
-    const span = Math.max(1e-6, next.t - prev.t);
-    const ratio = (targetTime - prev.t) / span;
-    return prev[channel] + (next[channel] - prev[channel]) * ratio;
-  }
-
-  return last[channel];
-};
-
-const makeStrictlyIncreasingTimes = (
-  points: NormalizedSamplePoint[]
-): NormalizedSamplePoint[] => {
-  let prevTime = -Infinity;
-  return points.map((point) => {
-    const t = Math.max(point.t, prevTime + 0.001);
-    prevTime = t;
-    return { ...point, t };
-  });
-};
-
-const resampleStroke = (
-  points: NormalizedSamplePoint[]
-): NormalizedSamplePoint[] => {
-  if (points.length <= 1) return points;
-
-  const normalized = makeStrictlyIncreasingTimes(points);
-  const strokeLength = normalized.reduce((sum, point, index) => {
-    if (index === 0) return sum;
-    return sum + distance(normalized[index - 1], point);
-  }, 0);
-  let sampleCount = Math.ceil(strokeLength * POINTS_PER_UNIT_LENGTH);
-  if (sampleCount === 1) sampleCount = 2;
-  sampleCount = Math.max(2, sampleCount);
-
-  const startTime = normalized[0].t;
-  const endTime = normalized[normalized.length - 1].t;
-  const timeSpan = Math.max(1e-6, endTime - startTime);
-
-  return Array.from({ length: sampleCount }, (_, index) => {
-    const ratio = sampleCount === 1 ? 0 : index / (sampleCount - 1);
-    const t = startTime + timeSpan * ratio;
-    return {
-      x: interpolate(normalized, t, "x"),
-      y: interpolate(normalized, t, "y"),
-      t: interpolate(normalized, t, "t"),
-      strokeNr: normalized[0].strokeNr,
-    };
-  });
-};
-
-const buildInkFeatures = (strokes: Stroke[]): InkFeatures => {
-  const normalized = flattenStrokes(strokes);
-  if (normalized.length === 0) {
-    throw new Error("empty-online-htr-input");
-  }
-
-  const byStroke = new Map<number, NormalizedSamplePoint[]>();
-  normalized.forEach((point) => {
-    const points = byStroke.get(point.strokeNr) ?? [];
-    points.push(point);
-    byStroke.set(point.strokeNr, points);
-  });
-
-  const resampled = [...byStroke.keys()]
-    .sort((a, b) => a - b)
-    .flatMap((strokeNr) => resampleStroke(byStroke.get(strokeNr) ?? []));
-  if (resampled.length === 0) {
-    throw new Error("empty-online-htr-features");
-  }
-
-  const data = new Float32Array(resampled.length * 4);
-  resampled.forEach((point, index) => {
-    const prev = resampled[index - 1];
-    const base = index * 4;
-    data[base] = index === 0 || !prev ? 0 : point.x - prev.x;
-    data[base + 1] = index === 0 || !prev ? 0 : point.y - prev.y;
-    data[base + 2] = index === 0 || !prev ? 0 : point.t - prev.t;
-    data[base + 3] = index === 0 || !prev ? 1 : point.strokeNr - prev.strokeNr;
-  });
-
-  return {
-    data,
-    sequenceLength: resampled.length,
-  };
-};
-
-const decodeGreedyCtc = (
-  output: ort.Tensor,
-  alphabet: string[]
-): string => {
-  const dimensions = output.dims;
-  const classes = dimensions[dimensions.length - 1];
-  const sequenceLength = dimensions[0];
-  const values = output.data as Float32Array;
-  const decoded: number[] = [];
-  let previous = -1;
-
-  for (let time = 0; time < sequenceLength; time += 1) {
-    let bestIndex = 0;
-    let bestValue = -Infinity;
-    for (let classIndex = 0; classIndex < classes; classIndex += 1) {
-      const value = values[time * classes + classIndex];
-      if (value > bestValue) {
-        bestValue = value;
-        bestIndex = classIndex;
+      if (!result) {
+        pending.reject(new Error("text-recognition-empty-result"));
+        return;
       }
-    }
 
-    if (bestIndex !== previous && bestIndex !== BLANK_INDEX) {
-      decoded.push(bestIndex);
-    }
-    previous = bestIndex;
-  }
-
-  return decoded
-    .map((index) => alphabet[index - 1] ?? "")
-    .join("");
-};
-
-interface CtcPrefixBeam {
-  text: string;
-  blankScore: number;
-  nonBlankScore: number;
-}
-
-interface CtcAlternative {
-  text: string;
-  acousticScore: number;
-  languageScore: number;
-  totalScore: number;
-}
-
-const NEGATIVE_INFINITY = -Infinity;
-
-const logAdd = (...values: number[]) => {
-  const maxValue = Math.max(...values);
-  if (maxValue === NEGATIVE_INFINITY) return NEGATIVE_INFINITY;
-
-  const sum = values.reduce(
-    (acc, value) => acc + Math.exp(value - maxValue),
-    0
-  );
-  return maxValue + Math.log(sum);
-};
-
-const getFrameLogProbabilities = (
-  values: Float32Array,
-  time: number,
-  classes: number
-) => {
-  const offset = time * classes;
-  let maxValue = -Infinity;
-  for (let classIndex = 0; classIndex < classes; classIndex += 1) {
-    maxValue = Math.max(maxValue, values[offset + classIndex]);
-  }
-
-  let sum = 0;
-  for (let classIndex = 0; classIndex < classes; classIndex += 1) {
-    sum += Math.exp(values[offset + classIndex] - maxValue);
-  }
-  const logSum = maxValue + Math.log(Math.max(sum, Number.MIN_VALUE));
-
-  const ranked = Array.from({ length: classes }, (_, classIndex) => ({
-    classIndex,
-    logProbability: values[offset + classIndex] - logSum,
-  }))
-    .sort((left, right) => right.logProbability - left.logProbability)
-    .filter(
-      (candidate, index) =>
-        index < CTC_TOP_CLASS_COUNT ||
-        candidate.classIndex === BLANK_INDEX ||
-        candidate.logProbability >= CTC_TOKEN_PRUNE_LOGP
-    );
-
-  if (!ranked.some((candidate) => candidate.classIndex === BLANK_INDEX)) {
-    ranked.push({
-      classIndex: BLANK_INDEX,
-      logProbability: values[offset + BLANK_INDEX] - logSum,
-    });
-  }
-
-  return ranked;
-};
-
-const decodeBeamCtc = (output: ort.Tensor, alphabet: string[]) => {
-  const dimensions = output.dims;
-  const classes = dimensions[dimensions.length - 1];
-  const sequenceLength = dimensions[0];
-  const values = output.data as Float32Array;
-  const languageScoreCache = new Map<string, number>();
-  let beams: CtcPrefixBeam[] = [
-    { text: "", blankScore: 0, nonBlankScore: NEGATIVE_INFINITY },
-  ];
-
-  const getLanguageScore = (text: string, prefixMode: boolean) => {
-    const key = `${prefixMode ? "p" : "f"}:${text}`;
-    const cached = languageScoreCache.get(key);
-    if (cached !== undefined) return cached;
-
-    const score = scoreTextLanguageCandidate(text, { prefixMode });
-    languageScoreCache.set(key, score);
-    return score;
-  };
-
-  const getBeamScore = (beam: CtcPrefixBeam, prefixMode: boolean) => {
-    const acousticScore = logAdd(beam.blankScore, beam.nonBlankScore);
-    return (
-      acousticScore +
-      getLanguageScore(beam.text, prefixMode) * CTC_LANGUAGE_WEIGHT +
-      beam.text.length * CTC_LENGTH_BONUS
-    );
-  };
-
-  const upsertBeam = (
-    map: Map<string, CtcPrefixBeam>,
-    text: string
-  ): CtcPrefixBeam => {
-    const existing = map.get(text);
-    if (existing) return existing;
-
-    const next = {
-      text,
-      blankScore: NEGATIVE_INFINITY,
-      nonBlankScore: NEGATIVE_INFINITY,
+      pending.resolve(result);
     };
-    map.set(text, next);
-    return next;
-  };
-
-  for (let time = 0; time < sequenceLength; time += 1) {
-    const frameTop = getFrameLogProbabilities(values, time, classes);
-    const nextByText = new Map<string, CtcPrefixBeam>();
-
-    beams.forEach((beam) => {
-      const beamScore = logAdd(beam.blankScore, beam.nonBlankScore);
-
-      frameTop.forEach(({ classIndex, logProbability }) => {
-        if (classIndex === BLANK_INDEX) {
-          const next = upsertBeam(nextByText, beam.text);
-          next.blankScore = logAdd(
-            next.blankScore,
-            beamScore + logProbability
-          );
-          return;
-        }
-
-        const char = alphabet[classIndex - 1] ?? "";
-        if (!char) return;
-
-        const lastChar = beam.text[beam.text.length - 1];
-        if (char === lastChar) {
-          const repeated = upsertBeam(nextByText, beam.text);
-          repeated.nonBlankScore = logAdd(
-            repeated.nonBlankScore,
-            beam.nonBlankScore + logProbability
-          );
-
-          const separatedText = `${beam.text}${char}`;
-          const separated = upsertBeam(nextByText, separatedText);
-          separated.nonBlankScore = logAdd(
-            separated.nonBlankScore,
-            beam.blankScore + logProbability
-          );
-          return;
-        }
-
-        const nextText = `${beam.text}${char}`;
-        const next = upsertBeam(nextByText, nextText);
-        next.nonBlankScore = logAdd(
-          next.nonBlankScore,
-          beamScore + logProbability
-        );
-      });
-    });
-
-    beams = [...nextByText.values()]
-      .sort((left, right) => getBeamScore(right, true) - getBeamScore(left, true))
-      .slice(0, CTC_BEAM_WIDTH);
+    workerInstance.onerror = (event) => {
+      rejectAllPendingRecognitions(
+        new Error(event.message || "text-recognition-worker-error")
+      );
+      workerInstance?.terminate();
+      workerInstance = null;
+    };
   }
 
-  const alternatives = beams
-    .map((beam): CtcAlternative | null => {
-      const text = beam.text.replace(/\s+/g, " ");
-      if (!text.trim()) return null;
-
-      const acousticScore = logAdd(beam.blankScore, beam.nonBlankScore);
-      const languageScore = getLanguageScore(text, false);
-      return {
-        text,
-        acousticScore,
-        languageScore,
-        totalScore:
-          acousticScore +
-          languageScore * CTC_LANGUAGE_WEIGHT +
-          text.length * CTC_LENGTH_BONUS,
-      };
-    })
-    .filter((alternative): alternative is CtcAlternative => alternative !== null);
-
-  const bestByText = new Map<string, CtcAlternative>();
-  alternatives.forEach((alternative) => {
-    const existing = bestByText.get(alternative.text);
-    if (!existing || alternative.totalScore > existing.totalScore) {
-      bestByText.set(alternative.text, alternative);
-    }
-  });
-
-  return [...bestByText.values()]
-    .sort((left, right) => right.totalScore - left.totalScore)
-    .slice(0, CTC_ALTERNATIVE_COUNT);
-};
-
-const runOnnxRecognition = async (
-  strokes: Stroke[]
-): Promise<TextRecognitionResult> => {
-  const startedAt = performance.now();
-  const [{ session, alphabet }, features] = await Promise.all([
-    loadRuntime(),
-    Promise.resolve(buildInkFeatures(strokes)),
-  ]);
-  const inputName = session.inputNames[0];
-  const outputName = session.outputNames[0];
-  const input = new ort.Tensor("float32", features.data, [
-    features.sequenceLength,
-    1,
-    4,
-  ]);
-  logSmartAssistDebug("running online htr inference", {
-    strokeCount: strokes.length,
-    rawPointCount: strokes.reduce((sum, stroke) => sum + stroke.points.length, 0),
-    sequenceLength: features.sequenceLength,
-    inputName,
-    outputName,
-  });
-  const output = await session.run({ [inputName]: input });
-  const outputTensor = output[outputName];
-  const greedyText = decodeGreedyCtc(outputTensor, alphabet);
-  const beamAlternatives = decodeBeamCtc(outputTensor, alphabet);
-  const rawCandidates: TextRecognitionCandidate[] = [
-    ...beamAlternatives.map((alternative) => ({
-      ...alternative,
-      source: "beam" as const,
-    })),
-    ...(greedyText
-      ? [
-          {
-            text: greedyText,
-            source: "greedy" as const,
-          },
-        ]
-      : []),
-  ];
-  const bestByText = new Map<string, TextRecognitionCandidate>();
-  rawCandidates.forEach((candidate) => {
-    const text = candidate.text.trim();
-    if (!text) return;
-    const existing = bestByText.get(text);
-    if (
-      !existing ||
-      (candidate.totalScore ?? NEGATIVE_INFINITY) >
-        (existing.totalScore ?? NEGATIVE_INFINITY)
-    ) {
-      bestByText.set(text, { ...candidate, text });
-    }
-  });
-  const candidates = [...bestByText.values()]
-    .sort(
-      (left, right) =>
-        (right.totalScore ?? NEGATIVE_INFINITY) -
-        (left.totalScore ?? NEGATIVE_INFINITY)
-    )
-    .slice(0, CTC_ALTERNATIVE_COUNT);
-  const alternatives = candidates.map(({ text }) => text);
-  const text = alternatives[0] ?? greedyText;
-  const engineMs = Math.round(performance.now() - startedAt);
-
-  logSmartAssistDebug("online htr inference finished", {
-    text,
-    greedyText,
-    alternatives,
-    engineMs,
-  });
-
-  return {
-    text,
-    alternatives,
-    candidates,
-    engineMs,
-    runtime: "onnx-wasm",
-  };
+  return workerInstance;
 };
 
 export const recognizeOnlineHandwriting = (
   strokes: Stroke[]
 ): Promise<TextRecognitionResult> =>
-  withTimeout(
-    runOnnxRecognition(strokes),
-    SMART_ASSIST_CONFIG.text.recognitionTimeoutMs
-  ).catch((error) => {
-    logRuntimeError(error);
-    throw error;
+  new Promise((resolve, reject) => {
+    const worker = getTextRecognitionWorker();
+    const jobId = ++currentJobId;
+    const timeoutId = setTimeout(() => {
+      const pending = clearPendingRecognition(jobId);
+      if (!pending) return;
+      pending.reject(new Error("text-recognition-timeout"));
+    }, SMART_ASSIST_CONFIG.text.recognitionTimeoutMs);
+
+    pendingRecognitions.set(jobId, { reject, resolve, timeoutId });
+    worker.postMessage({ jobId, strokes });
   });
+
+export const disposeTextRecognitionWorker = () => {
+  if (!workerInstance) return;
+
+  workerInstance.terminate();
+  workerInstance = null;
+  rejectAllPendingRecognitions(new Error("text-recognition-worker-disposed"));
+};
