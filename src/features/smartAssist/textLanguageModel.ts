@@ -12,6 +12,20 @@ import {
 } from "./textLexicon";
 
 const WORD_TOKEN_PATTERN = /[A-Za-z][A-Za-z0-9]*/g;
+const CODE_LIKE_TEXT_PATTERN = /[._/-]|[a-z][A-Z]|[A-Z]{2,}/;
+const PUNCTUATION_ONLY_PATTERN = /^[!'",.;:?]+$/;
+const STANDALONE_PUNCTUATION_PATTERN = /^[!?,.:;]$/;
+const TRAILING_PUNCTUATION_PATTERN = /[!?,.:;]$/;
+const WORD_TRAILING_PUNCTUATION_PATTERN = /\b[A-Za-z][A-Za-z0-9]*[!?,.:;]$/;
+const EMPHATIC_TRAILING_PUNCTUATION_PATTERN = /\b[A-Za-z][A-Za-z0-9]*[!?]{2,3}$/;
+const COMMON_WORD_BASE_SCORE = 0.42;
+const COMMON_WORD_MAX_RANK_BONUS = 0.88;
+const COMMON_WORD_RANK_DIVISOR = 72;
+const COMMON_DOMAIN_BONUS = 0.24;
+const DEVELOPER_SINGLE_WORD_WEIGHT = 0.34;
+const DEVELOPER_SINGLE_WORD_MAX_SCORE = 0.58;
+const DEVELOPER_CONTEXT_WEIGHT = 0.42;
+const DEVELOPER_CODE_STYLE_WEIGHT = 0.18;
 
 const getWords = (text: string) =>
   [...text.matchAll(WORD_TOKEN_PATTERN)].map((match) =>
@@ -20,7 +34,14 @@ const getWords = (text: string) =>
 
 const getCompletedWords = (text: string, prefixMode: boolean) => {
   const words = getWords(text);
-  if (!prefixMode || /\s$/.test(text) || words.length === 0) return words;
+  if (
+    !prefixMode ||
+    /\s$/.test(text) ||
+    TRAILING_PUNCTUATION_PATTERN.test(text.trim()) ||
+    words.length === 0
+  ) {
+    return words;
+  }
   return words.slice(0, -1);
 };
 
@@ -31,10 +52,18 @@ const getLastWord = (text: string) => {
 
 const getWordScore = (word: string) => {
   const rank = LANGUAGE_WORD_RANK.get(word) ?? 0;
-  if (rank === 0) return isKnownDeveloperWord(word) ? getDeveloperWordScore(word) : -0.18;
+  if (rank === 0) {
+    if (!isKnownDeveloperWord(word)) return -0.18;
+    return Math.min(
+      DEVELOPER_SINGLE_WORD_MAX_SCORE,
+      getDeveloperWordScore(word) * DEVELOPER_SINGLE_WORD_WEIGHT
+    );
+  }
 
-  const commonBonus = Math.min(0.9, rank / 150);
-  const domainBonus = IT_DOMAIN_WORD_RANK.has(word) ? 0.65 : 0;
+  const commonBonus =
+    COMMON_WORD_BASE_SCORE +
+    Math.min(COMMON_WORD_MAX_RANK_BONUS, rank / COMMON_WORD_RANK_DIVISOR);
+  const domainBonus = IT_DOMAIN_WORD_RANK.has(word) ? COMMON_DOMAIN_BONUS : 0;
   return commonBonus + domainBonus;
 };
 
@@ -54,8 +83,15 @@ const getPhrasePatternScore = (text: string) => {
     (sum, bonus) => sum + (bonus.pattern.test(normalized) ? bonus.score : 0),
     0
   );
+  const words = getWords(text);
+  const developerWeight =
+    words.length > 1
+      ? DEVELOPER_CONTEXT_WEIGHT
+      : CODE_LIKE_TEXT_PATTERN.test(text)
+        ? DEVELOPER_CODE_STYLE_WEIGHT
+        : 0;
 
-  return patternScore + getDeveloperPhraseScore(text) * 0.55;
+  return patternScore + getDeveloperPhraseScore(text) * developerWeight;
 };
 
 const getJoinedWordPenalty = (text: string) => {
@@ -65,6 +101,21 @@ const getJoinedWordPenalty = (text: string) => {
     if (isKnownLanguageWord(run) || isKnownDeveloperWord(run)) return penalty;
     return penalty + Math.min(2.2, 0.22 * (run.length - 8));
   }, 0);
+};
+
+const getPunctuationScore = (text: string) => {
+  const normalized = text.trim();
+  if (!PUNCTUATION_ONLY_PATTERN.test(normalized)) return 0;
+  if (STANDALONE_PUNCTUATION_PATTERN.test(normalized)) return 0.54;
+  if (/^[!?]{2,3}$/.test(normalized) || normalized === "...") return 0.42;
+  return 0.16;
+};
+
+const getTrailingPunctuationScore = (text: string) => {
+  const normalized = text.trim();
+  if (EMPHATIC_TRAILING_PUNCTUATION_PATTERN.test(normalized)) return 0.46;
+  if (WORD_TRAILING_PUNCTUATION_PATTERN.test(normalized)) return 0.36;
+  return 0;
 };
 
 export const scoreTextLanguageCandidate = (
@@ -90,17 +141,23 @@ export const scoreTextLanguageCandidate = (
     if (lastWord) {
       if (isKnownLanguageWord(lastWord)) {
         score += getWordScore(lastWord) * 0.75;
-      } else if (hasLanguageWordPrefix(lastWord) || hasDeveloperWordPrefix(lastWord)) {
-        score += isKnownDomainWord(lastWord) || hasDeveloperWordPrefix(lastWord) ? 0.45 : 0.22;
+      } else if (hasLanguageWordPrefix(lastWord)) {
+        score += 0.22;
+      } else if (isKnownDomainWord(lastWord) || hasDeveloperWordPrefix(lastWord)) {
+        score += 0.16;
       }
     }
   }
 
   score += getPhrasePatternScore(text);
+  score += getPunctuationScore(text);
+  score += getTrailingPunctuationScore(text);
   score -= getJoinedWordPenalty(text);
 
   if (/ {2,}/.test(text)) score -= 0.7;
-  if (/^[!'",.;:?]/.test(text)) score -= 0.35;
+  if (!PUNCTUATION_ONLY_PATTERN.test(text.trim()) && /^[!'",.;:?]/.test(text)) {
+    score -= 0.35;
+  }
   if (/[A-Za-z]{18,}/.test(text)) score -= 0.95;
 
   return score;

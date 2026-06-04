@@ -40,6 +40,7 @@ interface SpellAnalyzeResult {
 
 const WORD_PATTERN = /^[A-Za-z]{3,}$/;
 const CODE_TOKEN_PATTERN = /^\.?[A-Za-z][A-Za-z0-9]*(?:[._/-][A-Za-z0-9]+)*$/;
+const CODE_LIKE_TEXT_PATTERN = /[._/-]|\d|[a-z][A-Z]|[A-Z]{2,}/;
 const WORD_FRAGMENT_PATTERN =
   /\.?[A-Za-z][A-Za-z0-9]*(?:[._/-][A-Za-z0-9]+)*|[^A-Za-z]+/g;
 const VOWELS = new Set(["a", "e", "i", "o", "u"]);
@@ -49,6 +50,8 @@ const SPELL_ANALYSIS_CACHE_LIMIT = 256;
 const JOINED_WORD_MIN_LENGTH = 7;
 const JOINED_WORD_MAX_SEGMENT_LENGTH = 16;
 const JOINED_WORD_MAX_SEGMENTS = 5;
+const DEVELOPER_CONTEXT_BONUS_WEIGHT = 0.34;
+const DEVELOPER_CODE_STYLE_BONUS_WEIGHT = 0.14;
 
 const spellAnalysisCache = new Map<string, SpellAnalyzeResult>();
 
@@ -225,6 +228,18 @@ const getCommonWordCandidates = (token: string) => {
 const getTextWordCount = (text: string) =>
   text.match(/[A-Za-z][A-Za-z0-9]*/g)?.length ?? 0;
 
+const getDeveloperContextBonus = (candidate: string) => {
+  const wordCount = getTextWordCount(candidate);
+  const developerWeight =
+    wordCount > 1
+      ? DEVELOPER_CONTEXT_BONUS_WEIGHT
+      : CODE_LIKE_TEXT_PATTERN.test(candidate)
+        ? DEVELOPER_CODE_STYLE_BONUS_WEIGHT
+        : 0;
+
+  return getDeveloperPhraseScore(candidate) * developerWeight;
+};
+
 interface JoinedWordSplit {
   score: number;
   words: string[];
@@ -374,12 +389,12 @@ const chooseBestSuggestion = (
   const developerCandidates = getDeveloperTokenCandidates(token);
   const commonCandidates = getCommonWordCandidates(token);
   const candidates = unique([
-    ...developerCandidates,
-    ...alternativeCandidates,
     suggestionResult.correction ?? "",
     ...suggestionResult.guesses,
     ...("completions" in suggestionResult ? suggestionResult.completions : []),
     ...commonCandidates,
+    ...alternativeCandidates,
+    ...developerCandidates,
   ]);
 
   if (candidates.length === 0) return token;
@@ -396,8 +411,8 @@ const chooseBestSuggestion = (
       const commonBonus = commonRank > 0 ? Math.min(1.25, commonRank / 80) : 0;
       const developerRank = getDeveloperWordRank(normalizedCandidate);
       const developerBonus =
-        developerRank > 0 ? 1.25 + Math.min(0.95, developerRank / 130) : 0;
-      const domainBonus = isKnownDomainWord(normalizedCandidate) ? 0.85 : 0;
+        developerRank > 0 ? 0.45 + Math.min(0.55, developerRank / 260) : 0;
+      const domainBonus = isKnownDomainWord(normalizedCandidate) ? 0.28 : 0;
       const modelBonus = alternativeCandidates.includes(candidate) ? 0.45 : 0;
       const spellBonus =
         suggestionResult.correction === candidate
@@ -464,7 +479,7 @@ const correctToken = async (
   if (splitJoinedCandidate) return splitJoinedCandidate;
 
   const developerCandidates = getDeveloperTokenCandidates(token);
-  if (developerCandidates.length > 0) {
+  if (CODE_LIKE_TEXT_PATTERN.test(token) && developerCandidates.length > 0) {
     const bestDeveloperCandidate = developerCandidates[0];
     const developerDistance = levenshtein(
       normalizedCodeToken,
@@ -676,7 +691,7 @@ export const correctRecognizedText = async (
         const correctionBonus = candidate === correctedText ? 0.65 : 0;
         return (
           scoreTextLanguageCandidate(candidate) +
-          getDeveloperPhraseScore(candidate) * 0.45 +
+          getDeveloperContextBonus(candidate) +
           getPhraseSpellScore(candidate, spellCandidate) +
           correctionBonus +
           (scoreByCandidate.get(candidate) ?? 0) -

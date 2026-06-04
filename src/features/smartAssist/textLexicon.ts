@@ -23,8 +23,8 @@ const COMMON_WORD_GROUPS = {
     call who oil now find long down day did get come made may part
   `),
   drawing: splitWords(`
-    hello world test text quick note todo draw line shape thing right left good
-    bad yes please thanks work home app code fix done start stop open close save
+    hello hi hey world test text quick note todo draw line shape thing right left
+    good bad yes please thanks work home app code fix done start stop open close save
     copy move idea plan next back new old big small same real true false why
     where need needs should must create update delete read write load send
     receive build run try check error issue task user team flow state status
@@ -341,7 +341,7 @@ export const DEVELOPER_WORDS = unique(Object.values(DEVELOPER_WORD_GROUPS).flat(
 
 export const IT_DOMAIN_WORDS = DEVELOPER_WORDS;
 
-export const LANGUAGE_WORDS = unique([...COMMON_WORDS, ...DEVELOPER_WORDS]);
+export const LANGUAGE_WORDS = COMMON_WORDS;
 
 export const DEVELOPER_BIGRAMS = unique(
   Object.values(DEVELOPER_PHRASE_GROUPS).flat()

@@ -17,6 +17,10 @@ export interface TextIntentResult {
 }
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+const SINGLE_STROKE_ARROW_TEXT_VETO_CONFIDENCE = 0.24;
+const SINGLE_STROKE_LINE_TEXT_VETO_CONFIDENCE = 0.58;
+
+type ShapeCandidate = DetectionResult["candidates"][number];
 
 const getStrokeCenter = (stroke: Stroke): StrokePoint | null => {
   const bbox = getStrokesBBox([stroke]);
@@ -90,6 +94,47 @@ const getLineConsistencyScore = (strokes: Stroke[], batchHeight: number) => {
   );
 
   return clamp01(1 - safeDivide(maxDelta, batchHeight));
+};
+
+const getDebugNumber = (candidate: ShapeCandidate, key: string) => {
+  const debugGeometry = candidate.debugGeometry;
+  if (!debugGeometry || typeof debugGeometry !== "object") return null;
+
+  const value = (debugGeometry as Record<string, unknown>)[key];
+  return typeof value === "number" ? value : null;
+};
+
+const hasArrowHeadEvidence = (candidate: ShapeCandidate) =>
+  candidate.kind === "arrow" &&
+  (candidate.reasons.some(
+    (reason) => reason === "headEvidence:weak" || reason === "headEvidence:strong"
+  ) ||
+    (getDebugNumber(candidate, "headArmCount") ?? 0) >= 1 ||
+    (getDebugNumber(candidate, "terminalSpreadScore") ?? 0) >= 0.35);
+
+const getSingleStrokeShapeTextVeto = (shapeResult: DetectionResult) => {
+  const candidates = [
+    ...(shapeResult.winner ? [shapeResult.winner] : []),
+    ...shapeResult.candidates,
+  ];
+
+  return candidates
+    .filter((candidate) => {
+      if (candidate.kind === "arrow") {
+        return (
+          candidate.confidence >= SINGLE_STROKE_ARROW_TEXT_VETO_CONFIDENCE &&
+          (hasArrowHeadEvidence(candidate) ||
+            shapeResult.rejectedReason === "weak-arrow-head")
+        );
+      }
+
+      if (candidate.kind === "line") {
+        return candidate.confidence >= SINGLE_STROKE_LINE_TEXT_VETO_CONFIDENCE;
+      }
+
+      return false;
+    })
+    .sort((left, right) => right.confidence - left.confidence)[0] ?? null;
 };
 
 const getSingleStrokeTextScore = (stroke: Stroke) => {
@@ -169,8 +214,27 @@ export const detectTextIntent = (
       return { probableText: false, score: 0, reasons: ["too-few-strokes"] };
     }
 
-    const singleStrokeIntent = getSingleStrokeTextScore(firstStroke);
     const threshold = SMART_ASSIST_CONFIG.text.singleStrokeIntentThreshold;
+    const singleStrokeIntent = getSingleStrokeTextScore(firstStroke);
+    const shapeTextVeto = getSingleStrokeShapeTextVeto(shapeResult);
+    if (shapeTextVeto) {
+      return {
+        probableText: false,
+        score: singleStrokeIntent.score,
+        reasons: [
+          ...singleStrokeIntent.reasons,
+          `single-stroke-shape-veto:${shapeTextVeto.kind}`,
+        ],
+        debug: {
+          mode: "single-stroke",
+          threshold,
+          vetoShapeKind: shapeTextVeto.kind,
+          vetoShapeConfidence: shapeTextVeto.confidence,
+          ...(singleStrokeIntent.debug ?? {}),
+        },
+      };
+    }
+
     return {
       probableText: singleStrokeIntent.score >= threshold,
       score: singleStrokeIntent.score,
