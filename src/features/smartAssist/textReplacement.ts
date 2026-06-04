@@ -17,6 +17,15 @@ import { getStrokesBBox } from "./utils";
 const FONT_SIZE_PROBE = 40;
 const MIN_FONT_SIZE = Math.max(10, Math.min(...DEFAULT_FONT_SIZE) * 0.75);
 const MAX_FONT_SIZE = Math.max(...DEFAULT_FONT_SIZE) * 1.5;
+const FONT_SIZE_STEP = DEFAULT_FONT_SIZE.reduce((step, fontSize, index) => {
+  if (index === 0) return step;
+
+  const previous = DEFAULT_FONT_SIZE[index - 1];
+  const diff = previous === undefined ? 0 : fontSize - previous;
+  if (diff <= 0) return step;
+
+  return step === null ? diff : Math.min(step, diff);
+}, null as number | null) ?? 1;
 const TEXT_WIDTH_PADDING_RATIO = 0.88;
 const TEXT_HEIGHT_FONT_CAP_RATIO = 0.92;
 const EXISTING_TEXT_JOIN_PADDING_RATIO = 0.55;
@@ -164,16 +173,24 @@ const fitFontSizeToWidth = (
   return clamp(FONT_SIZE_PROBE * widthRatio, MIN_FONT_SIZE, maxFontSize);
 };
 
+const quantizeFontSizeToTextStep = (fontSize: number) => {
+  const baseFontSize = DEFAULT_FONT_SIZE[0] ?? MIN_FONT_SIZE;
+  const steppedFontSize =
+    baseFontSize + Math.round((fontSize - baseFontSize) / FONT_SIZE_STEP) * FONT_SIZE_STEP;
+
+  return clamp(steppedFontSize, MIN_FONT_SIZE, MAX_FONT_SIZE);
+};
+
 const pickFontSizeForSourceBounds = (value: string, sourceBounds: ShapeBounds) => {
   const targetWidth = Math.max(1, sourceBounds.width * TEXT_WIDTH_PADDING_RATIO);
   const widthDrivenFontSize = fitFontSizeToWidth(value, targetWidth);
   const heightCap = sourceBounds.height * TEXT_HEIGHT_FONT_CAP_RATIO;
 
-  return clamp(
+  return quantizeFontSizeToTextStep(clamp(
     Math.min(widthDrivenFontSize, heightCap),
     MIN_FONT_SIZE,
     MAX_FONT_SIZE
-  );
+  ));
 };
 
 const getBaseTextPlacement = (
