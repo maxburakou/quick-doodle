@@ -126,7 +126,10 @@ export interface SmartAssistConfig {
     maxBatchAgeMs: number;
     maxRawPoints: number;
     joinPaddingPx: number;
+    earlyIntentMinStrokes: number;
+    earlyIntentThreshold: number;
     intentThreshold: number;
+    singleStrokeIntentThreshold: number;
     recognitionTimeoutMs: number;
   };
   minConfidence: Record<SmartAssistShapeKind, number>;

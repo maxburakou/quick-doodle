@@ -13,6 +13,7 @@ export interface TextIntentResult {
   probableText: boolean;
   score: number;
   reasons: string[];
+  debug?: Record<string, unknown>;
 }
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
@@ -91,6 +92,71 @@ const getLineConsistencyScore = (strokes: Stroke[], batchHeight: number) => {
   return clamp01(1 - safeDivide(maxDelta, batchHeight));
 };
 
+const getSingleStrokeTextScore = (stroke: Stroke) => {
+  const bbox = getStrokesBBox([stroke]);
+  if (!bbox) {
+    return {
+      score: 0,
+      reasons: ["single-stroke-empty-bbox"],
+      debug: {
+        width: 0,
+        height: 0,
+        aspectRatio: 0,
+        pointCountScore: 0,
+        aspectScore: 0,
+        straightnessScore: 0,
+        baselineScore: 0,
+      },
+    };
+  }
+
+  const width = Math.max(1, bbox.maxX - bbox.minX);
+  const height = Math.max(1, bbox.maxY - bbox.minY);
+  const aspectRatio = width / height;
+  const centerStartDeltaY = Math.abs(
+    (stroke.points[0]?.y ?? 0) - (stroke.points[stroke.points.length - 1]?.y ?? 0)
+  );
+  const totalTravelX = stroke.points.reduce((sum, point, index) => {
+    if (index === 0) return sum;
+    return sum + Math.max(0, point.x - stroke.points[index - 1].x);
+  }, 0);
+
+  const pointCountScore = clamp01(safeDivide(stroke.points.length - 8, 18));
+  const aspectScore = clamp01(safeDivide(aspectRatio - 1, 2.2));
+  const straightnessScore = clamp01(
+    1 - safeDivide(Math.abs(totalTravelX - width), Math.max(width, 1))
+  );
+  const baselineScore = clamp01(1 - safeDivide(centerStartDeltaY, height * 0.85));
+
+  const reasons: string[] = [];
+  if (pointCountScore >= 0.35) reasons.push("single-stroke-many-points");
+  if (aspectScore >= 0.35) reasons.push("single-stroke-wide-bbox");
+  if (straightnessScore >= 0.45) reasons.push("single-stroke-left-to-right-travel");
+  if (baselineScore >= 0.45) reasons.push("single-stroke-baseline-aligned");
+
+  return {
+    score: clamp01(
+      pointCountScore * 0.28 +
+        aspectScore * 0.3 +
+        straightnessScore * 0.24 +
+        baselineScore * 0.18
+    ),
+    reasons,
+    debug: {
+      width,
+      height,
+      aspectRatio,
+      pointCount: stroke.points.length,
+      pointCountScore,
+      aspectScore,
+      straightnessScore,
+      baselineScore,
+      totalTravelX,
+      startEndDeltaY: centerStartDeltaY,
+    },
+  };
+};
+
 export const detectTextIntent = (
   batch: SmartAssistBatch,
   shapeResult: DetectionResult,
@@ -98,7 +164,23 @@ export const detectTextIntent = (
 ): TextIntentResult => {
   const reasons: string[] = [];
   if (batch.strokes.length < 2) {
-    return { probableText: false, score: 0, reasons: ["too-few-strokes"] };
+    const firstStroke = batch.strokes[0];
+    if (!firstStroke) {
+      return { probableText: false, score: 0, reasons: ["too-few-strokes"] };
+    }
+
+    const singleStrokeIntent = getSingleStrokeTextScore(firstStroke);
+    const threshold = SMART_ASSIST_CONFIG.text.singleStrokeIntentThreshold;
+    return {
+      probableText: singleStrokeIntent.score >= threshold,
+      score: singleStrokeIntent.score,
+      reasons: singleStrokeIntent.reasons,
+      debug: {
+        mode: "single-stroke",
+        threshold,
+        ...(singleStrokeIntent.debug ?? {}),
+      },
+    };
   }
 
   const bbox = getStrokesBBox(batch.strokes);
@@ -141,6 +223,18 @@ export const detectTextIntent = (
     probableText: score >= SMART_ASSIST_CONFIG.text.intentThreshold,
     score,
     reasons,
+    debug: {
+      mode: "multi-stroke",
+      threshold: SMART_ASSIST_CONFIG.text.intentThreshold,
+      probeScore: probe.score,
+      aspectScore,
+      flowScore,
+      lineScore,
+      glyphScaleScore,
+      aspectRatio,
+      width,
+      height,
+    },
   };
 };
 

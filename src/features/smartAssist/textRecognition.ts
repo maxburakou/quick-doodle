@@ -1,11 +1,26 @@
 import * as ort from "onnxruntime-web/wasm";
+import ortWasmUrl from "onnxruntime-web/ort-wasm-simd-threaded.wasm?url";
 import { Stroke } from "@/types";
 import { SMART_ASSIST_CONFIG } from "./config";
+import { logSmartAssistDebug, shouldLogSmartAssistDebug } from "./debug";
+import { scoreTextLanguageCandidate } from "./textLanguageModel";
 
-const MODEL_URL = "/models/online-htr/model.onnx";
-const ALPHABET_URL = "/models/online-htr/alphabet.json";
+const MODEL_URL = new URL(
+  "../../../models/online-htr/model.onnx",
+  import.meta.url
+).href;
+const ALPHABET_URL = new URL(
+  "../../../models/online-htr/alphabet.json",
+  import.meta.url
+).href;
 const POINTS_PER_UNIT_LENGTH = 20;
 const BLANK_INDEX = 0;
+const CTC_BEAM_WIDTH = 64;
+const CTC_TOP_CLASS_COUNT = 8;
+const CTC_ALTERNATIVE_COUNT = 12;
+const CTC_TOKEN_PRUNE_LOGP = -7.5;
+const CTC_LANGUAGE_WEIGHT = 1.35;
+const CTC_LENGTH_BONUS = 0.025;
 
 interface NormalizedSamplePoint {
   x: number;
@@ -24,6 +39,8 @@ interface OnlineHtrRuntime {
   alphabet: string[];
 }
 
+type OnlineHtrAlphabetAsset = string[] | { alphabet: string[] };
+
 export interface TextRecognitionResult {
   text: string;
   alternatives: string[];
@@ -32,6 +49,12 @@ export interface TextRecognitionResult {
 }
 
 let runtimePromise: Promise<OnlineHtrRuntime> | null = null;
+let ortConfigured = false;
+
+const logRuntimeError = (error: unknown) => {
+  if (!shouldLogSmartAssistDebug()) return;
+  console.warn("[smart-assist] Online HTR failed", error);
+};
 
 const withTimeout = async <T>(
   promise: Promise<T>,
@@ -61,14 +84,65 @@ const loadJson = async <T>(url: string): Promise<T> => {
   return response.json() as Promise<T>;
 };
 
+const normalizeAlphabet = (asset: OnlineHtrAlphabetAsset): string[] => {
+  const alphabet = Array.isArray(asset) ? asset : asset.alphabet;
+  if (!Array.isArray(alphabet)) {
+    throw new Error("invalid-online-htr-alphabet");
+  }
+  return alphabet;
+};
+
+const configureOnnxRuntime = () => {
+  if (ortConfigured) return;
+
+  // Keep the browser runtime on a simple, explicit path. This avoids Vite/dev-server
+  // resolution issues where ORT ends up fetching JS/HTML instead of the wasm binary.
+  ort.env.wasm.proxy = false;
+  ort.env.wasm.numThreads = 1;
+  ort.env.wasm.wasmPaths = {
+    wasm: ortWasmUrl,
+  };
+
+  logSmartAssistDebug("configured onnx runtime", {
+    wasmUrl: ortWasmUrl,
+    numThreads: ort.env.wasm.numThreads,
+    proxy: ort.env.wasm.proxy,
+  });
+
+  ortConfigured = true;
+};
+
 const loadRuntime = async (): Promise<OnlineHtrRuntime> => {
   if (!runtimePromise) {
+    configureOnnxRuntime();
+    logSmartAssistDebug("loading online htr runtime", {
+      modelUrl: MODEL_URL,
+      alphabetUrl: ALPHABET_URL,
+      wasmUrl: ortWasmUrl,
+    });
     runtimePromise = Promise.all([
       ort.InferenceSession.create(MODEL_URL, {
         executionProviders: ["wasm"],
       }),
-      loadJson<string[]>(ALPHABET_URL),
-    ]).then(([session, alphabet]) => ({ session, alphabet }));
+      loadJson<OnlineHtrAlphabetAsset>(ALPHABET_URL),
+    ])
+      .then(([session, alphabetAsset]) => {
+        const alphabet = normalizeAlphabet(alphabetAsset);
+        logSmartAssistDebug("online htr runtime ready", {
+          inputNames: session.inputNames,
+          outputNames: session.outputNames,
+          alphabetSize: alphabet.length,
+        });
+
+        return {
+          session,
+          alphabet,
+        };
+      })
+      .catch((error) => {
+        runtimePromise = null;
+        throw error;
+      });
   }
 
   return runtimePromise;
@@ -249,6 +323,200 @@ const decodeGreedyCtc = (
     .join("");
 };
 
+interface CtcPrefixBeam {
+  text: string;
+  blankScore: number;
+  nonBlankScore: number;
+}
+
+interface CtcAlternative {
+  text: string;
+  acousticScore: number;
+  languageScore: number;
+  totalScore: number;
+}
+
+const NEGATIVE_INFINITY = -Infinity;
+
+const logAdd = (...values: number[]) => {
+  const maxValue = Math.max(...values);
+  if (maxValue === NEGATIVE_INFINITY) return NEGATIVE_INFINITY;
+
+  const sum = values.reduce(
+    (acc, value) => acc + Math.exp(value - maxValue),
+    0
+  );
+  return maxValue + Math.log(sum);
+};
+
+const getFrameLogProbabilities = (
+  values: Float32Array,
+  time: number,
+  classes: number
+) => {
+  const offset = time * classes;
+  let maxValue = -Infinity;
+  for (let classIndex = 0; classIndex < classes; classIndex += 1) {
+    maxValue = Math.max(maxValue, values[offset + classIndex]);
+  }
+
+  let sum = 0;
+  for (let classIndex = 0; classIndex < classes; classIndex += 1) {
+    sum += Math.exp(values[offset + classIndex] - maxValue);
+  }
+  const logSum = maxValue + Math.log(Math.max(sum, Number.MIN_VALUE));
+
+  const ranked = Array.from({ length: classes }, (_, classIndex) => ({
+    classIndex,
+    logProbability: values[offset + classIndex] - logSum,
+  }))
+    .sort((left, right) => right.logProbability - left.logProbability)
+    .filter(
+      (candidate, index) =>
+        index < CTC_TOP_CLASS_COUNT ||
+        candidate.classIndex === BLANK_INDEX ||
+        candidate.logProbability >= CTC_TOKEN_PRUNE_LOGP
+    );
+
+  if (!ranked.some((candidate) => candidate.classIndex === BLANK_INDEX)) {
+    ranked.push({
+      classIndex: BLANK_INDEX,
+      logProbability: values[offset + BLANK_INDEX] - logSum,
+    });
+  }
+
+  return ranked;
+};
+
+const decodeBeamCtc = (output: ort.Tensor, alphabet: string[]) => {
+  const dimensions = output.dims;
+  const classes = dimensions[dimensions.length - 1];
+  const sequenceLength = dimensions[0];
+  const values = output.data as Float32Array;
+  const languageScoreCache = new Map<string, number>();
+  let beams: CtcPrefixBeam[] = [
+    { text: "", blankScore: 0, nonBlankScore: NEGATIVE_INFINITY },
+  ];
+
+  const getLanguageScore = (text: string, prefixMode: boolean) => {
+    const key = `${prefixMode ? "p" : "f"}:${text}`;
+    const cached = languageScoreCache.get(key);
+    if (cached !== undefined) return cached;
+
+    const score = scoreTextLanguageCandidate(text, { prefixMode });
+    languageScoreCache.set(key, score);
+    return score;
+  };
+
+  const getBeamScore = (beam: CtcPrefixBeam, prefixMode: boolean) => {
+    const acousticScore = logAdd(beam.blankScore, beam.nonBlankScore);
+    return (
+      acousticScore +
+      getLanguageScore(beam.text, prefixMode) * CTC_LANGUAGE_WEIGHT +
+      beam.text.length * CTC_LENGTH_BONUS
+    );
+  };
+
+  const upsertBeam = (
+    map: Map<string, CtcPrefixBeam>,
+    text: string
+  ): CtcPrefixBeam => {
+    const existing = map.get(text);
+    if (existing) return existing;
+
+    const next = {
+      text,
+      blankScore: NEGATIVE_INFINITY,
+      nonBlankScore: NEGATIVE_INFINITY,
+    };
+    map.set(text, next);
+    return next;
+  };
+
+  for (let time = 0; time < sequenceLength; time += 1) {
+    const frameTop = getFrameLogProbabilities(values, time, classes);
+    const nextByText = new Map<string, CtcPrefixBeam>();
+
+    beams.forEach((beam) => {
+      const beamScore = logAdd(beam.blankScore, beam.nonBlankScore);
+
+      frameTop.forEach(({ classIndex, logProbability }) => {
+        if (classIndex === BLANK_INDEX) {
+          const next = upsertBeam(nextByText, beam.text);
+          next.blankScore = logAdd(
+            next.blankScore,
+            beamScore + logProbability
+          );
+          return;
+        }
+
+        const char = alphabet[classIndex - 1] ?? "";
+        if (!char) return;
+
+        const lastChar = beam.text[beam.text.length - 1];
+        if (char === lastChar) {
+          const repeated = upsertBeam(nextByText, beam.text);
+          repeated.nonBlankScore = logAdd(
+            repeated.nonBlankScore,
+            beam.nonBlankScore + logProbability
+          );
+
+          const separatedText = `${beam.text}${char}`;
+          const separated = upsertBeam(nextByText, separatedText);
+          separated.nonBlankScore = logAdd(
+            separated.nonBlankScore,
+            beam.blankScore + logProbability
+          );
+          return;
+        }
+
+        const nextText = `${beam.text}${char}`;
+        const next = upsertBeam(nextByText, nextText);
+        next.nonBlankScore = logAdd(
+          next.nonBlankScore,
+          beamScore + logProbability
+        );
+      });
+    });
+
+    beams = [...nextByText.values()]
+      .sort((left, right) => getBeamScore(right, true) - getBeamScore(left, true))
+      .slice(0, CTC_BEAM_WIDTH);
+  }
+
+  const alternatives = beams
+    .map((beam): CtcAlternative | null => {
+      const text = beam.text.replace(/\s+/g, " ");
+      if (!text.trim()) return null;
+
+      const acousticScore = logAdd(beam.blankScore, beam.nonBlankScore);
+      const languageScore = getLanguageScore(text, false);
+      return {
+        text,
+        acousticScore,
+        languageScore,
+        totalScore:
+          acousticScore +
+          languageScore * CTC_LANGUAGE_WEIGHT +
+          text.length * CTC_LENGTH_BONUS,
+      };
+    })
+    .filter((alternative): alternative is CtcAlternative => alternative !== null);
+
+  const bestByText = new Map<string, CtcAlternative>();
+  alternatives.forEach((alternative) => {
+    const existing = bestByText.get(alternative.text);
+    if (!existing || alternative.totalScore > existing.totalScore) {
+      bestByText.set(alternative.text, alternative);
+    }
+  });
+
+  return [...bestByText.values()]
+    .sort((left, right) => right.totalScore - left.totalScore)
+    .map(({ text }) => text)
+    .slice(0, CTC_ALTERNATIVE_COUNT);
+};
+
 const runOnnxRecognition = async (
   strokes: Stroke[]
 ): Promise<TextRecognitionResult> => {
@@ -264,13 +532,34 @@ const runOnnxRecognition = async (
     1,
     4,
   ]);
+  logSmartAssistDebug("running online htr inference", {
+    strokeCount: strokes.length,
+    rawPointCount: strokes.reduce((sum, stroke) => sum + stroke.points.length, 0),
+    sequenceLength: features.sequenceLength,
+    inputName,
+    outputName,
+  });
   const output = await session.run({ [inputName]: input });
-  const text = decodeGreedyCtc(output[outputName], alphabet);
+  const outputTensor = output[outputName];
+  const greedyText = decodeGreedyCtc(outputTensor, alphabet);
+  const beamAlternatives = decodeBeamCtc(outputTensor, alphabet);
+  const alternatives = [
+    ...new Set([beamAlternatives[0] ?? "", greedyText, ...beamAlternatives].filter(Boolean)),
+  ].slice(0, CTC_ALTERNATIVE_COUNT);
+  const text = alternatives[0] ?? greedyText;
+  const engineMs = Math.round(performance.now() - startedAt);
+
+  logSmartAssistDebug("online htr inference finished", {
+    text,
+    greedyText,
+    alternatives,
+    engineMs,
+  });
 
   return {
     text,
-    alternatives: [],
-    engineMs: Math.round(performance.now() - startedAt),
+    alternatives,
+    engineMs,
     runtime: "onnx-wasm",
   };
 };
@@ -278,4 +567,10 @@ const runOnnxRecognition = async (
 export const recognizeOnlineHandwriting = (
   strokes: Stroke[]
 ): Promise<TextRecognitionResult> =>
-  withTimeout(runOnnxRecognition(strokes), SMART_ASSIST_CONFIG.text.recognitionTimeoutMs);
+  withTimeout(
+    runOnnxRecognition(strokes),
+    SMART_ASSIST_CONFIG.text.recognitionTimeoutMs
+  ).catch((error) => {
+    logRuntimeError(error);
+    throw error;
+  });

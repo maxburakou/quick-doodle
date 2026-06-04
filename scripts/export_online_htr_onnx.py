@@ -16,7 +16,7 @@ from pathlib import Path
 
 
 DEFAULT_MODEL_DIR = "models/dataIAMOnDB_featuresLinInterpol20DxDyDtN_decoderGreedy"
-DEFAULT_OUTPUT_DIR = ".disk/models/online-htr"
+DEFAULT_OUTPUT_DIR = "models/online-htr"
 
 
 def parse_args() -> argparse.Namespace:
