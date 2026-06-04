@@ -16,7 +16,7 @@ import { getStrokesBBox } from "./utils";
 
 const FONT_SIZE_PROBE = 40;
 const MIN_FONT_SIZE = Math.max(10, Math.min(...DEFAULT_FONT_SIZE) * 0.75);
-const MAX_FONT_SIZE = Math.max(...DEFAULT_FONT_SIZE) * 1.5;
+const MAX_FONT_SIZE = Math.max(1024, Math.max(...DEFAULT_FONT_SIZE) * 16);
 const FONT_SIZE_STEP = DEFAULT_FONT_SIZE.reduce((step, fontSize, index) => {
   if (index === 0) return step;
 
