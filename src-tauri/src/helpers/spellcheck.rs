@@ -28,6 +28,7 @@ pub struct SpellCandidateAnalysis {
 	pub candidate: String,
 	pub misspelled_count: usize,
 	pub valid: bool,
+	pub word_count: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -73,7 +74,8 @@ fn spell_suggest_macos(word: &str) -> Result<SpellSuggestionResult, String> {
 		let spell_checker: id = msg_send![class!(NSSpellChecker), sharedSpellChecker];
 		let spell_tag: isize = msg_send![class!(NSSpellChecker), uniqueSpellDocumentTag];
 		let range = NSRange::new(0, word.len() as _);
-		let misspelled_range: NSRange = msg_send![spell_checker, checkSpellingOfString: ns_word startingAt: 0];
+		let misspelled_range: NSRange =
+			msg_send![spell_checker, checkSpellingOfString: ns_word startingAt: 0];
 		let valid = misspelled_range.location == NSNotFound as u64;
 
 		let correction_id: id = msg_send![
@@ -176,7 +178,8 @@ fn spell_analyze_macos(request: SpellAnalyzeRequest) -> Result<SpellAnalyzeResul
 					language: nil
 					inSpellDocumentWithTag: spell_tag
 				];
-				let correction = from_nsstring(correction_id).filter(|candidate| candidate != &token);
+				let correction =
+					from_nsstring(correction_id).filter(|candidate| candidate != &token);
 
 				let guesses_array: id = msg_send![
 					spell_checker,
@@ -223,6 +226,8 @@ fn spell_analyze_macos(request: SpellAnalyzeRequest) -> Result<SpellAnalyzeResul
 				let ns_candidate = to_nsstring(&candidate);
 				let mut offset = 0usize;
 				let mut misspelled_count = 0usize;
+				let word_count: usize =
+					msg_send![spell_checker, countWordsInString: ns_candidate language: nil];
 
 				while offset < candidate.len() {
 					let misspelled_range: NSRange = msg_send![
@@ -250,6 +255,7 @@ fn spell_analyze_macos(request: SpellAnalyzeRequest) -> Result<SpellAnalyzeResul
 					candidate,
 					misspelled_count,
 					valid: misspelled_count == 0,
+					word_count,
 				}
 			})
 			.collect();
@@ -310,7 +316,12 @@ pub fn smart_assist_spell_analyze(
 			let result = spell_analyze_macos(request);
 			let _ = sender.send(result);
 		})
-		.map_err(|err| format!("Failed to schedule spell analysis on main thread: {:?}", err))?;
+		.map_err(|err| {
+			format!(
+				"Failed to schedule spell analysis on main thread: {:?}",
+				err
+			)
+		})?;
 
 		return receiver
 			.recv()
@@ -336,6 +347,7 @@ pub fn smart_assist_spell_analyze(
 			.into_iter()
 			.take(MAX_BATCH_CANDIDATES)
 			.map(|candidate| SpellCandidateAnalysis {
+				word_count: candidate.split_whitespace().count(),
 				candidate,
 				misspelled_count: 0,
 				valid: true,

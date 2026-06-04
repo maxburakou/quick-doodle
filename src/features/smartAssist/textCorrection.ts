@@ -1,20 +1,18 @@
 import { invoke } from "@tauri-apps/api/core";
 import {
-  getDeveloperPhraseScore,
-  getDeveloperTokenCandidates,
-  getDeveloperWordRank,
-  isKnownDeveloperWord,
-} from "./developerLexicon";
-import {
   LANGUAGE_BIGRAM_RANK,
   LANGUAGE_BIGRAMS,
   LANGUAGE_WORD_RANK,
   LANGUAGE_WORDS,
+  getDeveloperPhraseScore,
+  getDeveloperTokenCandidates,
+  getDeveloperWordRank,
   getKnownWordRank,
   isKnownDomainWord,
+  isKnownDeveloperWord,
   isKnownLanguageWord,
-  scoreTextLanguageCandidate,
-} from "./textLanguageModel";
+} from "./textLexicon";
+import { scoreTextLanguageCandidate } from "./textLanguageModel";
 import { TextRecognitionCandidate } from "./textRecognition";
 
 interface SpellSuggestionResult {
@@ -32,6 +30,7 @@ interface SpellCandidateAnalysis {
   candidate: string;
   misspelled_count: number;
   valid: boolean;
+  word_count: number;
 }
 
 interface SpellAnalyzeResult {
@@ -47,6 +46,9 @@ const VOWELS = new Set(["a", "e", "i", "o", "u"]);
 const SPELL_ANALYSIS_CANDIDATE_LIMIT = 8;
 const SPELL_ANALYSIS_TOKEN_LIMIT = 24;
 const SPELL_ANALYSIS_CACHE_LIMIT = 256;
+const JOINED_WORD_MIN_LENGTH = 7;
+const JOINED_WORD_MAX_SEGMENT_LENGTH = 16;
+const JOINED_WORD_MAX_SEGMENTS = 5;
 
 const spellAnalysisCache = new Map<string, SpellAnalyzeResult>();
 
@@ -137,8 +139,14 @@ const getCandidateTexts = (
   text: string,
   candidates: TextRecognitionCandidate[]
 ) =>
-  unique([text, ...candidates.map((candidate) => candidate.text.trim())])
-    .filter(Boolean)
+  unique(
+    unique([text, ...candidates.map((candidate) => candidate.text.trim())])
+      .flatMap((candidate) => [
+        candidate,
+        getSplitJoinedTextCandidate(candidate) ?? "",
+      ])
+      .filter(Boolean)
+  )
     .slice(0, SPELL_ANALYSIS_CANDIDATE_LIMIT);
 
 const shouldAskNativeSpellChecker = (token: string) => {
@@ -184,6 +192,7 @@ const analyzeSpelling = async (
         candidate,
         misspelled_count: 0,
         valid: false,
+        word_count: getTextWordCount(candidate),
       })),
       tokens: [],
     };
@@ -211,6 +220,105 @@ const getCommonWordCandidates = (token: string) => {
     if (Math.abs(word.length - normalizedToken.length) > maxDistance) return false;
     return levenshtein(normalizedToken, word) <= maxDistance;
   });
+};
+
+const getTextWordCount = (text: string) =>
+  text.match(/[A-Za-z][A-Za-z0-9]*/g)?.length ?? 0;
+
+interface JoinedWordSplit {
+  score: number;
+  words: string[];
+}
+
+const getSplitJoinedTokenCandidate = (token: string) => {
+  if (!new RegExp(`^[A-Za-z]{${JOINED_WORD_MIN_LENGTH},}$`).test(token)) {
+    return null;
+  }
+
+  const normalizedToken = token.toLowerCase();
+  if (
+    isKnownLanguageWord(normalizedToken) ||
+    isKnownDomainWord(normalizedToken) ||
+    isKnownDeveloperWord(normalizedToken)
+  ) {
+    return null;
+  }
+
+  const bestByEnd: Array<JoinedWordSplit | null> = Array.from(
+    { length: normalizedToken.length + 1 },
+    () => null
+  );
+  bestByEnd[0] = { score: 0, words: [] };
+
+  for (let start = 0; start < normalizedToken.length; start += 1) {
+    const previous = bestByEnd[start];
+    if (!previous) continue;
+
+    const maxEnd = Math.min(
+      normalizedToken.length,
+      start + JOINED_WORD_MAX_SEGMENT_LENGTH
+    );
+    for (let end = start + 2; end <= maxEnd; end += 1) {
+      const word = normalizedToken.slice(start, end);
+      if (!isKnownLanguageWord(word) && !isKnownDeveloperWord(word)) continue;
+      if (word.length < 3 && !isKnownDomainWord(word)) continue;
+
+      const rank = getKnownWordRank(word);
+      const bigram =
+        previous.words.length > 0
+          ? `${previous.words[previous.words.length - 1]} ${word}`
+          : "";
+      const bigramRank = LANGUAGE_BIGRAM_RANK.get(bigram) ?? 0;
+      const score =
+        previous.score +
+        0.45 +
+        Math.min(1.1, rank / 140) +
+        (isKnownDomainWord(word) ? 0.55 : 0) +
+        (bigramRank > 0 ? 1.05 + Math.min(0.5, bigramRank / 120) : 0) -
+        0.16;
+      const candidate = {
+        score,
+        words: [...previous.words, word],
+      };
+      const existing = bestByEnd[end];
+      if (!existing || candidate.score > existing.score) {
+        bestByEnd[end] = candidate;
+      }
+    }
+  }
+
+  const best = bestByEnd[normalizedToken.length];
+  if (!best || best.words.length < 2) return null;
+  if (best.words.length > JOINED_WORD_MAX_SEGMENTS) return null;
+
+  const hasKnownBigram = best.words.some((word, index) => {
+    if (index === 0) return false;
+    return LANGUAGE_BIGRAM_RANK.has(`${best.words[index - 1]} ${word}`);
+  });
+  const domainWordCount = best.words.filter(isKnownDomainWord).length;
+  const averageLength = normalizedToken.length / best.words.length;
+  const minimumScore = 1.9 + best.words.length * 0.25;
+
+  if (averageLength < 3 && domainWordCount === 0) return null;
+  if (!hasKnownBigram && domainWordCount === 0 && best.score < minimumScore) {
+    return null;
+  }
+
+  return preserveTokenCase(token, best.words.join(" "));
+};
+
+const getSplitJoinedTextCandidate = (text: string) => {
+  const fragments = splitTextFragments(text);
+  let changed = false;
+  const nextFragments = fragments.map((fragment) => {
+    const splitCandidate = getSplitJoinedTokenCandidate(fragment);
+    if (!splitCandidate) return fragment;
+
+    changed = true;
+    return splitCandidate;
+  });
+
+  return changed ? nextFragments.join("") : null;
 };
 
 const getTokenAlternatives = (
@@ -352,6 +460,9 @@ const correctToken = async (
   const normalizedCodeToken = token.toLowerCase().replace(/[^a-z0-9]/g, "");
   if (normalizedCodeToken.length <= 2) return token;
 
+  const splitJoinedCandidate = getSplitJoinedTokenCandidate(token);
+  if (splitJoinedCandidate) return splitJoinedCandidate;
+
   const developerCandidates = getDeveloperTokenCandidates(token);
   if (developerCandidates.length > 0) {
     const bestDeveloperCandidate = developerCandidates[0];
@@ -491,6 +602,30 @@ const applyContextCorrections = (
   return nextSegments;
 };
 
+const getTechnicalWordCount = (candidate: string) =>
+  candidate
+    .match(/[A-Za-z][A-Za-z0-9]*/g)
+    ?.filter((word) => isKnownDomainWord(word) || isKnownDeveloperWord(word))
+    .length ?? 0;
+
+const getPhraseSpellScore = (
+  candidate: string,
+  spellCandidate: SpellCandidateAnalysis | undefined
+) => {
+  const wordCount = spellCandidate?.word_count ?? getTextWordCount(candidate);
+  const technicalWordCount = getTechnicalWordCount(candidate);
+  const misspelledCount = spellCandidate?.misspelled_count ?? 0;
+  const misspelledPenalty =
+    misspelledCount * (technicalWordCount > 0 ? 0.22 : 0.42);
+  const validBonus = spellCandidate?.valid ? 0.7 : 0;
+  const spacingBonus =
+    wordCount > 1 && /\s/.test(candidate) ? Math.min(0.65, wordCount * 0.12) : 0;
+  const joinedPenalty =
+    !/\s/.test(candidate) && getSplitJoinedTextCandidate(candidate) ? 1.2 : 0;
+
+  return validBonus + spacingBonus - misspelledPenalty - joinedPenalty;
+};
+
 export const correctRecognizedText = async (
   text: string,
   alternatives: string[] | TextRecognitionCandidate[] = []
@@ -521,9 +656,6 @@ export const correctRecognizedText = async (
     correctedSegments
   );
   const correctedText = contextCorrectedSegments.join("");
-  if (correctedText !== text) {
-    return correctedText;
-  }
 
   const scoreByCandidate = new Map(
     candidates.map((candidate, index) => [
@@ -534,22 +666,21 @@ export const correctRecognizedText = async (
   );
   const bestAlternative = unique([
     correctedText,
-    ...candidates.map((candidate) => candidate.text),
+    ...candidateTexts,
+    ...candidates.map((candidate) => candidate.text.trim()),
   ])
     .map((candidate, index) => ({
       candidate,
       score: (() => {
         const spellCandidate = candidateAnalysisByText.get(candidate);
-        const spellPhraseScore = spellCandidate
-          ? (spellCandidate.valid ? 0.7 : 0) -
-            spellCandidate.misspelled_count * 0.42
-          : 0;
+        const correctionBonus = candidate === correctedText ? 0.65 : 0;
         return (
           scoreTextLanguageCandidate(candidate) +
           getDeveloperPhraseScore(candidate) * 0.45 +
-          spellPhraseScore +
+          getPhraseSpellScore(candidate, spellCandidate) +
+          correctionBonus +
           (scoreByCandidate.get(candidate) ?? 0) -
-          index * 0.35
+          index * 0.22
         );
       })(),
     }))
