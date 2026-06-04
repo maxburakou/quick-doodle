@@ -69,9 +69,30 @@ const charClassMismatchCount = (source: string, candidate: string) => {
   return mismatchCount;
 };
 
+const getMaxAcceptedCorrectionDistance = (token: string) =>
+  Math.max(2, Math.ceil(token.length * 0.45));
+
+const isStrongSpellCorrection = (token: string, correction: string | null) => {
+  if (!correction || !WORD_PATTERN.test(correction)) return false;
+
+  const normalizedToken = token.toLowerCase();
+  const normalizedCorrection = correction.toLowerCase();
+  if (normalizedCorrection === normalizedToken) return false;
+
+  const distance = levenshtein(normalizedToken, normalizedCorrection);
+  if (distance > getMaxAcceptedCorrectionDistance(token)) return false;
+
+  const knownCorrection =
+    isKnownLanguageWord(normalizedCorrection) ||
+    isKnownDomainWord(normalizedCorrection);
+  const conservativeDistance = Math.max(2, Math.ceil(token.length * 0.28));
+
+  return knownCorrection || distance <= conservativeDistance;
+};
+
 const getCommonWordCandidates = (token: string) => {
   const normalizedToken = token.toLowerCase();
-  const maxDistance = Math.max(2, Math.ceil(token.length * 0.45));
+  const maxDistance = getMaxAcceptedCorrectionDistance(token);
 
   return LANGUAGE_WORDS.filter((word) => {
     if (Math.abs(word.length - normalizedToken.length) > maxDistance) return false;
@@ -81,7 +102,7 @@ const getCommonWordCandidates = (token: string) => {
 
 const getTokenAlternatives = (token: string, alternatives: string[]) => {
   const normalizedToken = token.toLowerCase();
-  const maxDistance = Math.max(2, Math.ceil(token.length * 0.45));
+  const maxDistance = getMaxAcceptedCorrectionDistance(token);
 
   return alternatives
     .map((alternative) => alternative.trim())
@@ -114,6 +135,9 @@ const chooseBestSuggestion = (
 ) => {
   if (isKnownDomainWord(token)) return token;
   if (suggestionResult.valid) return token;
+  if (isStrongSpellCorrection(token, suggestionResult.correction)) {
+    return preserveTokenCase(token, suggestionResult.correction!);
+  }
 
   const normalizedToken = token.toLowerCase();
   const alternativeCandidates = getTokenAlternatives(token, modelAlternatives);
@@ -167,7 +191,7 @@ const chooseBestSuggestion = (
   const best = ranked[0];
   if (!best) return token;
 
-  const maxAcceptedDistance = Math.max(2, Math.ceil(token.length * 0.45));
+  const maxAcceptedDistance = getMaxAcceptedCorrectionDistance(token);
 
   if (
     best.distance > maxAcceptedDistance ||
@@ -346,6 +370,15 @@ export const correctRecognizedText = async (
     correctedSegments
   );
   const correctedText = contextCorrectedSegments.join("");
+  if (correctedText !== text) {
+    logSmartAssistDebug("corrected recognized text", {
+      raw: text,
+      corrected: correctedText,
+      alternatives,
+    });
+    return correctedText;
+  }
+
   const bestAlternative = unique([correctedText, ...alternatives])
     .map((candidate, index) => ({
       candidate,

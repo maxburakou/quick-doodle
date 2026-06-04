@@ -7,7 +7,7 @@ import { runSmartAssistRecognition } from "./recognizers";
 import { snapSmartAssistReplacementStrokes } from "./snapReplacementStrokes";
 import { recognizeOnlineHandwriting } from "./textRecognition";
 import { correctRecognizedText } from "./textCorrection";
-import { buildTextReplacementStroke } from "./textReplacement";
+import { buildTextReplacementAction } from "./textReplacement";
 import { detectTextIntent, isPointLikelyContinuingTextBatch } from "./textIntent";
 import { logSmartAssistDebug } from "./debug";
 import {
@@ -528,8 +528,13 @@ export class SmartAssistController {
       return;
     }
 
-    const replacementStroke = buildTextReplacementStroke(batch.strokes, text);
-    if (!replacementStroke) {
+    const replacementAction = buildTextReplacementAction({
+      sourceStrokes: batch.strokes,
+      sourceIds: batch.strokeIds,
+      value: text,
+      present: historyState.present,
+    });
+    if (!replacementAction) {
       if (useSmartAssistStore.getState().batch?.id === batch.id) {
         this.clearBatch("text-error", undefined, {
           recognizedText: text,
@@ -539,9 +544,10 @@ export class SmartAssistController {
       return;
     }
 
-    const replaced = this.replaceStrokesWithSmartAssistAction(batch.strokeIds, [
-      replacementStroke,
-    ]);
+    const replaced = this.replaceStrokesWithSmartAssistAction(
+      replacementAction.sourceIds,
+      replacementAction.replacementStrokes
+    );
     if (!replaced) {
       if (useSmartAssistStore.getState().batch?.id === batch.id) {
         this.clearBatch("text-stale-source", undefined, { recognizedText: text });
@@ -552,7 +558,10 @@ export class SmartAssistController {
     logSmartAssistDebug("text replacement committed", {
       batchId: batch.id,
       text,
-      replacementStrokeId: replacementStroke.id,
+      mode: replacementAction.mode,
+      appendTargetId: replacementAction.appendTargetId ?? null,
+      placementReasons: replacementAction.placementReasons,
+      replacementStrokeId: replacementAction.replacementStroke.id,
     });
 
     if (useSmartAssistStore.getState().batch?.id === batch.id) {
