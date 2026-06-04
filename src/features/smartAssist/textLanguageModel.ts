@@ -1,3 +1,12 @@
+import {
+  DEVELOPER_BIGRAMS,
+  DEVELOPER_WORDS,
+  getDeveloperPhraseScore,
+  getDeveloperWordScore,
+  hasDeveloperWordPrefix,
+  isKnownDeveloperWord,
+} from "./developerLexicon";
+
 const BASE_COMMON_WORDS = [
   "the",
   "and",
@@ -389,9 +398,17 @@ const DOMAIN_BIGRAMS = [
 const unique = (values: readonly string[]) => [...new Set(values)];
 
 export const COMMON_WORDS = unique(BASE_COMMON_WORDS);
-export const IT_DOMAIN_WORDS = unique(DOMAIN_WORDS);
-export const LANGUAGE_WORDS = unique([...BASE_COMMON_WORDS, ...DOMAIN_WORDS]);
-export const LANGUAGE_BIGRAMS = unique([...BASE_BIGRAMS, ...DOMAIN_BIGRAMS]);
+export const IT_DOMAIN_WORDS = unique([...DOMAIN_WORDS, ...DEVELOPER_WORDS]);
+export const LANGUAGE_WORDS = unique([
+  ...BASE_COMMON_WORDS,
+  ...DOMAIN_WORDS,
+  ...DEVELOPER_WORDS,
+]);
+export const LANGUAGE_BIGRAMS = unique([
+  ...BASE_BIGRAMS,
+  ...DOMAIN_BIGRAMS,
+  ...DEVELOPER_BIGRAMS,
+]);
 
 export const LANGUAGE_WORD_RANK = new Map(
   LANGUAGE_WORDS.map((word, index) => [word, LANGUAGE_WORDS.length - index])
@@ -416,7 +433,7 @@ export const isKnownLanguageWord = (word: string) =>
   LANGUAGE_WORD_RANK.has(normalizeWord(word));
 
 export const isKnownDomainWord = (word: string) =>
-  IT_DOMAIN_WORD_RANK.has(normalizeWord(word));
+  IT_DOMAIN_WORD_RANK.has(normalizeWord(word)) || isKnownDeveloperWord(word);
 
 export const hasLanguageWordPrefix = (word: string) =>
   WORD_PREFIXES.has(normalizeWord(word));
@@ -440,7 +457,7 @@ const getLastWord = (text: string) => {
 
 const getWordScore = (word: string) => {
   const rank = LANGUAGE_WORD_RANK.get(word) ?? 0;
-  if (rank === 0) return -0.18;
+  if (rank === 0) return isKnownDeveloperWord(word) ? getDeveloperWordScore(word) : -0.18;
 
   const commonBonus = Math.min(0.9, rank / 150);
   const domainBonus = IT_DOMAIN_WORD_RANK.has(word) ? 0.65 : 0;
@@ -462,6 +479,7 @@ const getPhrasePatternScore = (text: string) => {
   if (/\b(server|client|cache|queue|database|endpoint|token)\b/.test(normalized)) {
     score += 0.3;
   }
+  score += getDeveloperPhraseScore(text) * 0.55;
 
   return score;
 };
@@ -485,8 +503,8 @@ export const scoreTextLanguageCandidate = (
     if (lastWord) {
       if (isKnownLanguageWord(lastWord)) {
         score += getWordScore(lastWord) * 0.75;
-      } else if (hasLanguageWordPrefix(lastWord)) {
-        score += isKnownDomainWord(lastWord) ? 0.45 : 0.22;
+      } else if (hasLanguageWordPrefix(lastWord) || hasDeveloperWordPrefix(lastWord)) {
+        score += isKnownDomainWord(lastWord) || hasDeveloperWordPrefix(lastWord) ? 0.45 : 0.22;
       }
     }
   }

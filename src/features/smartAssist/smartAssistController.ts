@@ -7,6 +7,7 @@ import { runSmartAssistRecognition } from "./recognizers";
 import { snapSmartAssistReplacementStrokes } from "./snapReplacementStrokes";
 import { recognizeOnlineHandwriting } from "./textRecognition";
 import { correctRecognizedText } from "./textCorrection";
+import { recordTextRecognitionSample } from "./textRecognitionTelemetry";
 import { buildTextReplacementAction } from "./textReplacement";
 import { detectTextIntent, isPointLikelyContinuingTextBatch } from "./textIntent";
 import { logSmartAssistDebug } from "./debug";
@@ -482,7 +483,17 @@ export class SmartAssistController {
     try {
       const result = await recognizeOnlineHandwriting(batch.strokes);
       rawText = result.text.trim();
-      text = (await correctRecognizedText(rawText, result.alternatives)).trim();
+      text = (await correctRecognizedText(rawText, result.candidates)).trim();
+      recordTextRecognitionSample({
+        batchId: batch.id,
+        candidates: result.candidates,
+        createdAt: Date.now(),
+        engineMs: result.engineMs,
+        finalText: text,
+        rawText,
+        runtime: result.runtime,
+        strokes: batch.strokes,
+      });
       logSmartAssistDebug("text recognition result", {
         batchId: batch.id,
         runtime: result.runtime,

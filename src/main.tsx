@@ -5,6 +5,9 @@ import "./theme.css";
 import App from "./App.tsx";
 import "@fontsource/jetbrains-mono/index.css";
 import "@fontsource/inter/index.css";
+import { registerSmartAssistDebugApi } from "./features/smartAssist/debugApi";
+
+registerSmartAssistDebugApi();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

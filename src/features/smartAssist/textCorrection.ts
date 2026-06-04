@@ -1,5 +1,15 @@
 import { invoke } from "@tauri-apps/api/core";
+import {
+  getDeveloperPhraseScore,
+  getDeveloperTokenCandidates,
+  getDeveloperWordRank,
+  isKnownDeveloperWord,
+} from "./developerLexicon";
 import { logSmartAssistDebug } from "./debug";
+import {
+  getPersonalTextCandidates,
+  scorePersonalTextCandidate,
+} from "./textAdaptation";
 import {
   LANGUAGE_BIGRAM_RANK,
   LANGUAGE_BIGRAMS,
@@ -10,6 +20,7 @@ import {
   isKnownLanguageWord,
   scoreTextLanguageCandidate,
 } from "./textLanguageModel";
+import { TextRecognitionCandidate } from "./textRecognition";
 
 interface SpellSuggestionResult {
   correction: string | null;
@@ -17,9 +28,32 @@ interface SpellSuggestionResult {
   valid: boolean;
 }
 
+interface SpellTokenAnalysis extends SpellSuggestionResult {
+  completions: string[];
+  token: string;
+}
+
+interface SpellCandidateAnalysis {
+  candidate: string;
+  misspelled_count: number;
+  valid: boolean;
+}
+
+interface SpellAnalyzeResult {
+  candidates: SpellCandidateAnalysis[];
+  tokens: SpellTokenAnalysis[];
+}
+
 const WORD_PATTERN = /^[A-Za-z]{3,}$/;
-const WORD_FRAGMENT_PATTERN = /[A-Za-z]+|[^A-Za-z]+/g;
+const CODE_TOKEN_PATTERN = /^\.?[A-Za-z][A-Za-z0-9]*(?:[._/-][A-Za-z0-9]+)*$/;
+const WORD_FRAGMENT_PATTERN =
+  /\.?[A-Za-z][A-Za-z0-9]*(?:[._/-][A-Za-z0-9]+)*|[^A-Za-z]+/g;
 const VOWELS = new Set(["a", "e", "i", "o", "u"]);
+const SPELL_ANALYSIS_CANDIDATE_LIMIT = 8;
+const SPELL_ANALYSIS_TOKEN_LIMIT = 24;
+const SPELL_ANALYSIS_CACHE_LIMIT = 256;
+
+const spellAnalysisCache = new Map<string, SpellAnalyzeResult>();
 
 const unique = (values: string[]) => [...new Set(values.filter(Boolean))];
 
@@ -90,6 +124,93 @@ const isStrongSpellCorrection = (token: string, correction: string | null) => {
   return knownCorrection || distance <= conservativeDistance;
 };
 
+const normalizeRecognitionCandidates = (
+  alternatives: string[] | TextRecognitionCandidate[]
+): TextRecognitionCandidate[] =>
+  alternatives.map((alternative, index) => {
+    if (typeof alternative === "string") {
+      return {
+        text: alternative,
+        source: "beam",
+        totalScore: -index,
+      };
+    }
+    return alternative;
+  });
+
+const getCandidateTexts = (
+  text: string,
+  candidates: TextRecognitionCandidate[]
+) =>
+  unique([text, ...candidates.map((candidate) => candidate.text.trim())])
+    .filter(Boolean)
+    .slice(0, SPELL_ANALYSIS_CANDIDATE_LIMIT);
+
+const shouldAskNativeSpellChecker = (token: string) => {
+  if (!WORD_PATTERN.test(token)) return false;
+  if (isKnownDomainWord(token) || isKnownDeveloperWord(token)) return false;
+  return true;
+};
+
+const getSpellAnalysisCacheKey = (candidateTexts: string[], tokens: string[]) =>
+  JSON.stringify({
+    candidates: candidateTexts.map((candidate) => candidate.toLowerCase()),
+    tokens: tokens.map((token) => token.toLowerCase()),
+  });
+
+const cacheSpellAnalysis = (key: string, result: SpellAnalyzeResult) => {
+  spellAnalysisCache.set(key, result);
+  if (spellAnalysisCache.size <= SPELL_ANALYSIS_CACHE_LIMIT) return;
+
+  const firstKey = spellAnalysisCache.keys().next().value;
+  if (firstKey) spellAnalysisCache.delete(firstKey);
+};
+
+const analyzeSpelling = async (
+  candidateTexts: string[],
+  tokens: string[]
+): Promise<SpellAnalyzeResult> => {
+  const key = getSpellAnalysisCacheKey(candidateTexts, tokens);
+  const cached = spellAnalysisCache.get(key);
+  if (cached) return cached;
+
+  try {
+    const result = await invoke<SpellAnalyzeResult>("smart_assist_spell_analyze", {
+      request: {
+        candidates: candidateTexts,
+        tokens,
+      },
+    });
+    cacheSpellAnalysis(key, result);
+    return result;
+  } catch (error) {
+    logSmartAssistDebug("batch spell analysis failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    const fallback = {
+      candidates: candidateTexts.map((candidate) => ({
+        candidate,
+        misspelled_count: 0,
+        valid: false,
+      })),
+      tokens: [],
+    };
+    cacheSpellAnalysis(key, fallback);
+    return fallback;
+  }
+};
+
+const getTokenAnalysisMap = (analysis: SpellAnalyzeResult) =>
+  new Map(analysis.tokens.map((token) => [token.token.toLowerCase(), token]));
+
+const getCandidateAnalysisMap = (analysis: SpellAnalyzeResult) =>
+  new Map(
+    analysis.candidates.map((candidate) => [
+      candidate.candidate,
+      candidate,
+    ])
+  );
+
 const getCommonWordCandidates = (token: string) => {
   const normalizedToken = token.toLowerCase();
   const maxDistance = getMaxAcceptedCorrectionDistance(token);
@@ -100,13 +221,19 @@ const getCommonWordCandidates = (token: string) => {
   });
 };
 
-const getTokenAlternatives = (token: string, alternatives: string[]) => {
+const getTokenAlternatives = (
+  token: string,
+  alternatives: TextRecognitionCandidate[]
+) => {
   const normalizedToken = token.toLowerCase();
   const maxDistance = getMaxAcceptedCorrectionDistance(token);
 
   return alternatives
-    .map((alternative) => alternative.trim())
-    .filter((alternative) => WORD_PATTERN.test(alternative))
+    .map((alternative) => alternative.text.trim())
+    .filter(
+      (alternative) =>
+        WORD_PATTERN.test(alternative) || CODE_TOKEN_PATTERN.test(alternative)
+    )
     .filter((alternative) => {
       const normalizedAlternative = alternative.toLowerCase();
       if (normalizedAlternative === normalizedToken) return false;
@@ -116,24 +243,27 @@ const getTokenAlternatives = (token: string, alternatives: string[]) => {
 
 const isKnownWordCandidate = (
   candidate: string,
-  suggestionResult: SpellSuggestionResult,
+  suggestionResult: SpellTokenAnalysis | SpellSuggestionResult,
   alternativeCandidates: string[]
 ) => {
   const normalizedCandidate = candidate.toLowerCase();
   return (
     LANGUAGE_WORD_RANK.has(normalizedCandidate) ||
+    isKnownDeveloperWord(normalizedCandidate) ||
     alternativeCandidates.includes(candidate) ||
     suggestionResult.correction === candidate ||
-    suggestionResult.guesses.includes(candidate)
+    suggestionResult.guesses.includes(candidate) ||
+    ("completions" in suggestionResult &&
+      suggestionResult.completions.includes(candidate))
   );
 };
 
 const chooseBestSuggestion = (
   token: string,
-  suggestionResult: SpellSuggestionResult,
-  modelAlternatives: string[]
+  suggestionResult: SpellTokenAnalysis | SpellSuggestionResult,
+  modelAlternatives: TextRecognitionCandidate[]
 ) => {
-  if (isKnownDomainWord(token)) return token;
+  if (isKnownDomainWord(token) || isKnownDeveloperWord(token)) return token;
   if (suggestionResult.valid) return token;
   if (isStrongSpellCorrection(token, suggestionResult.correction)) {
     return preserveTokenCase(token, suggestionResult.correction!);
@@ -141,11 +271,14 @@ const chooseBestSuggestion = (
 
   const normalizedToken = token.toLowerCase();
   const alternativeCandidates = getTokenAlternatives(token, modelAlternatives);
+  const developerCandidates = getDeveloperTokenCandidates(token);
   const commonCandidates = getCommonWordCandidates(token);
   const candidates = unique([
+    ...developerCandidates,
     ...alternativeCandidates,
     suggestionResult.correction ?? "",
     ...suggestionResult.guesses,
+    ...("completions" in suggestionResult ? suggestionResult.completions : []),
     ...commonCandidates,
   ]);
 
@@ -161,6 +294,9 @@ const chooseBestSuggestion = (
       );
       const commonRank = getKnownWordRank(normalizedCandidate);
       const commonBonus = commonRank > 0 ? Math.min(1.25, commonRank / 80) : 0;
+      const developerRank = getDeveloperWordRank(normalizedCandidate);
+      const developerBonus =
+        developerRank > 0 ? 1.25 + Math.min(0.95, developerRank / 130) : 0;
       const domainBonus = isKnownDomainWord(normalizedCandidate) ? 0.85 : 0;
       const modelBonus = alternativeCandidates.includes(candidate) ? 0.45 : 0;
       const spellBonus =
@@ -168,12 +304,16 @@ const chooseBestSuggestion = (
           ? 0.5
           : suggestionResult.guesses.includes(candidate)
             ? 0.22
+            : "completions" in suggestionResult &&
+                suggestionResult.completions.includes(candidate)
+              ? 0.16
             : 0;
       const score =
         distance +
         classMismatchCount * 0.35 +
         index * 0.12 +
         0.08 -
+        developerBonus -
         commonBonus -
         domainBonus -
         modelBonus -
@@ -205,18 +345,41 @@ const chooseBestSuggestion = (
 
 const correctToken = async (
   token: string,
-  alternatives: string[]
+  alternatives: TextRecognitionCandidate[],
+  tokenAnalysis: SpellTokenAnalysis | null
 ): Promise<string> => {
+  if (!WORD_PATTERN.test(token) && !CODE_TOKEN_PATTERN.test(token)) return token;
+  if (
+    isKnownDomainWord(token) ||
+    isKnownDeveloperWord(token) ||
+    isKnownLanguageWord(token)
+  ) {
+    return token;
+  }
+
+  const normalizedCodeToken = token.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (normalizedCodeToken.length <= 2) return token;
+
+  const developerCandidates = getDeveloperTokenCandidates(token);
+  if (developerCandidates.length > 0) {
+    const bestDeveloperCandidate = developerCandidates[0];
+    const developerDistance = levenshtein(
+      normalizedCodeToken,
+      bestDeveloperCandidate.toLowerCase().replace(/[^a-z0-9]/g, "")
+    );
+    if (developerDistance <= Math.max(1, Math.ceil(token.length * 0.22))) {
+      return preserveTokenCase(token, bestDeveloperCandidate);
+    }
+  }
+
   if (!WORD_PATTERN.test(token)) return token;
-  if (isKnownDomainWord(token) || isKnownLanguageWord(token)) return token;
 
   try {
-    const suggestionResult = await invoke<SpellSuggestionResult>(
-      "smart_assist_spell_suggest",
-      {
+    const suggestionResult =
+      tokenAnalysis ??
+      (await invoke<SpellSuggestionResult>("smart_assist_spell_suggest", {
         word: token,
-      }
-    );
+      }));
 
     const corrected = chooseBestSuggestion(token, suggestionResult, alternatives);
     if (corrected !== token) {
@@ -245,16 +408,19 @@ const splitTextFragments = (value: string) =>
 const getSegmentAlternatives = (
   segment: string,
   segmentIndex: number,
-  alternatives: string[],
+  alternatives: TextRecognitionCandidate[],
   textIsSingleToken: boolean
 ) => {
-  if (!WORD_PATTERN.test(segment)) return [];
+  if (!WORD_PATTERN.test(segment) && !CODE_TOKEN_PATTERN.test(segment)) return [];
 
   if (textIsSingleToken) return alternatives;
 
   return alternatives
-    .map((alternative) => splitTextFragments(alternative)[segmentIndex])
-    .filter((alternative): alternative is string => Boolean(alternative));
+    .map((alternative) => ({
+      ...alternative,
+      text: splitTextFragments(alternative.text)[segmentIndex] ?? "",
+    }))
+    .filter((alternative) => Boolean(alternative.text));
 };
 
 const maxContextDistance = (word: string) =>
@@ -295,7 +461,10 @@ const applyContextCorrections = (
   const nextSegments = [...correctedSegments];
   const wordSegmentIndexes = rawSegments
     .map((segment, index) => ({ segment, index }))
-    .filter(({ segment }) => WORD_PATTERN.test(segment))
+    .filter(
+      ({ segment }) =>
+        WORD_PATTERN.test(segment) || CODE_TOKEN_PATTERN.test(segment)
+    )
     .map(({ index }) => index);
 
   for (let position = 1; position < wordSegmentIndexes.length; position += 1) {
@@ -352,15 +521,25 @@ const applyContextCorrections = (
 
 export const correctRecognizedText = async (
   text: string,
-  alternatives: string[] = []
+  alternatives: string[] | TextRecognitionCandidate[] = []
 ): Promise<string> => {
+  const candidates = normalizeRecognitionCandidates(alternatives);
+  const candidateTexts = getCandidateTexts(text, candidates);
   const segments = splitTextFragments(text);
+  const spellTokens = unique(segments.filter(shouldAskNativeSpellChecker)).slice(
+    0,
+    SPELL_ANALYSIS_TOKEN_LIMIT
+  );
+  const spellAnalysis = await analyzeSpelling(candidateTexts, spellTokens);
+  const tokenAnalysisByToken = getTokenAnalysisMap(spellAnalysis);
+  const candidateAnalysisByText = getCandidateAnalysisMap(spellAnalysis);
   const textIsSingleToken = !/\s/.test(text);
   const correctedSegments = await Promise.all(
     segments.map((segment, index) =>
       correctToken(
         segment,
-        getSegmentAlternatives(segment, index, alternatives, textIsSingleToken)
+        getSegmentAlternatives(segment, index, candidates, textIsSingleToken),
+        tokenAnalysisByToken.get(segment.toLowerCase()) ?? null
       )
     )
   );
@@ -374,15 +553,41 @@ export const correctRecognizedText = async (
     logSmartAssistDebug("corrected recognized text", {
       raw: text,
       corrected: correctedText,
-      alternatives,
+      alternatives: candidates.map(({ text: candidateText }) => candidateText),
     });
     return correctedText;
   }
 
-  const bestAlternative = unique([correctedText, ...alternatives])
+  const scoreByCandidate = new Map(
+    candidates.map((candidate, index) => [
+      candidate.text,
+      Math.max(0, candidates.length - index) * 0.12 +
+        (candidate.source === "greedy" ? 0.08 : 0),
+    ])
+  );
+  const bestAlternative = unique([
+    correctedText,
+    ...candidates.map((candidate) => candidate.text),
+    ...getPersonalTextCandidates(correctedText),
+    ...getPersonalTextCandidates(text),
+  ])
     .map((candidate, index) => ({
       candidate,
-      score: scoreTextLanguageCandidate(candidate) - index * 0.35,
+      score: (() => {
+        const spellCandidate = candidateAnalysisByText.get(candidate);
+        const spellPhraseScore = spellCandidate
+          ? (spellCandidate.valid ? 0.7 : 0) -
+            spellCandidate.misspelled_count * 0.42
+          : 0;
+        return (
+          scoreTextLanguageCandidate(candidate) +
+          getDeveloperPhraseScore(candidate) * 0.45 +
+          scorePersonalTextCandidate(candidate) +
+          spellPhraseScore +
+          (scoreByCandidate.get(candidate) ?? 0) -
+          index * 0.35
+        );
+      })(),
     }))
     .sort((left, right) => right.score - left.score)[0]?.candidate ?? correctedText;
 
@@ -390,7 +595,7 @@ export const correctRecognizedText = async (
     logSmartAssistDebug("corrected recognized text", {
       raw: text,
       corrected: bestAlternative,
-      alternatives,
+      alternatives: candidates.map(({ text: candidateText }) => candidateText),
     });
   }
 

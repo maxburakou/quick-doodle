@@ -16,7 +16,7 @@ use helpers::{
 	settings_types::TrayInactiveClickAction,
 	shortcuts::{init_global_shortcuts, reapply_global_shortcuts_with_rollback},
 	shortcuts_runtime::{compile_shortcuts, CompiledShortcuts},
-	spellcheck::smart_assist_spell_suggest,
+	spellcheck::{smart_assist_spell_analyze, smart_assist_spell_suggest},
 	utils::{
 		get_icon_path, handle_event, is_main_open_blocked_by_settings, toggle_window,
 		warm_tray_icon_cache, ToggleOutcome,
@@ -67,6 +67,7 @@ pub fn run() {
 			settings_save,
 			settings_restore_defaults,
 			settings_hide_window,
+			smart_assist_spell_analyze,
 			smart_assist_spell_suggest
 		])
 		.setup(|app| {

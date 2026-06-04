@@ -44,8 +44,17 @@ type OnlineHtrAlphabetAsset = string[] | { alphabet: string[] };
 export interface TextRecognitionResult {
   text: string;
   alternatives: string[];
+  candidates: TextRecognitionCandidate[];
   engineMs: number;
   runtime: "onnx-wasm" | "unavailable";
+}
+
+export interface TextRecognitionCandidate {
+  text: string;
+  acousticScore?: number;
+  languageScore?: number;
+  totalScore?: number;
+  source: "beam" | "greedy";
 }
 
 let runtimePromise: Promise<OnlineHtrRuntime> | null = null;
@@ -513,7 +522,6 @@ const decodeBeamCtc = (output: ort.Tensor, alphabet: string[]) => {
 
   return [...bestByText.values()]
     .sort((left, right) => right.totalScore - left.totalScore)
-    .map(({ text }) => text)
     .slice(0, CTC_ALTERNATIVE_COUNT);
 };
 
@@ -543,9 +551,41 @@ const runOnnxRecognition = async (
   const outputTensor = output[outputName];
   const greedyText = decodeGreedyCtc(outputTensor, alphabet);
   const beamAlternatives = decodeBeamCtc(outputTensor, alphabet);
-  const alternatives = [
-    ...new Set([beamAlternatives[0] ?? "", greedyText, ...beamAlternatives].filter(Boolean)),
-  ].slice(0, CTC_ALTERNATIVE_COUNT);
+  const rawCandidates: TextRecognitionCandidate[] = [
+    ...beamAlternatives.map((alternative) => ({
+      ...alternative,
+      source: "beam" as const,
+    })),
+    ...(greedyText
+      ? [
+          {
+            text: greedyText,
+            source: "greedy" as const,
+          },
+        ]
+      : []),
+  ];
+  const bestByText = new Map<string, TextRecognitionCandidate>();
+  rawCandidates.forEach((candidate) => {
+    const text = candidate.text.trim();
+    if (!text) return;
+    const existing = bestByText.get(text);
+    if (
+      !existing ||
+      (candidate.totalScore ?? NEGATIVE_INFINITY) >
+        (existing.totalScore ?? NEGATIVE_INFINITY)
+    ) {
+      bestByText.set(text, { ...candidate, text });
+    }
+  });
+  const candidates = [...bestByText.values()]
+    .sort(
+      (left, right) =>
+        (right.totalScore ?? NEGATIVE_INFINITY) -
+        (left.totalScore ?? NEGATIVE_INFINITY)
+    )
+    .slice(0, CTC_ALTERNATIVE_COUNT);
+  const alternatives = candidates.map(({ text }) => text);
   const text = alternatives[0] ?? greedyText;
   const engineMs = Math.round(performance.now() - startedAt);
 
@@ -559,6 +599,7 @@ const runOnnxRecognition = async (
   return {
     text,
     alternatives,
+    candidates,
     engineMs,
     runtime: "onnx-wasm",
   };
