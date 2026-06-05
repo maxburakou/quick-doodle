@@ -49,7 +49,7 @@ export interface TextRecognitionCandidate {
   acousticScore?: number;
   languageScore?: number;
   totalScore?: number;
-  source: "beam" | "greedy";
+  source: "beam" | "greedy" | "vision";
 }
 
 let runtimePromise: Promise<OnlineHtrRuntime> | null = null;

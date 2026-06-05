@@ -641,6 +641,17 @@ const getPhraseSpellScore = (
   return validBonus + spacingBonus - misspelledPenalty - joinedPenalty;
 };
 
+const getRecognizerSourceBonus = (candidate: TextRecognitionCandidate) => {
+  const confidence = Math.max(0, candidate.totalScore ?? 0);
+  if (candidate.source === "vision") {
+    const text = candidate.text.trim();
+    const acronymBonus = /^[A-Z]{2,6}[!?,.:;]?$/.test(text) ? 0.18 : 0;
+    return 0.48 + Math.min(0.55, confidence * 0.8) + acronymBonus;
+  }
+  if (candidate.source === "greedy") return 0.08;
+  return 0;
+};
+
 export const correctRecognizedText = async (
   text: string,
   alternatives: string[] | TextRecognitionCandidate[] = []
@@ -672,13 +683,14 @@ export const correctRecognizedText = async (
   );
   const correctedText = contextCorrectedSegments.join("");
 
-  const scoreByCandidate = new Map(
-    candidates.map((candidate, index) => [
-      candidate.text,
+  const scoreByCandidate = candidates.reduce((scores, candidate, index) => {
+    const key = candidate.text.trim();
+    const score =
       Math.max(0, candidates.length - index) * 0.12 +
-        (candidate.source === "greedy" ? 0.08 : 0),
-    ])
-  );
+      getRecognizerSourceBonus(candidate);
+    scores.set(key, Math.max(scores.get(key) ?? 0, score));
+    return scores;
+  }, new Map<string, number>());
   const bestAlternative = unique([
     correctedText,
     ...candidateTexts,

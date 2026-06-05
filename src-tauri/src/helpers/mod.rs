@@ -8,4 +8,5 @@ pub mod shortcuts;
 pub mod shortcuts_runtime;
 pub mod spellcheck;
 pub mod utils;
+pub mod vision;
 pub mod window_service;

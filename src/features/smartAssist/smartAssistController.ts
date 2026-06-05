@@ -5,8 +5,16 @@ import { useToolStore } from "@/store/useToolStore";
 import { SMART_ASSIST_CONFIG } from "./config";
 import { runSmartAssistRecognition } from "./recognizers";
 import { snapSmartAssistReplacementStrokes } from "./snapReplacementStrokes";
-import { recognizeOnlineHandwriting } from "./textRecognition";
+import {
+  recognizeOnlineHandwriting,
+  type TextRecognitionCandidate,
+  type TextRecognitionResult,
+} from "./textRecognition";
 import { correctRecognizedText } from "./textCorrection";
+import {
+  recognizeTextWithVision,
+  type VisionTextRecognitionResult,
+} from "./visionRecognition";
 import { buildTextReplacementAction } from "./textReplacement";
 import { detectTextIntent, isPointLikelyContinuingTextBatch } from "./textIntent";
 import {
@@ -21,9 +29,78 @@ import { expandBBox, getStrokesBBox, isPointInBBox } from "./utils";
 
 const createBatchId = () =>
   `sa_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+const VISION_PRIMARY_CONFIDENCE = 0.25;
+
+interface TextRecognitionDebug {
+  recognizedText?: string | null;
+  textIntentScore?: number;
+  textIntentReasons?: string[];
+  textError?: string;
+  visionSupported?: boolean | null;
+  visionText?: string | null;
+  visionConfidence?: number;
+  visionError?: string | null;
+}
+
+interface VisionDebugSnapshot {
+  supported: boolean | null;
+  text: string | null;
+  confidence: number;
+  error: string | null;
+}
 
 const countBatchRawPoints = (batch: SmartAssistBatch): number =>
   batch.strokes.reduce((acc, stroke) => acc + stroke.points.length, 0);
+
+const getErrorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+
+const toVisionDebugSnapshot = (
+  result: VisionTextRecognitionResult | null,
+  error?: unknown
+): VisionDebugSnapshot => {
+  if (result) {
+    return {
+      supported: result.supported,
+      text: result.text,
+      confidence: result.confidence,
+      error: result.error ?? null,
+    };
+  }
+
+  return {
+    supported: null,
+    text: null,
+    confidence: 0,
+    error: error === undefined ? "vision-unavailable" : getErrorMessage(error),
+  };
+};
+
+const isPrimaryVisionResult = (result: VisionTextRecognitionResult | null) =>
+  result !== null &&
+  Boolean(result.text?.trim()) &&
+  result.confidence >= VISION_PRIMARY_CONFIDENCE;
+
+const mergeRecognitionCandidates = (
+  primary: TextRecognitionCandidate[],
+  fallback: TextRecognitionCandidate[]
+) =>
+  [...primary, ...fallback].filter(
+    (candidate, index, candidates) =>
+      candidates.findIndex((item) => item.text.trim() === candidate.text.trim()) ===
+      index
+  );
+
+const toTextDebug = (
+  visionDebug: VisionDebugSnapshot | null,
+  overrides: TextRecognitionDebug = {}
+): TextRecognitionDebug => ({
+  ...overrides,
+  visionSupported: visionDebug?.supported,
+  visionText: visionDebug?.text,
+  visionConfidence: visionDebug?.confidence,
+  visionError: visionDebug?.error,
+});
 
 const isAppendCommittedPenStroke = (
   present: Stroke[],
@@ -175,12 +252,7 @@ export class SmartAssistController {
   clearBatch(
     reason: SmartAssistClearReason,
     detectionResult?: DetectionResult,
-    textDebug?: {
-      recognizedText?: string | null;
-      textIntentScore?: number;
-      textIntentReasons?: string[];
-      textError?: string;
-    }
+    textDebug?: TextRecognitionDebug
   ) {
     this.cancelPendingTimer();
     const { debugEnabled, batch, setBatch, setLastDebugResult } =
@@ -203,11 +275,24 @@ export class SmartAssistController {
         textIntentScore: textDebug?.textIntentScore,
         textIntentReasons: textDebug?.textIntentReasons,
         textError: textDebug?.textError,
+        visionSupported: textDebug?.visionSupported,
+        visionText: textDebug?.visionText,
+        visionConfidence: textDebug?.visionConfidence,
+        visionError: textDebug?.visionError,
         createdAt: Date.now(),
       });
     }
 
     setBatch(null);
+  }
+
+  private clearCurrentTextBatch(
+    batch: SmartAssistBatch,
+    reason: SmartAssistClearReason,
+    textDebug: TextRecognitionDebug
+  ) {
+    if (useSmartAssistStore.getState().batch?.id !== batch.id) return;
+    this.clearBatch(reason, undefined, textDebug);
   }
 
   cancelPendingTimer() {
@@ -409,27 +494,75 @@ export class SmartAssistController {
 
     let text = "";
     let rawText = "";
+    let visionDebug: VisionDebugSnapshot | null = null;
     try {
-      const result = await recognizeOnlineHandwriting(batch.strokes);
-      rawText = result.text.trim();
-      text = (await correctRecognizedText(rawText, result.candidates)).trim();
+      let visionResult: VisionTextRecognitionResult | null = null;
+      try {
+        visionResult = await recognizeTextWithVision(batch.strokes);
+        visionDebug = toVisionDebugSnapshot(visionResult);
+      } catch (error) {
+        visionDebug = toVisionDebugSnapshot(null, error);
+      }
+
+      const visionText = visionResult?.text?.trim() ?? "";
+      const preferVision = isPrimaryVisionResult(visionResult);
+      let onnxResult: TextRecognitionResult | null = null;
+      let onnxError: unknown = null;
+
+      if (!preferVision) {
+        try {
+          onnxResult = await recognizeOnlineHandwriting(batch.strokes);
+        } catch (error) {
+          onnxError = error;
+          if (!visionText) throw error;
+        }
+      }
+
+      const onnxText = onnxResult?.text.trim() ?? "";
+      const recognitionCandidates = mergeRecognitionCandidates(
+        preferVision
+          ? (visionResult?.recognitionCandidates ?? [])
+          : (onnxResult?.candidates ?? []),
+        preferVision
+          ? (onnxResult?.candidates ?? [])
+          : (visionResult?.recognitionCandidates ?? [])
+      );
+
+      rawText = (preferVision ? visionText : onnxText || visionText).trim();
+      if (!rawText) throw new Error("text-recognition-empty-result");
+
+      text = (await correctRecognizedText(rawText, recognitionCandidates)).trim();
+      if (import.meta.env.DEV) {
+        console.info("[SmartAssist Text]", {
+          visionText,
+          visionConfidence: visionResult?.confidence ?? 0,
+          preferVision,
+          onnxText,
+          onnxError: onnxError ? getErrorMessage(onnxError) : null,
+          rawText,
+          correctedText: text,
+          candidates: recognitionCandidates.slice(0, 8),
+        });
+      }
     } catch (error) {
       const reason =
         error instanceof Error && error.message === "text-recognition-timeout"
           ? "text-timeout"
           : "text-error";
-      if (useSmartAssistStore.getState().batch?.id === batch.id) {
-        this.clearBatch(reason, undefined, {
-          textError: error instanceof Error ? error.message : String(error),
-        });
-      }
+      this.clearCurrentTextBatch(
+        batch,
+        reason,
+        toTextDebug(visionDebug, { textError: getErrorMessage(error) })
+      );
       return;
     }
 
     if (!text) {
-      if (useSmartAssistStore.getState().batch?.id === batch.id) {
-        this.clearBatch("text-empty", undefined, { recognizedText: "" });
-      }
+      this.clearCurrentTextBatch(
+        batch,
+        "text-empty",
+        toTextDebug(visionDebug, { recognizedText: "" })
+      );
       return;
     }
 
@@ -439,9 +572,11 @@ export class SmartAssistController {
       presentIdSet.has(id)
     );
     if (!allSourceStrokesStillPresent) {
-      if (useSmartAssistStore.getState().batch?.id === batch.id) {
-        this.clearBatch("text-stale-source", undefined, { recognizedText: text });
-      }
+      this.clearCurrentTextBatch(
+        batch,
+        "text-stale-source",
+        toTextDebug(visionDebug, { recognizedText: text })
+      );
       return;
     }
 
@@ -452,12 +587,14 @@ export class SmartAssistController {
       present: historyState.present,
     });
     if (!replacementAction) {
-      if (useSmartAssistStore.getState().batch?.id === batch.id) {
-        this.clearBatch("text-error", undefined, {
+      this.clearCurrentTextBatch(
+        batch,
+        "text-error",
+        toTextDebug(visionDebug, {
           recognizedText: text,
           textError: "failed-to-build-text-stroke",
-        });
-      }
+        })
+      );
       return;
     }
 
@@ -466,15 +603,19 @@ export class SmartAssistController {
       replacementAction.replacementStrokes
     );
     if (!replaced) {
-      if (useSmartAssistStore.getState().batch?.id === batch.id) {
-        this.clearBatch("text-stale-source", undefined, { recognizedText: text });
-      }
+      this.clearCurrentTextBatch(
+        batch,
+        "text-stale-source",
+        toTextDebug(visionDebug, { recognizedText: text })
+      );
       return;
     }
 
-    if (useSmartAssistStore.getState().batch?.id === batch.id) {
-      this.clearBatch("text-recognized", undefined, { recognizedText: text });
-    }
+    this.clearCurrentTextBatch(
+      batch,
+      "text-recognized",
+      toTextDebug(visionDebug, { recognizedText: text })
+    );
   }
 }
 

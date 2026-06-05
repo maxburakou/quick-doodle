@@ -21,6 +21,7 @@ use helpers::{
 		get_icon_path, handle_event, is_main_open_blocked_by_settings, toggle_window,
 		warm_tray_icon_cache, ToggleOutcome,
 	},
+	vision::smart_assist_vision_recognize_text,
 };
 use ids::{events, menu_ids};
 use log::warn;
@@ -68,7 +69,8 @@ pub fn run() {
 			settings_restore_defaults,
 			settings_hide_window,
 			smart_assist_spell_analyze,
-			smart_assist_spell_suggest
+			smart_assist_spell_suggest,
+			smart_assist_vision_recognize_text
 		])
 		.setup(|app| {
 			#[cfg(target_os = "macos")]

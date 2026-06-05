@@ -61,6 +61,10 @@ export interface SmartAssistDebugResult {
   textIntentScore?: number;
   textIntentReasons?: string[];
   textError?: string;
+  visionSupported?: boolean | null;
+  visionText?: string | null;
+  visionConfidence?: number;
+  visionError?: string | null;
 }
 
 export type SmartAssistShapeKind =
