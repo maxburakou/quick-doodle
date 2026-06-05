@@ -101,10 +101,6 @@ export interface DetectionResult {
 }
 
 export interface RecognizerContext {
-  color: string;
-  thickness: number;
-  drawableSeed: number;
-  shapeFill?: Stroke["shapeFill"];
   sourceStrokes: Stroke[];
 }
 

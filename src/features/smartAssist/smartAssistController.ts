@@ -1,6 +1,7 @@
 import { Stroke, StrokePoint, Tool } from "@/types";
 import { useHistoryStore } from "@/store/useHistoryStore";
 import { useSnapStore } from "@/store/useSnapStore";
+import { useToolSettingsStore } from "@/store/useToolSettingsStore";
 import { useToolStore } from "@/store/useToolStore";
 import { SMART_ASSIST_CONFIG } from "./config";
 import { runSmartAssistRecognition } from "./recognizers";
@@ -116,6 +117,14 @@ const isAppendCommittedPenStroke = (
 
   return present[present.length - 1]?.tool === Tool.Pen;
 };
+
+const applySmartAssistShapeFill = (
+  stroke: Stroke,
+  enabled: boolean
+): Stroke => ({
+  ...stroke,
+  shapeFill: enabled ? { color: stroke.color, style: "solid" } : undefined,
+});
 
 export class SmartAssistController {
   private recognitionTimer: number | null = null;
@@ -332,13 +341,13 @@ export class SmartAssistController {
   }
 
   private buildRecognizerContext(batch: SmartAssistBatch): RecognizerContext {
-    const baseStroke = batch.strokes[0];
+    const shapeFillEnabled = useToolSettingsStore.getState().shapeFill;
+    const sourceStrokes = batch.strokes.map((stroke) =>
+      applySmartAssistShapeFill(stroke, shapeFillEnabled)
+    );
+
     return {
-      color: baseStroke?.color ?? "#000000",
-      thickness: baseStroke?.thickness ?? 1,
-      drawableSeed: baseStroke?.drawableSeed ?? Date.now(),
-      shapeFill: baseStroke?.shapeFill,
-      sourceStrokes: batch.strokes,
+      sourceStrokes,
     };
   }
 
