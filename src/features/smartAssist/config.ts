@@ -23,7 +23,7 @@ export const SMART_ASSIST_CONFIG: SmartAssistConfig = {
       recognitionLevel: "accurate",
       usesLanguageCorrection: true,
       recognitionLanguages: [],
-      minimumTextHeight: null,
+      minimumTextHeight: 0.04,
     },
   },
   minConfidence: {

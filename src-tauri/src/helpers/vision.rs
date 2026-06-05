@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
-use tauri::AppHandle;
+use tauri::{ipc::InvokeBody, AppHandle};
+
+const VISION_OPTIONS_HEADER: &str = "x-quick-doodle-vision-options";
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -450,11 +452,45 @@ fn join_vision_lines(lines: &[VisionRecognizedTextLine]) -> Option<String> {
 	}
 }
 
+fn vision_request_from_ipc_request(
+	request: tauri::ipc::Request<'_>,
+) -> Result<VisionRecognizeTextRequest, String> {
+	match request.body() {
+		InvokeBody::Raw(image_bytes) => {
+			let options = request
+				.headers()
+				.get(VISION_OPTIONS_HEADER)
+				.map(|value| {
+					value
+						.to_str()
+						.map_err(|err| format!("vision-options-header-invalid: {}", err))
+						.and_then(|value| {
+							serde_json::from_str::<VisionRecognizeTextOptions>(value)
+								.map_err(|err| format!("vision-options-json-invalid: {}", err))
+						})
+				})
+				.transpose()?
+				.unwrap_or_default();
+
+			Ok(VisionRecognizeTextRequest {
+				image_bytes: image_bytes.clone(),
+				options,
+			})
+		}
+		InvokeBody::Json(value) => serde_json::from_value::<VisionRecognizeTextRequest>(
+			value.clone(),
+		)
+		.map_err(|err| format!("vision-json-request-invalid: {}", err)),
+	}
+}
+
 #[tauri::command]
 pub fn smart_assist_vision_recognize_text(
 	app: AppHandle,
-	request: VisionRecognizeTextRequest,
+	request: tauri::ipc::Request<'_>,
 ) -> Result<VisionRecognizeTextResult, String> {
+	let request = vision_request_from_ipc_request(request)?;
+
 	#[cfg(target_os = "macos")]
 	{
 		let (sender, receiver) = std::sync::mpsc::channel();

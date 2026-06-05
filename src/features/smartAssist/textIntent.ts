@@ -19,6 +19,9 @@ export interface TextIntentResult {
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 const SINGLE_STROKE_ARROW_TEXT_VETO_CONFIDENCE = 0.24;
 const SINGLE_STROKE_LINE_TEXT_VETO_CONFIDENCE = 0.58;
+const SHORT_TEXT_PROBE_MIN_STROKES = 2;
+const SHORT_TEXT_PROBE_MAX_STROKES = 8;
+const SHORT_TEXT_PROBE_THRESHOLD = 0.46;
 
 type ShapeCandidate = DetectionResult["candidates"][number];
 
@@ -94,6 +97,39 @@ const getLineConsistencyScore = (strokes: Stroke[], batchHeight: number) => {
   );
 
   return clamp01(1 - safeDivide(maxDelta, batchHeight));
+};
+
+const getPointCount = (strokes: Stroke[]) =>
+  strokes.reduce((sum, stroke) => sum + stroke.points.length, 0);
+
+const getShortTextProbeScore = (
+  batch: SmartAssistBatch,
+  aspectRatio: number,
+  flowScore: number,
+  lineScore: number
+) => {
+  const strokeCount = batch.strokes.length;
+  if (
+    strokeCount < SHORT_TEXT_PROBE_MIN_STROKES ||
+    strokeCount > SHORT_TEXT_PROBE_MAX_STROKES
+  ) {
+    return 0;
+  }
+
+  const pointCount = getPointCount(batch.strokes);
+  const inkScore = clamp01(safeDivide(pointCount - 8, 24));
+  const aspectFloorScore = clamp01(safeDivide(aspectRatio - 0.28, 0.7));
+  const aspectCeilingScore = clamp01(1 - safeDivide(aspectRatio - 8, 4));
+  const aspectWindowScore = Math.min(aspectFloorScore, aspectCeilingScore);
+  const strokeCountScore = clamp01(1 - safeDivide(strokeCount - 5, 5));
+
+  return clamp01(
+    inkScore * 0.38 +
+      aspectWindowScore * 0.24 +
+      lineScore * 0.16 +
+      flowScore * 0.12 +
+      strokeCountScore * 0.1
+  );
 };
 
 const getDebugNumber = (candidate: ShapeCandidate, key: string) => {
@@ -252,14 +288,27 @@ const getMultiStrokeTextShapeScore = (
           lineScore * 0.22 +
           glyphScaleScore * 0.16
       );
+  const shortTextProbeScore = getShortTextProbeScore(
+    batch,
+    aspectRatio,
+    flowScore,
+    lineScore
+  );
+  const shouldProbeShortText =
+    Boolean(shapeResult && !shapeResult.accepted) &&
+    shortTextProbeScore >= SHORT_TEXT_PROBE_THRESHOLD;
+  if (shouldProbeShortText) reasons.push("short-text-vision-probe");
 
   return {
-    probableText: score >= SMART_ASSIST_CONFIG.text.intentThreshold,
+    probableText:
+      score >= SMART_ASSIST_CONFIG.text.intentThreshold || shouldProbeShortText,
     score,
     reasons,
     debug: {
       mode: context ? "multi-stroke" : "multi-stroke-early",
       threshold: SMART_ASSIST_CONFIG.text.intentThreshold,
+      shortTextProbeThreshold: SHORT_TEXT_PROBE_THRESHOLD,
+      shortTextProbeScore,
       probeScore: probe.score,
       aspectScore,
       flowScore,

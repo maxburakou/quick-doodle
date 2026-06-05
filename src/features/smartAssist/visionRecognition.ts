@@ -41,6 +41,8 @@ interface VisionRecognizeTextOptions {
   minimumTextHeight: number | null;
 }
 
+const VISION_OPTIONS_HEADER = "x-quick-doodle-vision-options";
+
 export interface VisionTextRecognitionResult extends VisionRecognizeTextResult {
   debug: VisionRecognitionDebug;
 }
@@ -113,7 +115,6 @@ const renderStrokesForVisionInWorker = (
       strokes,
       options: {
         ...DEFAULT_VISION_RASTERIZE_OPTIONS,
-        includeDataUrl: false,
       },
     });
   });
@@ -182,10 +183,12 @@ export const recognizeTextWithVision = async (
   try {
     const result = await invoke<VisionRecognizeTextResult>(
       "smart_assist_vision_recognize_text",
+      renderResult.imageBytes,
       {
-        request: {
-          imageBytes: renderResult.imageBytes,
-          options: SMART_ASSIST_CONFIG.text.vision satisfies VisionRecognizeTextOptions,
+        headers: {
+          [VISION_OPTIONS_HEADER]: JSON.stringify(
+            SMART_ASSIST_CONFIG.text.vision satisfies VisionRecognizeTextOptions
+          ),
         },
       }
     );
