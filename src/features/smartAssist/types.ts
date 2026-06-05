@@ -134,7 +134,6 @@ export interface SmartAssistConfig {
     earlyIntentThreshold: number;
     intentThreshold: number;
     singleStrokeIntentThreshold: number;
-    recognitionTimeoutMs: number;
   };
   minConfidence: Record<SmartAssistShapeKind, number>;
   conflictMarginsPx: Record<string, number>;

@@ -18,7 +18,6 @@ export const SMART_ASSIST_CONFIG: SmartAssistConfig = {
     earlyIntentThreshold: 0.52,
     intentThreshold: 0.56,
     singleStrokeIntentThreshold: 0.48,
-    recognitionTimeoutMs: 5000,
   },
   minConfidence: {
     line: 0.84,

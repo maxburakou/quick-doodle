@@ -2,7 +2,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { drawStrokes } from "@/components/Canvas/utils";
 import type { Stroke } from "@/types";
 import { getStrokesBBox } from "./utils";
-import type { TextRecognitionCandidate } from "./textRecognition";
 
 interface VisionRecognizedTextCandidate {
   text: string;
@@ -18,8 +17,14 @@ interface VisionRecognizeTextResult {
 }
 
 export interface VisionTextRecognitionResult extends VisionRecognizeTextResult {
-  recognitionCandidates: TextRecognitionCandidate[];
+  recognitionCandidates: VisionTextRecognitionCandidate[];
   debug: VisionRecognitionDebug;
+}
+
+export interface VisionTextRecognitionCandidate {
+  text: string;
+  source: "vision";
+  totalScore: number;
 }
 
 export interface VisionRecognitionDebug {
@@ -131,7 +136,7 @@ const normalizeVisionText = (text: string) =>
 
 const toVisionCandidate = (
   candidate: VisionRecognizedTextCandidate
-): TextRecognitionCandidate | null => {
+): VisionTextRecognitionCandidate | null => {
   const text = normalizeVisionText(candidate.text);
   if (!text || candidate.confidence < VISION_CANDIDATE_CONFIDENCE_FLOOR) return null;
 
@@ -199,7 +204,8 @@ export const recognizeTextWithVision = async (
       ...result.candidates.map(toVisionCandidate),
     ]
       .filter(
-        (candidate): candidate is TextRecognitionCandidate => candidate !== null
+        (candidate): candidate is VisionTextRecognitionCandidate =>
+          candidate !== null
       )
       .filter(
         (candidate, index, candidates) =>

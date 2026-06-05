@@ -6,12 +6,6 @@ import { SMART_ASSIST_CONFIG } from "./config";
 import { runSmartAssistRecognition } from "./recognizers";
 import { snapSmartAssistReplacementStrokes } from "./snapReplacementStrokes";
 import {
-  recognizeOnlineHandwriting,
-  type TextRecognitionCandidate,
-  type TextRecognitionResult,
-} from "./textRecognition";
-import { correctRecognizedText } from "./textCorrection";
-import {
   recognizeTextWithVision,
   type VisionTextRecognitionResult,
 } from "./visionRecognition";
@@ -29,7 +23,6 @@ import { expandBBox, getStrokesBBox, isPointInBBox } from "./utils";
 
 const createBatchId = () =>
   `sa_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-const VISION_PRIMARY_CONFIDENCE = 0.25;
 
 interface TextRecognitionDebug {
   recognizedText?: string | null;
@@ -75,21 +68,6 @@ const toVisionDebugSnapshot = (
     error: error === undefined ? "vision-unavailable" : getErrorMessage(error),
   };
 };
-
-const isPrimaryVisionResult = (result: VisionTextRecognitionResult | null) =>
-  result !== null &&
-  Boolean(result.text?.trim()) &&
-  result.confidence >= VISION_PRIMARY_CONFIDENCE;
-
-const mergeRecognitionCandidates = (
-  primary: TextRecognitionCandidate[],
-  fallback: TextRecognitionCandidate[]
-) =>
-  [...primary, ...fallback].filter(
-    (candidate, index, candidates) =>
-      candidates.findIndex((item) => item.text.trim() === candidate.text.trim()) ===
-      index
-  );
 
 const toTextDebug = (
   visionDebug: VisionDebugSnapshot | null,
@@ -504,44 +482,15 @@ export class SmartAssistController {
         visionDebug = toVisionDebugSnapshot(null, error);
       }
 
-      const visionText = visionResult?.text?.trim() ?? "";
-      const preferVision = isPrimaryVisionResult(visionResult);
-      let onnxResult: TextRecognitionResult | null = null;
-      let onnxError: unknown = null;
-
-      if (!preferVision) {
-        try {
-          onnxResult = await recognizeOnlineHandwriting(batch.strokes);
-        } catch (error) {
-          onnxError = error;
-          if (!visionText) throw error;
-        }
-      }
-
-      const onnxText = onnxResult?.text.trim() ?? "";
-      const recognitionCandidates = mergeRecognitionCandidates(
-        preferVision
-          ? (visionResult?.recognitionCandidates ?? [])
-          : (onnxResult?.candidates ?? []),
-        preferVision
-          ? (onnxResult?.candidates ?? [])
-          : (visionResult?.recognitionCandidates ?? [])
-      );
-
-      rawText = (preferVision ? visionText : onnxText || visionText).trim();
+      rawText = visionResult?.text?.trim() ?? "";
       if (!rawText) throw new Error("text-recognition-empty-result");
 
-      text = (await correctRecognizedText(rawText, recognitionCandidates)).trim();
+      text = rawText;
       if (import.meta.env.DEV) {
         console.info("[SmartAssist Text]", {
-          visionText,
+          visionText: rawText,
           visionConfidence: visionResult?.confidence ?? 0,
-          preferVision,
-          onnxText,
-          onnxError: onnxError ? getErrorMessage(onnxError) : null,
-          rawText,
-          correctedText: text,
-          candidates: recognitionCandidates.slice(0, 8),
+          candidates: visionResult?.recognitionCandidates.slice(0, 8) ?? [],
         });
       }
     } catch (error) {
