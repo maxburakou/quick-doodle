@@ -51,7 +51,6 @@ interface TextPlacement {
   y: number;
   fontSize: number;
   metrics: ReturnType<typeof measureTextBox>;
-  reasons: string[];
 }
 
 interface ExistingTextJoin {
@@ -61,7 +60,6 @@ interface ExistingTextJoin {
 }
 
 interface TextSnapAnchorPass {
-  reason: string;
   anchors: Array<Pick<StrokePoint, "x" | "y">>;
   snapDistance: number;
   axisSnapDistance: number;
@@ -70,10 +68,6 @@ interface TextSnapAnchorPass {
 export interface TextReplacementAction {
   sourceIds: string[];
   replacementStrokes: Stroke[];
-  replacementStroke: Stroke;
-  mode: "create" | "append";
-  appendTargetId?: string;
-  placementReasons: string[];
 }
 
 const clamp = (value: number, min: number, max: number) =>
@@ -206,7 +200,6 @@ const getBaseTextPlacement = (
     y: getBoundsBottom(sourceBounds) - metrics.height,
     fontSize: Math.round(fontSize),
     metrics,
-    reasons: ["source-center", "source-bottom"],
   };
 };
 
@@ -262,7 +255,6 @@ const getTextSnapAnchorPasses = (
   const bottom = bounds.y + bounds.height;
 
   const bottomPass = {
-    reason: "scene-bottom-snap",
     anchors: [
       { x: bounds.x, y: bottom },
       { x: centerX, y: bottom },
@@ -272,7 +264,6 @@ const getTextSnapAnchorPasses = (
     axisSnapDistance: SMART_ASSIST_TEXT_AXIS_SNAP_DISTANCE_PX,
   };
   const centerPass = {
-    reason: "scene-center-snap",
     anchors: [
       { x: bounds.x, y: centerY },
       { x: centerX, y: centerY },
@@ -284,7 +275,6 @@ const getTextSnapAnchorPasses = (
       SMART_ASSIST_TEXT_AXIS_SNAP_DISTANCE_PX * TEXT_CENTER_SNAP_DISTANCE_RATIO,
   };
   const topPass = {
-    reason: "scene-top-snap",
     anchors: [
       { x: bounds.x, y: bounds.y },
       { x: centerX, y: bounds.y },
@@ -364,12 +354,6 @@ const applySceneSnapToTextPlacement = (
       ...placement,
       x: placement.x + deltaX,
       y: placement.y + deltaY,
-      reasons: [
-        ...placement.reasons,
-        pass.reason,
-        ...(snap.pointTarget ? ["scene-anchor-or-segment-snap"] : []),
-        ...(snap.axisSnap ? ["scene-axis-snap"] : []),
-      ],
     };
   }
 
@@ -572,12 +556,6 @@ export const buildTextReplacementAction = ({
       return {
         sourceIds: [...sourceIds, join.stroke.id],
         replacementStrokes: [joinedStroke],
-        replacementStroke: joinedStroke,
-        mode: "append",
-        appendTargetId: join.stroke.id,
-        placementReasons: [
-          join.separator === "\n" ? "existing-text-new-line" : "existing-text-inline",
-        ],
       };
     }
   }
@@ -605,20 +583,5 @@ export const buildTextReplacementAction = ({
   return {
     sourceIds,
     replacementStrokes: [replacementStroke],
-    replacementStroke,
-    mode: "create",
-    placementReasons: snappedPlacement.reasons,
   };
-};
-
-export const buildTextReplacementStroke = (
-  sourceStrokes: Stroke[],
-  value: string
-): Stroke | null => {
-  return buildTextReplacementAction({
-    sourceStrokes,
-    sourceIds: sourceStrokes.map((stroke) => stroke.id),
-    value,
-    present: sourceStrokes,
-  })?.replacementStroke ?? null;
 };

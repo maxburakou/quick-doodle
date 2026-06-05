@@ -10,7 +10,11 @@ import {
   type VisionTextRecognitionResult,
 } from "./visionRecognition";
 import { buildTextReplacementAction } from "./textReplacement";
-import { detectTextIntent, isPointLikelyContinuingTextBatch } from "./textIntent";
+import {
+  detectEarlyTextIntent,
+  detectTextIntent,
+  isPointLikelyContinuingTextBatch,
+} from "./textIntent";
 import {
   DetectionResult,
   RecognizerContext,
@@ -47,6 +51,27 @@ const countBatchRawPoints = (batch: SmartAssistBatch): number =>
 
 const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
+
+const withRecognitionTimeout = <T,>(
+  promise: Promise<T>,
+  timeoutMs: number
+): Promise<T> =>
+  new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error("text-recognition-timeout"));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
 
 const toVisionDebugSnapshot = (
   result: VisionTextRecognitionResult | null,
@@ -94,6 +119,7 @@ const isAppendCommittedPenStroke = (
 
 export class SmartAssistController {
   private recognitionTimer: number | null = null;
+  private transitionTimer: number | null = null;
   private ignoreNextHistoryChange = false;
   private unsubscribeTool: (() => void) | null = null;
   private unsubscribeHistory: (() => void) | null = null;
@@ -280,11 +306,16 @@ export class SmartAssistController {
   }
 
   finishTransitionNow() {
+    if (this.transitionTimer !== null) {
+      window.clearTimeout(this.transitionTimer);
+      this.transitionTimer = null;
+    }
     useSmartAssistStore.getState().clearTransition();
   }
 
   dispose() {
     this.cancelPendingTimer();
+    this.finishTransitionNow();
     this.unsubscribeTool?.();
     this.unsubscribeHistory?.();
     this.unsubscribeEnabled?.();
@@ -316,15 +347,7 @@ export class SmartAssistController {
       return false;
     }
 
-    const predictedIntent = detectTextIntent(
-      batch,
-      {
-        accepted: false,
-        winner: null,
-        candidates: [],
-      },
-      this.buildRecognizerContext(batch)
-    );
+    const predictedIntent = detectEarlyTextIntent(batch);
 
     return predictedIntent.score >= SMART_ASSIST_CONFIG.text.earlyIntentThreshold;
   }
@@ -352,6 +375,7 @@ export class SmartAssistController {
 
   private replaceStrokesWithSmartAssistAction(
     sourceIds: string[],
+    fromStrokes: Stroke[],
     replacementStrokes: Stroke[]
   ): boolean {
     this.ignoreNextHistoryChange = true;
@@ -360,8 +384,28 @@ export class SmartAssistController {
       .replaceStrokesWithAction(sourceIds, replacementStrokes);
     if (!replaced) {
       this.ignoreNextHistoryChange = false;
+      return false;
     }
+
+    this.startTransition(fromStrokes, replacementStrokes);
     return replaced;
+  }
+
+  private startTransition(fromStrokes: Stroke[], toStrokes: Stroke[]) {
+    this.finishTransitionNow();
+    if (fromStrokes.length === 0 || toStrokes.length === 0) return;
+
+    useSmartAssistStore.getState().setTransition({
+      fromStrokes,
+      toStrokes,
+      targetIds: toStrokes.map((stroke) => stroke.id),
+      startedAt: Date.now(),
+      durationMs: SMART_ASSIST_CONFIG.transitionDurationMs,
+    });
+    this.transitionTimer = window.setTimeout(() => {
+      this.transitionTimer = null;
+      useSmartAssistStore.getState().clearTransition();
+    }, SMART_ASSIST_CONFIG.transitionDurationMs);
   }
 
   private scheduleReplacement(
@@ -382,8 +426,12 @@ export class SmartAssistController {
       winner,
       historyState.present
     );
+    const fromStrokes = historyState.present.filter((stroke) =>
+      replacementCandidate.sourceStrokeIds.includes(stroke.id)
+    );
     const replaced = this.replaceStrokesWithSmartAssistAction(
       replacementCandidate.sourceStrokeIds,
+      fromStrokes,
       replacementCandidate.replacementStrokes
     );
     if (!replaced) {
@@ -476,10 +524,14 @@ export class SmartAssistController {
     try {
       let visionResult: VisionTextRecognitionResult | null = null;
       try {
-        visionResult = await recognizeTextWithVision(batch.strokes);
+        visionResult = await withRecognitionTimeout(
+          recognizeTextWithVision(batch.strokes),
+          SMART_ASSIST_CONFIG.text.recognitionTimeoutMs
+        );
         visionDebug = toVisionDebugSnapshot(visionResult);
       } catch (error) {
         visionDebug = toVisionDebugSnapshot(null, error);
+        throw error;
       }
 
       rawText = visionResult?.text?.trim() ?? "";
@@ -490,7 +542,7 @@ export class SmartAssistController {
         console.info("[SmartAssist Text]", {
           visionText: rawText,
           visionConfidence: visionResult?.confidence ?? 0,
-          candidates: visionResult?.recognitionCandidates.slice(0, 8) ?? [],
+          lines: visionResult?.lines.slice(0, 8) ?? [],
         });
       }
     } catch (error) {
@@ -549,6 +601,9 @@ export class SmartAssistController {
 
     const replaced = this.replaceStrokesWithSmartAssistAction(
       replacementAction.sourceIds,
+      historyState.present.filter((stroke) =>
+        replacementAction.sourceIds.includes(stroke.id)
+      ),
       replacementAction.replacementStrokes
     );
     if (!replaced) {

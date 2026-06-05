@@ -5,12 +5,71 @@ use tauri::AppHandle;
 #[serde(rename_all = "camelCase")]
 pub struct VisionRecognizeTextRequest {
 	pub image_bytes: Vec<u8>,
+	#[serde(default)]
+	pub options: VisionRecognizeTextOptions,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VisionRecognizeTextOptions {
+	#[serde(default = "default_recognition_level")]
+	pub recognition_level: VisionRecognitionLevel,
+	#[serde(default = "default_uses_language_correction")]
+	pub uses_language_correction: bool,
+	#[serde(default)]
+	pub recognition_languages: Vec<String>,
+	#[serde(default)]
+	pub minimum_text_height: Option<f32>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum VisionRecognitionLevel {
+	Accurate,
+	Fast,
+}
+
+impl Default for VisionRecognizeTextOptions {
+	fn default() -> Self {
+		Self {
+			recognition_level: default_recognition_level(),
+			uses_language_correction: default_uses_language_correction(),
+			recognition_languages: Vec::new(),
+			minimum_text_height: None,
+		}
+	}
+}
+
+fn default_recognition_level() -> VisionRecognitionLevel {
+	VisionRecognitionLevel::Accurate
+}
+
+fn default_uses_language_correction() -> bool {
+	true
 }
 
 #[derive(Debug, Serialize)]
-pub struct VisionRecognizedTextCandidate {
+#[serde(rename_all = "camelCase")]
+pub struct VisionTextBounds {
+	pub x: f32,
+	pub y: f32,
+	pub width: f32,
+	pub height: f32,
+}
+
+#[derive(Debug, Serialize)]
+pub struct VisionRecognizedTextAlternative {
 	pub text: String,
 	pub confidence: f32,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VisionRecognizedTextLine {
+	pub text: String,
+	pub confidence: f32,
+	pub bounds: VisionTextBounds,
+	pub alternatives: Vec<VisionRecognizedTextAlternative>,
 }
 
 #[derive(Debug, Serialize)]
@@ -18,7 +77,7 @@ pub struct VisionRecognizeTextResult {
 	pub supported: bool,
 	pub text: Option<String>,
 	pub confidence: f32,
-	pub candidates: Vec<VisionRecognizedTextCandidate>,
+	pub lines: Vec<VisionRecognizedTextLine>,
 	pub error: Option<String>,
 }
 
@@ -29,13 +88,37 @@ const MAX_VISION_IMAGE_BYTES: usize = 4 * 1024 * 1024;
 extern "C" {}
 
 #[cfg(target_os = "macos")]
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+struct CGPoint {
+	x: f64,
+	y: f64,
+}
+
+#[cfg(target_os = "macos")]
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+struct CGSize {
+	width: f64,
+	height: f64,
+}
+
+#[cfg(target_os = "macos")]
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+struct CGRect {
+	origin: CGPoint,
+	size: CGSize,
+}
+
+#[cfg(target_os = "macos")]
 fn vision_recognize_text_macos(
 	request: VisionRecognizeTextRequest,
 ) -> Result<VisionRecognizeTextResult, String> {
-	use std::ffi::CStr;
+	use std::ffi::{CStr, CString};
 
 	use cocoa::{
-		base::{id, nil, YES},
+		base::{id, nil, NO, YES},
 		foundation::NSAutoreleasePool,
 	};
 	use objc::{class, msg_send, runtime::Class, sel, sel_impl};
@@ -53,13 +136,16 @@ fn vision_recognize_text_macos(
 		Some(CStr::from_ptr(utf8_ptr).to_string_lossy().into_owned())
 	}
 
-	let image_bytes = request.image_bytes;
+	let VisionRecognizeTextRequest {
+		image_bytes,
+		options,
+	} = request;
 	if image_bytes.is_empty() {
 		return Ok(VisionRecognizeTextResult {
 			supported: true,
 			text: None,
 			confidence: 0.0,
-			candidates: Vec::new(),
+			lines: Vec::new(),
 			error: None,
 		});
 	}
@@ -73,7 +159,7 @@ fn vision_recognize_text_macos(
 				supported: false,
 				text: None,
 				confidence: 0.0,
-				candidates: Vec::new(),
+				lines: Vec::new(),
 				error: Some("VNRecognizeTextRequest unavailable".to_string()),
 			});
 		};
@@ -82,7 +168,7 @@ fn vision_recognize_text_macos(
 				supported: false,
 				text: None,
 				confidence: 0.0,
-				candidates: Vec::new(),
+				lines: Vec::new(),
 				error: Some("VNImageRequestHandler unavailable".to_string()),
 			});
 		};
@@ -108,8 +194,37 @@ fn vision_recognize_text_macos(
 			return Err("vision-request-init-failed".to_string());
 		}
 
-		let _: () = msg_send![vision_request, setRecognitionLevel: 0isize];
-		let _: () = msg_send![vision_request, setUsesLanguageCorrection: YES];
+		let recognition_level = match options.recognition_level {
+			VisionRecognitionLevel::Accurate => 0isize,
+			VisionRecognitionLevel::Fast => 1isize,
+		};
+		let uses_language_correction = if options.uses_language_correction {
+			YES
+		} else {
+			NO
+		};
+		let _: () = msg_send![vision_request, setRecognitionLevel: recognition_level];
+		let _: () = msg_send![vision_request, setUsesLanguageCorrection: uses_language_correction];
+		if let Some(minimum_text_height) = options.minimum_text_height {
+			let _: () = msg_send![vision_request, setMinimumTextHeight: minimum_text_height];
+		}
+		if !options.recognition_languages.is_empty() {
+			let languages: id = msg_send![class!(NSMutableArray), array];
+			for language in options.recognition_languages {
+				let Ok(language) = CString::new(language) else {
+					continue;
+				};
+				let language_string: id =
+					msg_send![class!(NSString), stringWithUTF8String: language.as_ptr()];
+				if language_string != nil {
+					let _: () = msg_send![languages, addObject: language_string];
+				}
+			}
+			let language_count: usize = msg_send![languages, count];
+			if language_count > 0 {
+				let _: () = msg_send![vision_request, setRecognitionLanguages: languages];
+			}
+		}
 
 		let handler: id = msg_send![handler_class, alloc];
 		let handler: id = msg_send![handler, initWithData: data options: nil];
@@ -132,7 +247,7 @@ fn vision_recognize_text_macos(
 				supported: true,
 				text: None,
 				confidence: 0.0,
-				candidates: Vec::new(),
+				lines: Vec::new(),
 				error: Some(error_message),
 			});
 		}
@@ -143,7 +258,7 @@ fn vision_recognize_text_macos(
 		} else {
 			msg_send![observations, count]
 		};
-		let mut candidates = Vec::new();
+		let mut lines = Vec::new();
 
 		for index in 0..observation_count {
 			let observation: id = msg_send![observations, objectAtIndex: index];
@@ -151,7 +266,7 @@ fn vision_recognize_text_macos(
 				continue;
 			}
 
-			let recognized_candidates: id = msg_send![observation, topCandidates: 1usize];
+			let recognized_candidates: id = msg_send![observation, topCandidates: 3usize];
 			let recognized_count: usize = if recognized_candidates == nil {
 				0
 			} else {
@@ -161,33 +276,73 @@ fn vision_recognize_text_macos(
 				continue;
 			}
 
-			let candidate: id = msg_send![recognized_candidates, objectAtIndex: 0usize];
-			if candidate == nil {
+			let primary: id = msg_send![recognized_candidates, objectAtIndex: 0usize];
+			if primary == nil {
 				continue;
 			}
 
-			let text_id: id = msg_send![candidate, string];
-			let confidence: f32 = msg_send![candidate, confidence];
-			if let Some(text) = nsstring_to_string(text_id) {
-				let trimmed = text.trim().to_string();
-				if !trimmed.is_empty() {
-					candidates.push(VisionRecognizedTextCandidate {
-						text: trimmed,
-						confidence,
-					});
+			let text_id: id = msg_send![primary, string];
+			let confidence: f32 = msg_send![primary, confidence];
+			let Some(text) = nsstring_to_string(text_id)
+				.map(|text| text.trim().to_string())
+				.filter(|text| !text.is_empty())
+			else {
+				continue;
+			};
+
+			let bounding_box: CGRect = msg_send![observation, boundingBox];
+			let mut alternatives = Vec::new();
+			for candidate_index in 1..recognized_count {
+				let candidate: id =
+					msg_send![recognized_candidates, objectAtIndex: candidate_index];
+				if candidate == nil {
+					continue;
 				}
+
+				let alternative_text_id: id = msg_send![candidate, string];
+				let alternative_confidence: f32 = msg_send![candidate, confidence];
+				let Some(alternative_text) = nsstring_to_string(alternative_text_id)
+					.map(|text| text.trim().to_string())
+					.filter(|alternative_text| {
+						!alternative_text.is_empty() && alternative_text != &text
+					})
+				else {
+					continue;
+				};
+
+				if alternatives
+					.iter()
+					.any(|alternative: &VisionRecognizedTextAlternative| {
+						alternative.text == alternative_text
+					}) {
+					continue;
+				}
+
+				alternatives.push(VisionRecognizedTextAlternative {
+					text: alternative_text,
+					confidence: alternative_confidence,
+				});
 			}
+
+			lines.push(VisionRecognizedTextLine {
+				text,
+				confidence,
+				bounds: VisionTextBounds {
+					x: bounding_box.origin.x as f32,
+					y: bounding_box.origin.y as f32,
+					width: bounding_box.size.width as f32,
+					height: bounding_box.size.height as f32,
+				},
+				alternatives,
+			});
 		}
 
-		let text = join_vision_candidates(&candidates);
-		let confidence = if candidates.is_empty() {
+		sort_vision_lines(&mut lines);
+		let text = join_vision_lines(&lines);
+		let confidence = if lines.is_empty() {
 			0.0
 		} else {
-			candidates
-				.iter()
-				.map(|candidate| candidate.confidence)
-				.sum::<f32>()
-				/ candidates.len() as f32
+			lines.iter().map(|line| line.confidence).sum::<f32>() / lines.len() as f32
 		};
 
 		let _: () = msg_send![handler, release];
@@ -198,7 +353,7 @@ fn vision_recognize_text_macos(
 			supported: true,
 			text,
 			confidence,
-			candidates,
+			lines,
 			error: None,
 		})
 	}
@@ -228,17 +383,63 @@ unsafe fn describe_nserror(error: cocoa::base::id) -> Option<String> {
 	Some(CStr::from_ptr(utf8_ptr).to_string_lossy().into_owned())
 }
 
-fn join_vision_candidates(candidates: &[VisionRecognizedTextCandidate]) -> Option<String> {
+fn sort_vision_lines(lines: &mut [VisionRecognizedTextLine]) {
+	lines.sort_by(|left, right| {
+		let left_top = left.bounds.y + left.bounds.height;
+		let right_top = right.bounds.y + right.bounds.height;
+
+		right_top
+			.partial_cmp(&left_top)
+			.unwrap_or(std::cmp::Ordering::Equal)
+			.then_with(|| {
+				left.bounds
+					.x
+					.partial_cmp(&right.bounds.x)
+					.unwrap_or(std::cmp::Ordering::Equal)
+			})
+	});
+}
+
+fn join_vision_lines(lines: &[VisionRecognizedTextLine]) -> Option<String> {
 	let mut text = String::new();
-	for candidate in candidates {
-		let part = candidate.text.trim();
+	let mut current_row_center_y: Option<f32> = None;
+	let mut current_row_height: f32 = 0.0;
+
+	for line in lines {
+		let part = line.text.trim();
 		if part.is_empty() {
 			continue;
 		}
 
-		if !text.is_empty() && !part.starts_with(|ch: char| ".,!?;:".contains(ch)) {
-			text.push(' ');
+		if !text.is_empty() {
+			let center_y = line.bounds.y + line.bounds.height / 2.0;
+			let row_threshold = current_row_height.max(line.bounds.height) * 0.6;
+			let same_row = current_row_center_y
+				.map(|row_center_y| (center_y - row_center_y).abs() <= row_threshold)
+				.unwrap_or(false);
+
+			if same_row && !part.starts_with(|ch: char| ".,!?;:".contains(ch)) {
+				text.push(' ');
+			} else if !same_row {
+				text.push('\n');
+			}
 		}
+
+		let center_y = line.bounds.y + line.bounds.height / 2.0;
+		if let Some(row_center_y) = current_row_center_y {
+			let row_threshold = current_row_height.max(line.bounds.height) * 0.6;
+			if (center_y - row_center_y).abs() <= row_threshold {
+				current_row_center_y = Some((row_center_y + center_y) / 2.0);
+				current_row_height = current_row_height.max(line.bounds.height);
+			} else {
+				current_row_center_y = Some(center_y);
+				current_row_height = line.bounds.height;
+			}
+		} else {
+			current_row_center_y = Some(center_y);
+			current_row_height = line.bounds.height;
+		}
+
 		text.push_str(part);
 	}
 
@@ -276,7 +477,7 @@ pub fn smart_assist_vision_recognize_text(
 			supported: false,
 			text: None,
 			confidence: 0.0,
-			candidates: Vec::new(),
+			lines: Vec::new(),
 			error: None,
 		})
 	}

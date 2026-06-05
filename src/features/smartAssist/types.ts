@@ -134,6 +134,13 @@ export interface SmartAssistConfig {
     earlyIntentThreshold: number;
     intentThreshold: number;
     singleStrokeIntentThreshold: number;
+    recognitionTimeoutMs: number;
+    vision: {
+      recognitionLevel: "accurate" | "fast";
+      usesLanguageCorrection: boolean;
+      recognitionLanguages: string[];
+      minimumTextHeight: number | null;
+    };
   };
   minConfidence: Record<SmartAssistShapeKind, number>;
   conflictMarginsPx: Record<string, number>;

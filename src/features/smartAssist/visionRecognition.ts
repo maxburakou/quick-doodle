@@ -1,37 +1,55 @@
 import { invoke } from "@tauri-apps/api/core";
-import { drawStrokes } from "@/components/Canvas/utils";
 import type { Stroke } from "@/types";
-import { getStrokesBBox } from "./utils";
+import { SMART_ASSIST_CONFIG } from "./config";
+import {
+  DEFAULT_VISION_RASTERIZE_OPTIONS,
+  renderStrokesForVisionOnMainThread,
+  type VisionRasterizeResult,
+} from "./visionRasterizer";
 
-interface VisionRecognizedTextCandidate {
+interface VisionRecognizedTextAlternative {
   text: string;
   confidence: number;
+}
+
+export interface VisionTextBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface VisionRecognizedTextLine {
+  text: string;
+  confidence: number;
+  bounds: VisionTextBounds;
+  alternatives: VisionRecognizedTextAlternative[];
 }
 
 interface VisionRecognizeTextResult {
   supported: boolean;
   text: string | null;
   confidence: number;
-  candidates: VisionRecognizedTextCandidate[];
+  lines: VisionRecognizedTextLine[];
   error?: string | null;
 }
 
-export interface VisionTextRecognitionResult extends VisionRecognizeTextResult {
-  recognitionCandidates: VisionTextRecognitionCandidate[];
-  debug: VisionRecognitionDebug;
+interface VisionRecognizeTextOptions {
+  recognitionLevel: "accurate" | "fast";
+  usesLanguageCorrection: boolean;
+  recognitionLanguages: string[];
+  minimumTextHeight: number | null;
 }
 
-export interface VisionTextRecognitionCandidate {
-  text: string;
-  source: "vision";
-  totalScore: number;
+export interface VisionTextRecognitionResult extends VisionRecognizeTextResult {
+  debug: VisionRecognitionDebug;
 }
 
 export interface VisionRecognitionDebug {
   supported: boolean | null;
   text: string | null;
   confidence: number;
-  candidates: VisionRecognizedTextCandidate[];
+  lines: VisionRecognizedTextLine[];
   error: string | null;
   imageWidth: number;
   imageHeight: number;
@@ -39,113 +57,110 @@ export interface VisionRecognitionDebug {
   imageDataUrl: string | null;
 }
 
-interface VisionRenderResult {
-  imageBytes: number[];
-  imageDataUrl: string | null;
-  width: number;
-  height: number;
+interface VisionRasterizeWorkerResponse {
+  id: number;
+  ok: boolean;
+  result?: VisionRasterizeResult | null;
+  error?: string;
 }
 
-const VISION_IMAGE_PADDING_PX = 48;
-const VISION_IMAGE_MIN_SIZE_PX = 96;
-const VISION_IMAGE_MAX_SIZE_PX = 1800;
-const VISION_IMAGE_SCALE = 2;
-const VISION_CANDIDATE_CONFIDENCE_FLOOR = 0.25;
-const VISION_INK_COLOR = "#0b0f14";
+let rasterizerWorker: Worker | null = null;
+let rasterizeRequestId = 0;
 
-const toPngBlob = (canvas: HTMLCanvasElement) =>
-  new Promise<Blob | null>((resolve) => {
-    canvas.toBlob(resolve, "image/png");
-  });
+const canUseRasterizerWorker = () =>
+  typeof Worker !== "undefined" &&
+  typeof OffscreenCanvas !== "undefined" &&
+  "convertToBlob" in OffscreenCanvas.prototype;
 
-const getVisionCanvasScale = (width: number, height: number) =>
-  Math.min(
-    VISION_IMAGE_SCALE,
-    VISION_IMAGE_MAX_SIZE_PX / Math.max(width, height, 1)
+const getRasterizerWorker = () => {
+  if (!canUseRasterizerWorker()) return null;
+  rasterizerWorker ??= new Worker(
+    new URL("./visionRasterizer.worker.ts", import.meta.url),
+    { type: "module" }
   );
+  return rasterizerWorker;
+};
 
-const buildVisionStroke = (
-  stroke: Stroke,
-  offsetX: number,
-  offsetY: number,
-  scale: number
-): Stroke => ({
-  ...stroke,
-  color: VISION_INK_COLOR,
-  thickness: Math.max(1, stroke.thickness * scale),
-  points: stroke.points.map((point) => ({
-    ...point,
-    x: (point.x - offsetX) * scale,
-    y: (point.y - offsetY) * scale,
-  })),
-});
+const renderStrokesForVisionInWorker = (
+  strokes: Stroke[]
+): Promise<VisionRasterizeResult | null> => {
+  const worker = getRasterizerWorker();
+  if (!worker) return Promise.resolve(null);
+
+  const id = (rasterizeRequestId += 1);
+  return new Promise((resolve, reject) => {
+    const handleMessage = (event: MessageEvent<VisionRasterizeWorkerResponse>) => {
+      if (event.data.id !== id) return;
+
+      worker.removeEventListener("message", handleMessage);
+      worker.removeEventListener("error", handleError);
+      if (!event.data.ok) {
+        reject(new Error(event.data.error ?? "vision-rasterizer-worker-error"));
+        return;
+      }
+      resolve(event.data.result ?? null);
+    };
+    const handleError = (error: ErrorEvent) => {
+      worker.removeEventListener("message", handleMessage);
+      worker.removeEventListener("error", handleError);
+      reject(new Error(error.message || "vision-rasterizer-worker-error"));
+    };
+
+    worker.addEventListener("message", handleMessage);
+    worker.addEventListener("error", handleError);
+    worker.postMessage({
+      id,
+      strokes,
+      options: {
+        ...DEFAULT_VISION_RASTERIZE_OPTIONS,
+        includeDataUrl: false,
+      },
+    });
+  });
+};
 
 const renderStrokesForVision = async (
   strokes: Stroke[]
-): Promise<VisionRenderResult | null> => {
-  const bbox = getStrokesBBox(strokes);
-  if (!bbox) return null;
+): Promise<VisionRasterizeResult | null> => {
+  try {
+    const workerResult = await renderStrokesForVisionInWorker(strokes);
+    if (workerResult) return workerResult;
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn("[SmartAssist Vision] worker rasterization failed", error);
+    }
+  }
 
-  const paddedWidth = bbox.maxX - bbox.minX + VISION_IMAGE_PADDING_PX * 2;
-  const paddedHeight = bbox.maxY - bbox.minY + VISION_IMAGE_PADDING_PX * 2;
-  const scale = getVisionCanvasScale(paddedWidth, paddedHeight);
-  const width = Math.max(
-    VISION_IMAGE_MIN_SIZE_PX,
-    Math.ceil(paddedWidth * scale)
-  );
-  const height = Math.max(
-    VISION_IMAGE_MIN_SIZE_PX,
-    Math.ceil(paddedHeight * scale)
-  );
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
-
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, width, height);
-
-  const visionStrokes = strokes.map((stroke) =>
-    buildVisionStroke(
-      stroke,
-      bbox.minX - VISION_IMAGE_PADDING_PX,
-      bbox.minY - VISION_IMAGE_PADDING_PX,
-      scale
-    )
-  );
-  drawStrokes(visionStrokes, ctx);
-
-  const blob = await toPngBlob(canvas);
-  if (!blob) return null;
-
-  return {
-    imageBytes: [...new Uint8Array(await blob.arrayBuffer())],
-    imageDataUrl: import.meta.env.DEV ? canvas.toDataURL("image/png") : null,
-    width,
-    height,
-  };
+  return renderStrokesForVisionOnMainThread(strokes);
 };
 
-const normalizeVisionText = (text: string) =>
+const normalizeVisionLineText = (text: string) =>
   text
     .replace(/\s+([!?,.:;])/g, "$1")
     .replace(/\s+/g, " ")
     .trim();
 
-const toVisionCandidate = (
-  candidate: VisionRecognizedTextCandidate
-): VisionTextRecognitionCandidate | null => {
-  const text = normalizeVisionText(candidate.text);
-  if (!text || candidate.confidence < VISION_CANDIDATE_CONFIDENCE_FLOOR) return null;
+const normalizeVisionText = (text: string) =>
+  text
+    .split(/\r?\n/)
+    .map(normalizeVisionLineText)
+    .filter(Boolean)
+    .join("\n")
+    .trim();
 
-  return {
-    text,
-    source: "vision",
-    totalScore: candidate.confidence,
-  };
-};
+const normalizeVisionLines = (lines: VisionRecognizedTextLine[]) =>
+  lines
+    .map((line) => ({
+      ...line,
+      text: normalizeVisionLineText(line.text),
+      alternatives: line.alternatives
+        .map((alternative) => ({
+          ...alternative,
+          text: normalizeVisionLineText(alternative.text),
+        }))
+        .filter((alternative) => Boolean(alternative.text)),
+    }))
+    .filter((line) => Boolean(line.text));
 
 export const recognizeTextWithVision = async (
   strokes: Stroke[]
@@ -168,14 +183,17 @@ export const recognizeTextWithVision = async (
     const result = await invoke<VisionRecognizeTextResult>(
       "smart_assist_vision_recognize_text",
       {
-        request: { imageBytes: renderResult.imageBytes },
+        request: {
+          imageBytes: renderResult.imageBytes,
+          options: SMART_ASSIST_CONFIG.text.vision satisfies VisionRecognizeTextOptions,
+        },
       }
     );
     const debug: VisionRecognitionDebug = {
       supported: result.supported,
       text: result.text,
       confidence: result.confidence,
-      candidates: result.candidates,
+      lines: result.lines,
       error: result.error ?? null,
       imageWidth: renderResult.width,
       imageHeight: renderResult.height,
@@ -187,35 +205,18 @@ export const recognizeTextWithVision = async (
       return {
         ...result,
         text: null,
-        recognitionCandidates: [],
+        lines: [],
         debug,
       };
     }
 
     const primaryText = result.text ? normalizeVisionText(result.text) : "";
-    const recognitionCandidates = [
-      primaryText
-        ? {
-            text: primaryText,
-            source: "vision" as const,
-            totalScore: result.confidence,
-          }
-        : null,
-      ...result.candidates.map(toVisionCandidate),
-    ]
-      .filter(
-        (candidate): candidate is VisionTextRecognitionCandidate =>
-          candidate !== null
-      )
-      .filter(
-        (candidate, index, candidates) =>
-          candidates.findIndex((item) => item.text === candidate.text) === index
-      );
+    const lines = normalizeVisionLines(result.lines);
 
     return {
       ...result,
       text: primaryText || null,
-      recognitionCandidates,
+      lines,
       debug,
     };
   } catch (error) {
@@ -223,7 +224,7 @@ export const recognizeTextWithVision = async (
       supported: null,
       text: null,
       confidence: 0,
-      candidates: [],
+      lines: [],
       error: error instanceof Error ? error.message : String(error),
       imageWidth: renderResult.width,
       imageHeight: renderResult.height,

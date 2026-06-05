@@ -202,12 +202,99 @@ const getSingleStrokeTextScore = (stroke: Stroke) => {
   };
 };
 
+const getMultiStrokeTextShapeScore = (
+  batch: SmartAssistBatch,
+  shapeResult: DetectionResult | null,
+  context: RecognizerContext | null
+): TextIntentResult => {
+  const reasons: string[] = [];
+  const bbox = getStrokesBBox(batch.strokes);
+  if (!bbox) {
+    return { probableText: false, score: 0, reasons: ["empty-bbox"] };
+  }
+
+  const width = Math.max(1, bbox.maxX - bbox.minX);
+  const height = Math.max(1, bbox.maxY - bbox.minY);
+  const aspectRatio = width / height;
+  const batchDiagonal = Math.max(1, getBBoxDiagonal(bbox));
+  const strokeDiagonals = batch.strokes.map(getStrokeDiagonal).filter(Boolean);
+  const medianStrokeToBatchRatio = safeDivide(median(strokeDiagonals), batchDiagonal);
+  const probe = context
+    ? getRejectedProbeScore(batch.strokes, context)
+    : { score: 0, acceptedCount: 0 };
+
+  if (context && probe.acceptedCount === 0) reasons.push("probe-strokes-not-shapes");
+  if (shapeResult && !shapeResult.accepted) reasons.push("shape-recognition-rejected");
+
+  const aspectScore = clamp01((aspectRatio - 1) / 1.8);
+  if (aspectScore >= 0.5) reasons.push("wide-text-like-bbox");
+
+  const flowScore = getHorizontalFlowScore(batch.strokes);
+  if (flowScore >= 0.65) reasons.push("left-to-right-flow");
+
+  const lineScore = getLineConsistencyScore(batch.strokes, height);
+  if (lineScore >= 0.55) reasons.push("single-line-centers");
+
+  const glyphScaleScore = clamp01(1 - safeDivide(medianStrokeToBatchRatio, 0.62));
+  if (glyphScaleScore >= 0.45) reasons.push("small-glyph-like-strokes");
+
+  const score = context
+    ? clamp01(
+        probe.score * 0.34 +
+          aspectScore * 0.22 +
+          flowScore * 0.18 +
+          lineScore * 0.14 +
+          glyphScaleScore * 0.12
+      )
+    : clamp01(
+        aspectScore * 0.34 +
+          flowScore * 0.28 +
+          lineScore * 0.22 +
+          glyphScaleScore * 0.16
+      );
+
+  return {
+    probableText: score >= SMART_ASSIST_CONFIG.text.intentThreshold,
+    score,
+    reasons,
+    debug: {
+      mode: context ? "multi-stroke" : "multi-stroke-early",
+      threshold: SMART_ASSIST_CONFIG.text.intentThreshold,
+      probeScore: probe.score,
+      aspectScore,
+      flowScore,
+      lineScore,
+      glyphScaleScore,
+      aspectRatio,
+      width,
+      height,
+    },
+  };
+};
+
+export const detectEarlyTextIntent = (
+  batch: SmartAssistBatch
+): TextIntentResult => {
+  if (batch.strokes.length < SMART_ASSIST_CONFIG.text.earlyIntentMinStrokes) {
+    return { probableText: false, score: 0, reasons: ["too-few-strokes"] };
+  }
+
+  const result = getMultiStrokeTextShapeScore(batch, null, null);
+  return {
+    ...result,
+    probableText: result.score >= SMART_ASSIST_CONFIG.text.earlyIntentThreshold,
+    debug: {
+      ...(result.debug ?? {}),
+      threshold: SMART_ASSIST_CONFIG.text.earlyIntentThreshold,
+    },
+  };
+};
+
 export const detectTextIntent = (
   batch: SmartAssistBatch,
   shapeResult: DetectionResult,
   context: RecognizerContext
 ): TextIntentResult => {
-  const reasons: string[] = [];
   if (batch.strokes.length < 2) {
     const firstStroke = batch.strokes[0];
     if (!firstStroke) {
@@ -247,59 +334,7 @@ export const detectTextIntent = (
     };
   }
 
-  const bbox = getStrokesBBox(batch.strokes);
-  if (!bbox) {
-    return { probableText: false, score: 0, reasons: ["empty-bbox"] };
-  }
-
-  const width = Math.max(1, bbox.maxX - bbox.minX);
-  const height = Math.max(1, bbox.maxY - bbox.minY);
-  const aspectRatio = width / height;
-  const batchDiagonal = Math.max(1, getBBoxDiagonal(bbox));
-  const strokeDiagonals = batch.strokes.map(getStrokeDiagonal).filter(Boolean);
-  const medianStrokeToBatchRatio = safeDivide(median(strokeDiagonals), batchDiagonal);
-
-  const probe = getRejectedProbeScore(batch.strokes, context);
-  if (probe.acceptedCount === 0) reasons.push("probe-strokes-not-shapes");
-  if (!shapeResult.accepted) reasons.push("shape-recognition-rejected");
-
-  const aspectScore = clamp01((aspectRatio - 1) / 1.8);
-  if (aspectScore >= 0.5) reasons.push("wide-text-like-bbox");
-
-  const flowScore = getHorizontalFlowScore(batch.strokes);
-  if (flowScore >= 0.65) reasons.push("left-to-right-flow");
-
-  const lineScore = getLineConsistencyScore(batch.strokes, height);
-  if (lineScore >= 0.55) reasons.push("single-line-centers");
-
-  const glyphScaleScore = clamp01(1 - safeDivide(medianStrokeToBatchRatio, 0.62));
-  if (glyphScaleScore >= 0.45) reasons.push("small-glyph-like-strokes");
-
-  const score = clamp01(
-    probe.score * 0.34 +
-      aspectScore * 0.22 +
-      flowScore * 0.18 +
-      lineScore * 0.14 +
-      glyphScaleScore * 0.12
-  );
-
-  return {
-    probableText: score >= SMART_ASSIST_CONFIG.text.intentThreshold,
-    score,
-    reasons,
-    debug: {
-      mode: "multi-stroke",
-      threshold: SMART_ASSIST_CONFIG.text.intentThreshold,
-      probeScore: probe.score,
-      aspectScore,
-      flowScore,
-      lineScore,
-      glyphScaleScore,
-      aspectRatio,
-      width,
-      height,
-    },
-  };
+  return getMultiStrokeTextShapeScore(batch, shapeResult, context);
 };
 
 export const isPointLikelyContinuingTextBatch = (

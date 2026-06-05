@@ -8,6 +8,7 @@ import {
   useTextEditorEditingStrokeId,
   useTextEditorMode,
 } from "@/store";
+import { useSmartAssistStore } from "@/features/smartAssist";
 import { useThemeStore } from "@/store/useThemeStore";
 import { CanvasBackground } from "@/types";
 import { getRenderLayers } from "../utils";
@@ -35,15 +36,31 @@ const Canvas = () => {
 
   const textEditorMode = useTextEditorMode();
   const editingStrokeId = useTextEditorEditingStrokeId();
+  const transitionTargetIdsStr = useSmartAssistStore((state) =>
+    state.transition?.targetIds.join(",") ?? ""
+  );
+  const transitionTargetIds = useMemo(
+    () => (transitionTargetIdsStr ? transitionTargetIdsStr.split(",") : []),
+    [transitionTargetIdsStr]
+  );
   const renderStrokes = useMemo(() => {
+    const transitionTargetIdSet = new Set(transitionTargetIds);
     const { staticStrokes } = getRenderLayers({
-      present,
+      present: transitionTargetIdSet.size === 0
+        ? present
+        : present.filter((stroke) => !transitionTargetIdSet.has(stroke.id)),
       activeStrokeIds,
       textEditorMode,
       editingStrokeId,
     });
     return staticStrokes;
-  }, [present, activeStrokeIds, textEditorMode, editingStrokeId]);
+  }, [
+    present,
+    activeStrokeIds,
+    textEditorMode,
+    editingStrokeId,
+    transitionTargetIds,
+  ]);
 
   useCanvasScaleSetup(canvasRef, ctxRef);
 

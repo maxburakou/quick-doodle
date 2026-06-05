@@ -1,4 +1,5 @@
 .background-canvas {
+  z-index: 0;
   pointer-events: none;
   transition:
     background-color var(--app-duration-medium) var(--app-ease-standard),

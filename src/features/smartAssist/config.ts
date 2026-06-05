@@ -18,6 +18,13 @@ export const SMART_ASSIST_CONFIG: SmartAssistConfig = {
     earlyIntentThreshold: 0.52,
     intentThreshold: 0.56,
     singleStrokeIntentThreshold: 0.48,
+    recognitionTimeoutMs: 7000,
+    vision: {
+      recognitionLevel: "accurate",
+      usesLanguageCorrection: true,
+      recognitionLanguages: [],
+      minimumTextHeight: null,
+    },
   },
   minConfidence: {
     line: 0.84,
