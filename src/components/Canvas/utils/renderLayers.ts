@@ -10,6 +10,7 @@ interface TransformLayer {
 interface RenderLayersParams {
   present: Stroke[];
   activeStrokeIds: string[];
+  transitionStrokeIds?: string[];
   activeStrokes?: Stroke[];
   textEditorMode: TextEditorMode;
   editingStrokeId: string | null;
@@ -68,15 +69,20 @@ export const getTransformLayerFromSession = (
 export const getRenderLayers = ({
   present,
   activeStrokeIds,
+  transitionStrokeIds = [],
   activeStrokes = [],
   textEditorMode,
   editingStrokeId,
 }: RenderLayersParams): RenderLayers => {
   const activeIdSet = new Set(activeStrokeIds);
-  const baseStaticStrokes =
-    activeIdSet.size === 0
-      ? present
-      : present.filter((stroke) => !activeIdSet.has(stroke.id));
+  const transitionIdSet = new Set(transitionStrokeIds);
+  const hasLayeredStrokes = activeIdSet.size > 0 || transitionIdSet.size > 0;
+  const baseStaticStrokes = hasLayeredStrokes
+    ? present.filter(
+        (stroke) =>
+          !activeIdSet.has(stroke.id) && !transitionIdSet.has(stroke.id)
+      )
+    : present;
 
   return {
     staticStrokes: filterOutEditingTextStroke(

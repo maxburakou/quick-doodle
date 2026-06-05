@@ -36,20 +36,21 @@ const Canvas = () => {
 
   const textEditorMode = useTextEditorMode();
   const editingStrokeId = useTextEditorEditingStrokeId();
-  const transitionTargetIdsStr = useSmartAssistStore((state) =>
-    state.transition?.targetIds.join(",") ?? ""
+  const transitionStrokeIdsStr = useSmartAssistStore((state) =>
+    [
+      ...(state.batch?.strokeIds ?? []),
+      ...(state.transition?.targetIds ?? []),
+    ].join(",")
   );
-  const transitionTargetIds = useMemo(
-    () => (transitionTargetIdsStr ? transitionTargetIdsStr.split(",") : []),
-    [transitionTargetIdsStr]
+  const transitionStrokeIds = useMemo(
+    () => (transitionStrokeIdsStr ? transitionStrokeIdsStr.split(",") : []),
+    [transitionStrokeIdsStr]
   );
   const renderStrokes = useMemo(() => {
-    const transitionTargetIdSet = new Set(transitionTargetIds);
     const { staticStrokes } = getRenderLayers({
-      present: transitionTargetIdSet.size === 0
-        ? present
-        : present.filter((stroke) => !transitionTargetIdSet.has(stroke.id)),
+      present,
       activeStrokeIds,
+      transitionStrokeIds,
       textEditorMode,
       editingStrokeId,
     });
@@ -59,7 +60,7 @@ const Canvas = () => {
     activeStrokeIds,
     textEditorMode,
     editingStrokeId,
-    transitionTargetIds,
+    transitionStrokeIds,
   ]);
 
   useCanvasScaleSetup(canvasRef, ctxRef);
