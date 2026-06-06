@@ -25,6 +25,11 @@ const clamp = (value: number, min = 0, max = 1) =>
   Math.min(max, Math.max(min, value));
 
 const easeOutCubic = (value: number) => 1 - Math.pow(1 - value, 3);
+const easeInCubic = (value: number) => value * value * value;
+const easeInOutCubic = (value: number) =>
+  value < 0.5
+    ? 4 * value * value * value
+    : 1 - Math.pow(-2 * value + 2, 3) / 2;
 
 const projectToSweepAxis = (x: number, y: number) =>
   x * SWEEP_VECTOR.x + y * SWEEP_VECTOR.y;
@@ -50,7 +55,10 @@ const getSweepAxisPoint = (projection: number) => ({
   y: SWEEP_VECTOR.y * projection,
 });
 
-const combineBounds = (strokes: Stroke[]): ShapeBounds | null => {
+const combineBounds = (
+  strokes: Stroke[],
+  padding: number = 0
+): ShapeBounds | null => {
   if (strokes.length === 0) return null;
 
   const bounds = strokes.map(getVisualStrokeBounds);
@@ -60,11 +68,25 @@ const combineBounds = (strokes: Stroke[]): ShapeBounds | null => {
   const maxY = Math.max(...bounds.map((bound) => bound.y + bound.height));
 
   return {
-    x: minX - LOADING_PADDING,
-    y: minY - LOADING_PADDING,
-    width: maxX - minX + LOADING_PADDING * 2,
-    height: maxY - minY + LOADING_PADDING * 2,
+    x: minX - padding,
+    y: minY - padding,
+    width: maxX - minX + padding * 2,
+    height: maxY - minY + padding * 2,
   };
+};
+
+const getTransitionCenter = (
+  fromStrokes: Stroke[],
+  toStrokes: Stroke[]
+) => {
+  const bounds = combineBounds([...fromStrokes, ...toStrokes]);
+
+  return bounds
+    ? {
+        x: bounds.x + bounds.width / 2,
+        y: bounds.y + bounds.height / 2,
+      }
+    : { x: 0, y: 0 };
 };
 
 const drawMaskedLoadingSweep = (
@@ -142,30 +164,47 @@ const drawSmartAssistStrokes = (
   });
 };
 
-const drawSettledStrokes = (
+const drawAppearingStrokes = (
   ctx: CanvasRenderingContext2D,
   strokes: Stroke[],
-  progress: number
+  progress: number,
+  center: { x: number; y: number }
 ) => {
+  const revealProgress = easeOutCubic(clamp((progress - 0.36) / 0.34));
+  if (revealProgress <= 0) return;
+
   ctx.save();
-  ctx.globalAlpha = easeOutCubic(clamp(progress / 0.18));
+  ctx.globalAlpha = revealProgress;
+  ctx.translate(center.x, center.y);
+  ctx.scale(0.96 + revealProgress * 0.04, 0.96 + revealProgress * 0.04);
+  ctx.translate(-center.x, -center.y);
   drawSmartAssistStrokes(strokes, ctx);
   ctx.restore();
 };
 
-const drawFadingStrokes = (
+const drawShrinkingStrokes = (
   ctx: CanvasRenderingContext2D,
   strokes: Stroke[],
-  progress: number
+  progress: number,
+  center: { x: number; y: number }
 ) => {
-  const alpha = 1 - easeOutCubic(clamp(progress / 0.22));
+  const fadeProgress = easeInOutCubic(clamp(progress / 0.62));
+  const alpha = 1 - fadeProgress;
   if (alpha <= 0) return;
+
+  const scale = Math.max(0.01, 1 - easeInCubic(fadeProgress));
 
   ctx.save();
   ctx.globalAlpha = alpha;
+  ctx.translate(center.x, center.y);
+  ctx.scale(scale, scale);
+  ctx.translate(-center.x, -center.y);
   drawSmartAssistStrokes(strokes, ctx);
   ctx.restore();
 };
+
+const shouldDrawLoadingEffect = (batch: SmartAssistBatch) =>
+  batch.status !== "recognizing-text";
 
 export const drawTransitionFrame = (
   ctx: CanvasRenderingContext2D,
@@ -178,8 +217,12 @@ export const drawTransitionFrame = (
     : clamp((now - transition.startedAt) / transition.durationMs);
 
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-  drawFadingStrokes(ctx, transition.fromStrokes, progress);
-  drawSettledStrokes(ctx, transition.toStrokes, progress);
+  const center = getTransitionCenter(
+    transition.fromStrokes,
+    transition.toStrokes
+  );
+  drawShrinkingStrokes(ctx, transition.fromStrokes, progress, center);
+  drawAppearingStrokes(ctx, transition.toStrokes, progress, center);
 };
 
 export const drawBatchLoadingFrame = (
@@ -188,10 +231,13 @@ export const drawBatchLoadingFrame = (
   now: number,
   reduceMotion: boolean
 ) => {
-  const bounds = combineBounds(batch.strokes);
+  const drawLoadingEffect = shouldDrawLoadingEffect(batch);
+  const bounds = drawLoadingEffect
+    ? combineBounds(batch.strokes, LOADING_PADDING)
+    : null;
 
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-  if (!reduceMotion) {
+  if (!reduceMotion && drawLoadingEffect) {
     drawSoftStrokeGlow(ctx, batch.strokes, now);
   }
   drawSmartAssistStrokes(batch.strokes, ctx);

@@ -7,7 +7,7 @@ export const SMART_ASSIST_CONFIG: SmartAssistConfig = {
   maxBatchAgeMs: 5000,
   maxRawPoints: 1800,
   batchJoinPaddingPx: 160,
-  transitionDurationMs: 240,
+  transitionDurationMs: 300,
   text: {
     idleDebounceMs: 1900,
     maxBatchStrokes: 64,
