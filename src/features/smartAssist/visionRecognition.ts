@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Stroke } from "@/types";
+import { SmartAssistVisionRasterizerWorker } from "@/workers";
 import { SMART_ASSIST_CONFIG } from "./config";
 import {
   DEFAULT_VISION_RASTERIZE_OPTIONS,
@@ -76,10 +77,7 @@ const canUseRasterizerWorker = () =>
 
 const getRasterizerWorker = () => {
   if (!canUseRasterizerWorker()) return null;
-  rasterizerWorker ??= new Worker(
-    new URL("./visionRasterizer.worker.ts", import.meta.url),
-    { type: "module" }
-  );
+  rasterizerWorker ??= new SmartAssistVisionRasterizerWorker();
   return rasterizerWorker;
 };
 

@@ -4,7 +4,7 @@ import {
   DEFAULT_VISION_RASTERIZE_OPTIONS,
   drawVisionRasterStrokes,
   type VisionRasterizeOptions,
-} from "./visionRasterizer";
+} from "@/features/smartAssist/visionRasterizer";
 
 interface RasterizeRequest {
   id: number;
