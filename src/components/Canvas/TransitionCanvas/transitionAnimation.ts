@@ -2,19 +2,53 @@ import {
   SmartAssistBatch,
   SmartAssistTransition,
 } from "@/features/smartAssist/types";
-import { ShapeBounds, Stroke } from "@/types";
-import { drawStrokes } from "../utils";
+import { ShapeBounds, Stroke, Tool } from "@/types";
+import { drawPenStroke, drawStrokes } from "../utils/draw";
+import { getCachedPenPolygon } from "../utils/strokeShapeCache";
 import { getVisualStrokeBounds } from "../utils/visualBounds";
 
 const LOADING_CYCLE_MS = 1400;
 const LOADING_PADDING = 18;
 const LIGHT_BAND_WIDTH = 180;
-const LIGHT_TRAVEL_PX = 520;
+const SWEEP_VECTOR = (() => {
+  const x = 0.62;
+  const y = 0.38;
+  const length = Math.hypot(x, y);
+
+  return {
+    x: x / length,
+    y: y / length,
+  };
+})();
 
 const clamp = (value: number, min = 0, max = 1) =>
   Math.min(max, Math.max(min, value));
 
 const easeOutCubic = (value: number) => 1 - Math.pow(1 - value, 3);
+
+const projectToSweepAxis = (x: number, y: number) =>
+  x * SWEEP_VECTOR.x + y * SWEEP_VECTOR.y;
+
+const getSweepProjectionRange = (bounds: ShapeBounds) => {
+  const right = bounds.x + bounds.width;
+  const bottom = bounds.y + bounds.height;
+  const projections = [
+    projectToSweepAxis(bounds.x, bounds.y),
+    projectToSweepAxis(right, bounds.y),
+    projectToSweepAxis(bounds.x, bottom),
+    projectToSweepAxis(right, bottom),
+  ];
+
+  return {
+    min: Math.min(...projections),
+    max: Math.max(...projections),
+  };
+};
+
+const getSweepAxisPoint = (projection: number) => ({
+  x: SWEEP_VECTOR.x * projection,
+  y: SWEEP_VECTOR.y * projection,
+});
 
 const combineBounds = (strokes: Stroke[]): ShapeBounds | null => {
   if (strokes.length === 0) return null;
@@ -36,20 +70,25 @@ const combineBounds = (strokes: Stroke[]): ShapeBounds | null => {
 const drawMaskedLoadingSweep = (
   ctx: CanvasRenderingContext2D,
   bounds: ShapeBounds,
-  now: number
+  elapsedMs: number
 ) => {
-  const cycleProgress = (now % LOADING_CYCLE_MS) / LOADING_CYCLE_MS;
-  const phase = cycleProgress * LIGHT_TRAVEL_PX;
-  const diagonalOffset = bounds.x * 0.62 + bounds.y * 0.38;
-  const wrappedOffset =
-    ((diagonalOffset - phase) % LIGHT_TRAVEL_PX + LIGHT_TRAVEL_PX) %
-    LIGHT_TRAVEL_PX;
-  const x = bounds.x - LIGHT_BAND_WIDTH + wrappedOffset - LIGHT_TRAVEL_PX;
+  const cycleProgress =
+    (((elapsedMs % LOADING_CYCLE_MS) + LOADING_CYCLE_MS) %
+      LOADING_CYCLE_MS) /
+    LOADING_CYCLE_MS;
+  const projectionRange = getSweepProjectionRange(bounds);
+  const travelDistance =
+    Math.max(1, projectionRange.max - projectionRange.min) +
+    LIGHT_BAND_WIDTH * 2;
+  const centerProjection =
+    projectionRange.min - LIGHT_BAND_WIDTH + cycleProgress * travelDistance;
+  const start = getSweepAxisPoint(centerProjection - LIGHT_BAND_WIDTH);
+  const end = getSweepAxisPoint(centerProjection + LIGHT_BAND_WIDTH);
   const gradient = ctx.createLinearGradient(
-    x,
-    bounds.y - LIGHT_BAND_WIDTH * 0.25,
-    x + LIGHT_TRAVEL_PX + LIGHT_BAND_WIDTH,
-    bounds.y + bounds.height + LIGHT_BAND_WIDTH * 0.25
+    start.x,
+    start.y,
+    end.x,
+    end.y
   );
 
   gradient.addColorStop(0, "rgba(255, 255, 255, 0)");
@@ -79,8 +118,28 @@ const drawSoftStrokeGlow = (
   ctx.globalAlpha = 0.16 + pulse * 0.05;
   ctx.shadowBlur = 5;
   ctx.shadowColor = "rgba(255, 255, 255, 0.2)";
-  drawStrokes(strokes, ctx);
+  drawSmartAssistStrokes(strokes, ctx);
   ctx.restore();
+};
+
+const drawSmartAssistStrokes = (
+  strokes: Stroke[],
+  ctx: CanvasRenderingContext2D
+) => {
+  strokes.forEach((stroke) => {
+    if (stroke.tool === Tool.Pen) {
+      drawPenStroke(
+        ctx,
+        stroke.points,
+        stroke.color,
+        stroke.thickness,
+        getCachedPenPolygon(stroke)
+      );
+      return;
+    }
+
+    drawStrokes([stroke], ctx);
+  });
 };
 
 const drawSettledStrokes = (
@@ -90,7 +149,7 @@ const drawSettledStrokes = (
 ) => {
   ctx.save();
   ctx.globalAlpha = easeOutCubic(clamp(progress / 0.18));
-  drawStrokes(strokes, ctx);
+  drawSmartAssistStrokes(strokes, ctx);
   ctx.restore();
 };
 
@@ -104,7 +163,7 @@ const drawFadingStrokes = (
 
   ctx.save();
   ctx.globalAlpha = alpha;
-  drawStrokes(strokes, ctx);
+  drawSmartAssistStrokes(strokes, ctx);
   ctx.restore();
 };
 
@@ -135,9 +194,9 @@ export const drawBatchLoadingFrame = (
   if (!reduceMotion) {
     drawSoftStrokeGlow(ctx, batch.strokes, now);
   }
-  drawStrokes(batch.strokes, ctx);
+  drawSmartAssistStrokes(batch.strokes, ctx);
 
   if (!bounds || reduceMotion) return;
 
-  drawMaskedLoadingSweep(ctx, bounds, now);
+  drawMaskedLoadingSweep(ctx, bounds, now - batch.startedAt);
 };
