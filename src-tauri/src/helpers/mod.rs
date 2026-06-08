@@ -6,6 +6,7 @@ pub mod settings_types;
 pub mod settings_validation;
 pub mod shortcuts;
 pub mod shortcuts_runtime;
+pub mod text_correction;
 pub mod utils;
 pub mod vision;
 pub mod window_service;

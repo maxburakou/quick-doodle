@@ -3,6 +3,10 @@ import type { Stroke } from "@/types";
 import { SmartAssistVisionRasterizerWorker } from "@/workers";
 import { SMART_ASSIST_CONFIG } from "./config";
 import {
+  correctSmartAssistRecognizedText,
+  type SmartAssistTextCorrectionDebug,
+} from "./smartAssistTextCorrection";
+import {
   DEFAULT_VISION_RASTERIZE_OPTIONS,
   renderStrokesForVisionOnMainThread,
   type VisionRasterizeResult,
@@ -55,6 +59,7 @@ export interface VisionRecognitionDebug {
   confidence: number;
   lines: VisionRecognizedTextLine[];
   error: string | null;
+  spellcheck: SmartAssistTextCorrectionDebug | null;
   imageWidth: number;
   imageHeight: number;
   imageBytes: number;
@@ -197,13 +202,14 @@ export const recognizeTextWithVision = async (
       confidence: result.confidence,
       lines: result.lines,
       error: result.error ?? null,
+      spellcheck: null,
       imageWidth: renderResult.width,
       imageHeight: renderResult.height,
       imageBytes: renderResult.imageBytes.length,
       imageDataUrl: renderResult.imageDataUrl,
     };
-    setDebug(debug);
     if (!result.supported) {
+      setDebug(debug);
       return {
         ...result,
         text: null,
@@ -214,10 +220,18 @@ export const recognizeTextWithVision = async (
 
     const primaryText = result.text ? normalizeVisionText(result.text) : "";
     const lines = normalizeVisionLines(result.lines);
+    const correction = primaryText
+      ? await correctSmartAssistRecognizedText(primaryText)
+      : { text: "", debug: null };
+    const finalText = correction.text || primaryText;
+    debug.text = finalText || null;
+    debug.lines = lines;
+    debug.spellcheck = correction.debug;
+    setDebug(debug);
 
     return {
       ...result,
-      text: primaryText || null,
+      text: finalText || null,
       lines,
       debug,
     };
@@ -228,6 +242,7 @@ export const recognizeTextWithVision = async (
       confidence: 0,
       lines: [],
       error: error instanceof Error ? error.message : String(error),
+      spellcheck: null,
       imageWidth: renderResult.width,
       imageHeight: renderResult.height,
       imageBytes: renderResult.imageBytes.length,

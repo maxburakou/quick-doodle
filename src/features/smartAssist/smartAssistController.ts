@@ -156,7 +156,7 @@ const toVisionDebugSnapshot = (
   if (result) {
     return {
       supported: result.supported,
-      text: result.text,
+      text: result.debug.spellcheck?.originalText ?? result.text,
       confidence: result.confidence,
       error: result.error ?? null,
     };
