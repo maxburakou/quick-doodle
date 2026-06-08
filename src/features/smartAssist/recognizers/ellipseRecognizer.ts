@@ -246,6 +246,7 @@ const buildEllipseReplacementStroke = (
   color: source.color,
   thickness: source.thickness,
   drawableSeed: source.drawableSeed,
+  shapeFill: source.shapeFill,
   rotation,
 });
 

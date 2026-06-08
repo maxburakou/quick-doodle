@@ -1,4 +1,4 @@
-import SnapWorker from "@/workers/snap.worker?worker";
+import { SnapWorker } from "@/workers";
 import { SceneSnapContext, CanvasBounds, SceneSnapContextCache } from "./snapContext";
 import type { MutableRefObject } from "react";
 import { Stroke } from "@/types";

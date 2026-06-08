@@ -1,13 +1,33 @@
 import { SmartAssistConfig } from "./types";
+import { SMART_ASSIST_TECHNICAL_WORDS } from "./smartAssistTechnicalWords";
 
 export const SMART_ASSIST_CONFIG: SmartAssistConfig = {
   enabledByDefault: false,
-  debounceMs: 650,
+  shapeDebounceMs: 1100,
   maxBatchStrokes: 6,
-  maxBatchAgeMs: 3000,
+  maxBatchAgeMs: 5000,
   maxRawPoints: 1800,
-  batchJoinPaddingPx: 140,
-  transitionDurationMs: 180,
+  batchJoinPaddingPx: 160,
+  transitionDurationMs: 300,
+  text: {
+    idleDebounceMs: 1900,
+    maxBatchStrokes: 64,
+    maxBatchAgeMs: 30000,
+    maxRawPoints: 10000,
+    joinPaddingPx: 190,
+    earlyIntentMinStrokes: 3,
+    earlyIntentThreshold: 0.52,
+    intentThreshold: 0.56,
+    singleStrokeIntentThreshold: 0.48,
+    recognitionTimeoutMs: 7000,
+    vision: {
+      recognitionLevel: "accurate",
+      usesLanguageCorrection: true,
+      recognitionLanguages: ["en-US"],
+      minimumTextHeight: 0.04,
+      customWords: SMART_ASSIST_TECHNICAL_WORDS,
+    },
+  },
   minConfidence: {
     line: 0.84,
     arrow: 0.82,

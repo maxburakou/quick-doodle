@@ -14,6 +14,7 @@ import { CanvasPointerPayload } from "./hooks/types";
 import "./styles.css";
 import { BackgroundCanvas } from "./BackgroundCanvas";
 import { MarqueeOverlay } from "./MarqueeOverlay";
+import { TransitionCanvas } from "./TransitionCanvas";
 
 const getPointerPayloadFromEvent = (
   e?: React.PointerEvent<HTMLCanvasElement>
@@ -22,6 +23,7 @@ const getPointerPayloadFromEvent = (
     x: e?.nativeEvent.offsetX ?? 0,
     y: e?.nativeEvent.offsetY ?? 0,
     pressure: e?.pressure ?? 0.5,
+    t: e?.timeStamp,
   },
   shiftKey: e?.shiftKey ?? false,
 });
@@ -76,6 +78,8 @@ export const Canvas: React.FC = () => {
 
   return (
     <section className="canvas-wrapper">
+      <BackgroundCanvas />
+      <TransitionCanvas />
       <canvas
         ref={canvasRef}
         className={`drawing-canvas ${tool === Tool.Select ? "--select" : ""}`}
@@ -86,7 +90,6 @@ export const Canvas: React.FC = () => {
         onPointerCancel={handlePointerUp}
         onPointerLeave={handleSelectPointerLeave}
       />
-      <BackgroundCanvas />
       <MarqueeOverlay
         isVisible={tool === Tool.Select}
         bounds={marqueeOverlay.bounds}
