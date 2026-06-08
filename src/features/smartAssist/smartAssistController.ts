@@ -46,15 +46,19 @@ interface VisionDebugSnapshot {
   error: string | null;
 }
 
-interface SourceStrokeSnapshot {
+interface SourceStrokeFingerprint {
   id: string;
   signature: string;
+}
+
+interface RecognitionSourceSnapshot {
+  strokes: SourceStrokeFingerprint[];
 }
 
 interface RecognitionGuard {
   sessionId: number;
   batchId: string;
-  sourceSnapshot: SourceStrokeSnapshot[];
+  source: RecognitionSourceSnapshot;
 }
 
 const countBatchRawPoints = (batch: SmartAssistBatch): number =>
@@ -77,38 +81,52 @@ const getStrokeSourceSignature = (stroke: Stroke): string =>
     shapeFill: stroke.shapeFill,
   });
 
-const createSourceSnapshot = (strokes: Stroke[]): SourceStrokeSnapshot[] =>
-  strokes.map((stroke) => ({
+const createRecognitionSourceSnapshot = (
+  strokes: Stroke[]
+): RecognitionSourceSnapshot => ({
+  strokes: strokes.map((stroke) => ({
     id: stroke.id,
     signature: getStrokeSourceSignature(stroke),
-  }));
+  })),
+});
 
-const sourceSnapshotMatchesStrokes = (
-  snapshot: SourceStrokeSnapshot[],
+const recognitionSourceMatchesStrokes = (
+  source: RecognitionSourceSnapshot,
   strokes: Stroke[]
 ): boolean => {
-  if (snapshot.length !== strokes.length) return false;
+  if (source.strokes.length !== strokes.length) return false;
 
-  return snapshot.every((source, index) => {
+  return source.strokes.every((fingerprint, index) => {
     const stroke = strokes[index];
     return (
-      stroke?.id === source.id &&
-      getStrokeSourceSignature(stroke) === source.signature
+      stroke?.id === fingerprint.id &&
+      getStrokeSourceSignature(stroke) === fingerprint.signature
     );
   });
 };
 
-const sourceSnapshotMatchesPresent = (
-  snapshot: SourceStrokeSnapshot[],
+const recognitionSourceMatchesPresent = (
+  source: RecognitionSourceSnapshot,
   present: Stroke[]
 ): boolean => {
   const presentById = new Map(present.map((stroke) => [stroke.id, stroke]));
 
-  return snapshot.every((source) => {
-    const stroke = presentById.get(source.id);
-    return Boolean(stroke && getStrokeSourceSignature(stroke) === source.signature);
+  return source.strokes.every((fingerprint) => {
+    const stroke = presentById.get(fingerprint.id);
+    return Boolean(
+      stroke && getStrokeSourceSignature(stroke) === fingerprint.signature
+    );
   });
 };
+
+const batchSourceMatchesPresent = (
+  batch: SmartAssistBatch,
+  present: Stroke[]
+): boolean =>
+  recognitionSourceMatchesPresent(
+    createRecognitionSourceSnapshot(batch.strokes),
+    present
+  );
 
 const withRecognitionTimeout = <T,>(
   promise: Promise<T>,
@@ -206,9 +224,7 @@ export class SmartAssistController {
       const batch = useSmartAssistStore.getState().batch;
       if (!batch) return;
       if (isAppendCommittedPenStroke(state.present, prevState.present)) return;
-      if (sourceSnapshotMatchesPresent(createSourceSnapshot(batch.strokes), state.present)) {
-        return;
-      }
+      if (batchSourceMatchesPresent(batch, state.present)) return;
       this.abortBatchRecognition("history-change");
     });
 
@@ -374,12 +390,13 @@ export class SmartAssistController {
     this.clearBatch(reason, undefined, textDebug);
   }
 
-  private clearCurrentBatchAfterReplacement(
+  private clearTextBatchAfterSuccessfulReplacement(
     batch: SmartAssistBatch,
     guard: RecognitionGuard,
     reason: SmartAssistClearReason,
     textDebug: TextRecognitionDebug
   ) {
+    // After replacement, cleanup must not require source strokes to remain in present.
     if (guard.sessionId !== this.recognitionSessionId) return;
     if (!useSmartAssistStore.getState().enabled) return;
     const currentBatch = useSmartAssistStore.getState().batch;
@@ -442,22 +459,28 @@ export class SmartAssistController {
     return {
       sessionId: this.recognitionSessionId,
       batchId: batch.id,
-      sourceSnapshot: createSourceSnapshot(batch.strokes),
+      source: createRecognitionSourceSnapshot(batch.strokes),
     };
   }
 
   private isRecognitionGuardCurrent(guard: RecognitionGuard): boolean {
     if (guard.sessionId !== this.recognitionSessionId) return false;
     if (!useSmartAssistStore.getState().enabled) return false;
-    if (!sourceSnapshotMatchesPresent(guard.sourceSnapshot, useHistoryStore.getState().present)) {
+    if (
+      !recognitionSourceMatchesPresent(
+        guard.source,
+        useHistoryStore.getState().present
+      )
+    ) {
       return false;
     }
 
     const currentBatch = useSmartAssistStore.getState().batch;
     if (currentBatch?.id === guard.batchId) {
-      return sourceSnapshotMatchesStrokes(guard.sourceSnapshot, currentBatch.strokes);
+      return recognitionSourceMatchesStrokes(guard.source, currentBatch.strokes);
     }
 
+    // Detached text recognition can still be valid while its source strokes are unchanged.
     return true;
   }
 
@@ -750,7 +773,7 @@ export class SmartAssistController {
       return;
     }
 
-    this.clearCurrentBatchAfterReplacement(
+    this.clearTextBatchAfterSuccessfulReplacement(
       batch,
       guard,
       "text-recognized",
