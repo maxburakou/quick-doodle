@@ -22,6 +22,8 @@ pub struct VisionRecognizeTextOptions {
 	pub recognition_languages: Vec<String>,
 	#[serde(default)]
 	pub minimum_text_height: Option<f32>,
+	#[serde(default)]
+	pub custom_words: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -38,6 +40,7 @@ impl Default for VisionRecognizeTextOptions {
 			uses_language_correction: default_uses_language_correction(),
 			recognition_languages: Vec::new(),
 			minimum_text_height: None,
+			custom_words: Vec::new(),
 		}
 	}
 }
@@ -225,6 +228,23 @@ fn vision_recognize_text_macos(
 			let language_count: usize = msg_send![languages, count];
 			if language_count > 0 {
 				let _: () = msg_send![vision_request, setRecognitionLanguages: languages];
+			}
+		}
+		if !options.custom_words.is_empty() {
+			let custom_words: id = msg_send![class!(NSMutableArray), array];
+			for word in options.custom_words {
+				let Ok(word) = CString::new(word) else {
+					continue;
+				};
+				let word_string: id =
+					msg_send![class!(NSString), stringWithUTF8String: word.as_ptr()];
+				if word_string != nil {
+					let _: () = msg_send![custom_words, addObject: word_string];
+				}
+			}
+			let custom_word_count: usize = msg_send![custom_words, count];
+			if custom_word_count > 0 {
+				let _: () = msg_send![vision_request, setCustomWords: custom_words];
 			}
 		}
 

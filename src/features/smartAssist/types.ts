@@ -136,6 +136,7 @@ export interface SmartAssistConfig {
       usesLanguageCorrection: boolean;
       recognitionLanguages: string[];
       minimumTextHeight: number | null;
+      customWords: readonly string[];
     };
   };
   minConfidence: Record<SmartAssistShapeKind, number>;

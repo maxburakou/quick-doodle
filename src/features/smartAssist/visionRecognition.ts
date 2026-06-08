@@ -40,6 +40,7 @@ interface VisionRecognizeTextOptions {
   usesLanguageCorrection: boolean;
   recognitionLanguages: string[];
   minimumTextHeight: number | null;
+  customWords: readonly string[];
 }
 
 const VISION_OPTIONS_HEADER = "x-quick-doodle-vision-options";

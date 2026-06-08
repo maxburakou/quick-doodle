@@ -1,4 +1,5 @@
 import { SmartAssistConfig } from "./types";
+import { SMART_ASSIST_TECHNICAL_WORDS } from "./smartAssistTechnicalWords";
 
 export const SMART_ASSIST_CONFIG: SmartAssistConfig = {
   enabledByDefault: false,
@@ -22,8 +23,9 @@ export const SMART_ASSIST_CONFIG: SmartAssistConfig = {
     vision: {
       recognitionLevel: "accurate",
       usesLanguageCorrection: true,
-      recognitionLanguages: [],
+      recognitionLanguages: ["en-US"],
       minimumTextHeight: 0.04,
+      customWords: SMART_ASSIST_TECHNICAL_WORDS,
     },
   },
   minConfidence: {
