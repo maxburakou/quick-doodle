@@ -2,7 +2,6 @@ import { Stroke, StrokePoint, Tool } from "@/types";
 import { useHistoryStore } from "@/store/useHistoryStore";
 import { useSnapStore } from "@/store/useSnapStore";
 import { useToolSettingsStore } from "@/store/useToolSettingsStore";
-import { useToolStore } from "@/store/useToolStore";
 import { SMART_ASSIST_CONFIG } from "./config";
 import { runSmartAssistRecognition } from "./recognizers";
 import { snapSmartAssistReplacementStrokes } from "./snapReplacementStrokes";
@@ -47,11 +46,69 @@ interface VisionDebugSnapshot {
   error: string | null;
 }
 
+interface SourceStrokeSnapshot {
+  id: string;
+  signature: string;
+}
+
+interface RecognitionGuard {
+  sessionId: number;
+  batchId: string;
+  sourceSnapshot: SourceStrokeSnapshot[];
+}
+
 const countBatchRawPoints = (batch: SmartAssistBatch): number =>
   batch.strokes.reduce((acc, stroke) => acc + stroke.points.length, 0);
 
 const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
+
+const getStrokeSourceSignature = (stroke: Stroke): string =>
+  JSON.stringify({
+    id: stroke.id,
+    points: stroke.points,
+    color: stroke.color,
+    thickness: stroke.thickness,
+    tool: stroke.tool,
+    drawableSeed: stroke.drawableSeed,
+    isShiftPressed: stroke.isShiftPressed,
+    rotation: stroke.rotation,
+    text: stroke.text,
+    shapeFill: stroke.shapeFill,
+  });
+
+const createSourceSnapshot = (strokes: Stroke[]): SourceStrokeSnapshot[] =>
+  strokes.map((stroke) => ({
+    id: stroke.id,
+    signature: getStrokeSourceSignature(stroke),
+  }));
+
+const sourceSnapshotMatchesStrokes = (
+  snapshot: SourceStrokeSnapshot[],
+  strokes: Stroke[]
+): boolean => {
+  if (snapshot.length !== strokes.length) return false;
+
+  return snapshot.every((source, index) => {
+    const stroke = strokes[index];
+    return (
+      stroke?.id === source.id &&
+      getStrokeSourceSignature(stroke) === source.signature
+    );
+  });
+};
+
+const sourceSnapshotMatchesPresent = (
+  snapshot: SourceStrokeSnapshot[],
+  present: Stroke[]
+): boolean => {
+  const presentById = new Map(present.map((stroke) => [stroke.id, stroke]));
+
+  return snapshot.every((source) => {
+    const stroke = presentById.get(source.id);
+    return Boolean(stroke && getStrokeSourceSignature(stroke) === source.signature);
+  });
+};
 
 const withRecognitionTimeout = <T,>(
   promise: Promise<T>,
@@ -127,22 +184,15 @@ const applySmartAssistShapeFill = (
 });
 
 export class SmartAssistController {
+  private recognitionSessionId = 0;
   private recognitionTimer: number | null = null;
   private transitionTimer: number | null = null;
   private ignoreNextHistoryChange = false;
-  private unsubscribeTool: (() => void) | null = null;
   private unsubscribeHistory: (() => void) | null = null;
   private unsubscribeEnabled: (() => void) | null = null;
   private onWindowBlur: (() => void) | null = null;
 
   constructor() {
-    this.unsubscribeTool = useToolStore.subscribe((state, prevState) => {
-      if (state.tool === prevState.tool) return;
-      if (state.tool !== Tool.Pen) {
-        this.clearBatch("tool-change");
-      }
-    });
-
     this.unsubscribeHistory = useHistoryStore.subscribe((state, prevState) => {
       const historyChanged =
         state.present !== prevState.present ||
@@ -153,19 +203,23 @@ export class SmartAssistController {
         this.ignoreNextHistoryChange = false;
         return;
       }
-      if (!useSmartAssistStore.getState().batch) return;
+      const batch = useSmartAssistStore.getState().batch;
+      if (!batch) return;
       if (isAppendCommittedPenStroke(state.present, prevState.present)) return;
-      this.clearBatch("history-change");
+      if (sourceSnapshotMatchesPresent(createSourceSnapshot(batch.strokes), state.present)) {
+        return;
+      }
+      this.abortBatchRecognition("history-change");
     });
 
     this.unsubscribeEnabled = useSmartAssistStore.subscribe((state, prevState) => {
       if (state.enabled || state.enabled === prevState.enabled) return;
-      this.clearBatch("disabled");
+      this.abortBatchRecognition("disabled");
       this.finishTransitionNow();
     });
 
     if (typeof window !== "undefined") {
-      this.onWindowBlur = () => this.clearBatch("window-blur");
+      this.onWindowBlur = () => this.abortBatchRecognition("window-blur");
       window.addEventListener("blur", this.onWindowBlur);
     }
   }
@@ -213,15 +267,15 @@ export class SmartAssistController {
       : SMART_ASSIST_CONFIG.maxRawPoints;
 
     if (candidateBatch.strokes.length > maxBatchStrokes) {
-      this.clearBatch("max-strokes");
+      this.abortBatchRecognition("max-strokes");
       return;
     }
     if (now - candidateBatch.startedAt > maxBatchAgeMs) {
-      this.clearBatch("max-age");
+      this.abortBatchRecognition("max-age");
       return;
     }
     if (countBatchRawPoints(candidateBatch) > maxRawPoints) {
-      this.clearBatch("max-points");
+      this.abortBatchRecognition("max-points");
       return;
     }
 
@@ -299,12 +353,37 @@ export class SmartAssistController {
     setBatch(null);
   }
 
+  private abortBatchRecognition(
+    reason: SmartAssistClearReason,
+    detectionResult?: DetectionResult,
+    textDebug?: TextRecognitionDebug
+  ) {
+    this.recognitionSessionId += 1;
+    this.clearBatch(reason, detectionResult, textDebug);
+  }
+
   private clearCurrentTextBatch(
     batch: SmartAssistBatch,
+    guard: RecognitionGuard,
     reason: SmartAssistClearReason,
     textDebug: TextRecognitionDebug
   ) {
-    if (useSmartAssistStore.getState().batch?.id !== batch.id) return;
+    if (!this.isRecognitionGuardCurrent(guard)) return;
+    const currentBatch = useSmartAssistStore.getState().batch;
+    if (!currentBatch || currentBatch.id !== batch.id) return;
+    this.clearBatch(reason, undefined, textDebug);
+  }
+
+  private clearCurrentBatchAfterReplacement(
+    batch: SmartAssistBatch,
+    guard: RecognitionGuard,
+    reason: SmartAssistClearReason,
+    textDebug: TextRecognitionDebug
+  ) {
+    if (guard.sessionId !== this.recognitionSessionId) return;
+    if (!useSmartAssistStore.getState().enabled) return;
+    const currentBatch = useSmartAssistStore.getState().batch;
+    if (!currentBatch || currentBatch.id !== batch.id) return;
     this.clearBatch(reason, undefined, textDebug);
   }
 
@@ -323,15 +402,13 @@ export class SmartAssistController {
   }
 
   dispose() {
-    this.cancelPendingTimer();
+    this.abortBatchRecognition("manual");
     this.finishTransitionNow();
-    this.unsubscribeTool?.();
     this.unsubscribeHistory?.();
     this.unsubscribeEnabled?.();
     if (typeof window !== "undefined" && this.onWindowBlur) {
       window.removeEventListener("blur", this.onWindowBlur);
     }
-    this.unsubscribeTool = null;
     this.unsubscribeHistory = null;
     this.unsubscribeEnabled = null;
     this.onWindowBlur = null;
@@ -361,6 +438,29 @@ export class SmartAssistController {
     return predictedIntent.score >= SMART_ASSIST_CONFIG.text.earlyIntentThreshold;
   }
 
+  private createRecognitionGuard(batch: SmartAssistBatch): RecognitionGuard {
+    return {
+      sessionId: this.recognitionSessionId,
+      batchId: batch.id,
+      sourceSnapshot: createSourceSnapshot(batch.strokes),
+    };
+  }
+
+  private isRecognitionGuardCurrent(guard: RecognitionGuard): boolean {
+    if (guard.sessionId !== this.recognitionSessionId) return false;
+    if (!useSmartAssistStore.getState().enabled) return false;
+    if (!sourceSnapshotMatchesPresent(guard.sourceSnapshot, useHistoryStore.getState().present)) {
+      return false;
+    }
+
+    const currentBatch = useSmartAssistStore.getState().batch;
+    if (currentBatch?.id === guard.batchId) {
+      return sourceSnapshotMatchesStrokes(guard.sourceSnapshot, currentBatch.strokes);
+    }
+
+    return true;
+  }
+
   private getSnappedReplacementCandidate(
     winner: ShapeDetectionCandidate,
     present: Stroke[]
@@ -385,8 +485,11 @@ export class SmartAssistController {
   private replaceStrokesWithSmartAssistAction(
     sourceIds: string[],
     fromStrokes: Stroke[],
-    replacementStrokes: Stroke[]
+    replacementStrokes: Stroke[],
+    guard: RecognitionGuard
   ): boolean {
+    if (!this.isRecognitionGuardCurrent(guard)) return false;
+
     this.ignoreNextHistoryChange = true;
     const replaced = useHistoryStore
       .getState()
@@ -418,8 +521,11 @@ export class SmartAssistController {
   }
 
   private scheduleReplacement(
-    winner: ShapeDetectionCandidate
+    winner: ShapeDetectionCandidate,
+    guard: RecognitionGuard
   ): ShapeDetectionCandidate | null {
+    if (!this.isRecognitionGuardCurrent(guard)) return null;
+
     const historyState = useHistoryStore.getState();
     const presentIdSet = new Set(historyState.present.map((stroke) => stroke.id));
     const allSourceStrokesStillPresent = winner.sourceStrokeIds.every((id) =>
@@ -427,7 +533,7 @@ export class SmartAssistController {
     );
 
     if (!allSourceStrokesStillPresent) {
-      this.clearBatch("history-change");
+      this.abortBatchRecognition("history-change");
       return null;
     }
 
@@ -441,10 +547,11 @@ export class SmartAssistController {
     const replaced = this.replaceStrokesWithSmartAssistAction(
       replacementCandidate.sourceStrokeIds,
       fromStrokes,
-      replacementCandidate.replacementStrokes
+      replacementCandidate.replacementStrokes,
+      guard
     );
     if (!replaced) {
-      this.clearBatch("history-change");
+      this.abortBatchRecognition("history-change");
       return null;
     }
 
@@ -454,6 +561,8 @@ export class SmartAssistController {
   private runShapeRecognition() {
     const { batch } = useSmartAssistStore.getState();
     if (!batch) return;
+    const guard = this.createRecognitionGuard(batch);
+    if (!this.isRecognitionGuardCurrent(guard)) return;
 
     useSmartAssistStore.getState().setBatch({
       ...batch,
@@ -462,12 +571,16 @@ export class SmartAssistController {
     });
 
     const result = runSmartAssistRecognition(batch, this.buildRecognizerContext(batch));
+    if (!this.isRecognitionGuardCurrent(guard)) return;
+
     if (!result.accepted || !result.winner) {
       const textIntent = detectTextIntent(
         batch,
         result,
         this.buildRecognizerContext(batch)
       );
+      if (!this.isRecognitionGuardCurrent(guard)) return;
+
       if (textIntent.probableText) {
         useSmartAssistStore.getState().setBatch({
           ...batch,
@@ -502,7 +615,7 @@ export class SmartAssistController {
       return;
     }
 
-    const replacementWinner = this.scheduleReplacement(result.winner);
+    const replacementWinner = this.scheduleReplacement(result.winner, guard);
     if (!replacementWinner) return;
 
     this.clearBatch("recognized", {
@@ -517,6 +630,8 @@ export class SmartAssistController {
   private async runTextRecognition(snapshotBatch?: SmartAssistBatch) {
     const batch = snapshotBatch ?? useSmartAssistStore.getState().batch;
     if (!batch) return;
+    const guard = this.createRecognitionGuard(batch);
+    if (!this.isRecognitionGuardCurrent(guard)) return;
 
     const currentBatch = useSmartAssistStore.getState().batch;
     if (!snapshotBatch && currentBatch?.id === batch.id) {
@@ -555,21 +670,26 @@ export class SmartAssistController {
         });
       }
     } catch (error) {
+      if (!this.isRecognitionGuardCurrent(guard)) return;
       const reason =
         error instanceof Error && error.message === "text-recognition-timeout"
           ? "text-timeout"
           : "text-error";
       this.clearCurrentTextBatch(
         batch,
+        guard,
         reason,
         toTextDebug(visionDebug, { textError: getErrorMessage(error) })
       );
       return;
     }
 
+    if (!this.isRecognitionGuardCurrent(guard)) return;
+
     if (!text) {
       this.clearCurrentTextBatch(
         batch,
+        guard,
         "text-empty",
         toTextDebug(visionDebug, { recognizedText: "" })
       );
@@ -584,6 +704,7 @@ export class SmartAssistController {
     if (!allSourceStrokesStillPresent) {
       this.clearCurrentTextBatch(
         batch,
+        guard,
         "text-stale-source",
         toTextDebug(visionDebug, { recognizedText: text })
       );
@@ -596,9 +717,12 @@ export class SmartAssistController {
       value: text,
       present: historyState.present,
     });
+    if (!this.isRecognitionGuardCurrent(guard)) return;
+
     if (!replacementAction) {
       this.clearCurrentTextBatch(
         batch,
+        guard,
         "text-error",
         toTextDebug(visionDebug, {
           recognizedText: text,
@@ -613,19 +737,22 @@ export class SmartAssistController {
       historyState.present.filter((stroke) =>
         replacementAction.sourceIds.includes(stroke.id)
       ),
-      replacementAction.replacementStrokes
+      replacementAction.replacementStrokes,
+      guard
     );
     if (!replaced) {
       this.clearCurrentTextBatch(
         batch,
+        guard,
         "text-stale-source",
         toTextDebug(visionDebug, { recognizedText: text })
       );
       return;
     }
 
-    this.clearCurrentTextBatch(
+    this.clearCurrentBatchAfterReplacement(
       batch,
+      guard,
       "text-recognized",
       toTextDebug(visionDebug, { recognizedText: text })
     );
