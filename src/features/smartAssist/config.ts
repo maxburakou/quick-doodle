@@ -4,6 +4,11 @@ import { SMART_ASSIST_TECHNICAL_WORDS } from "./smartAssistTechnicalWords";
 export const SMART_ASSIST_CONFIG: SmartAssistConfig = {
   enabledByDefault: false,
   shapeDebounceMs: 1100,
+  pointerStillMs: 260,
+  pointerStillInterStrokeGraceMs: 140,
+  pointerStillMaxAdaptiveMs: 850,
+  pointerStillMicroMovePx: 2,
+  pointerStillMicroMoveMs: 120,
   maxBatchStrokes: 6,
   maxBatchAgeMs: 5000,
   maxRawPoints: 1800,
@@ -19,6 +24,11 @@ export const SMART_ASSIST_CONFIG: SmartAssistConfig = {
     earlyIntentThreshold: 0.52,
     intentThreshold: 0.56,
     singleStrokeIntentThreshold: 0.48,
+    pointerStillMs: 450,
+    pointerStillInterStrokeGraceMs: 260,
+    pointerStillMaxAdaptiveMs: 1400,
+    pointerStillConnectedStartPx: 4,
+    pointerStillConnectedStartMs: 1400,
     recognitionTimeoutMs: 7000,
     vision: {
       recognitionLevel: "accurate",

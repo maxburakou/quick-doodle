@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use tauri::AppHandle;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -375,27 +374,18 @@ mod tests {
 }
 
 #[tauri::command]
-pub fn smart_assist_correct_text(
-	app: AppHandle,
+pub async fn smart_assist_correct_text(
 	request: TextCorrectionRequest,
 ) -> Result<TextCorrectionResult, String> {
 	#[cfg(target_os = "macos")]
 	{
-		let (sender, receiver) = std::sync::mpsc::channel();
-		app.run_on_main_thread(move || {
-			let result = correct_text_macos(request);
-			let _ = sender.send(result);
-		})
-		.map_err(|err| format!("Failed to schedule text correction: {:?}", err))?;
-
-		return receiver
-			.recv()
-			.map_err(|err| format!("Failed to receive text correction result: {}", err))?;
+		return tauri::async_runtime::spawn_blocking(move || correct_text_macos(request))
+			.await
+			.map_err(|err| format!("Failed to run text correction: {:?}", err))?;
 	}
 
 	#[cfg(not(target_os = "macos"))]
 	{
-		let _ = app;
 		let word_count = count_text_words(&request.text);
 		Ok(TextCorrectionResult {
 			supported: false,

@@ -495,6 +495,10 @@ export const useDrawMode = ({
 
   const handlePointerMove = useCallback(
     (payload: CanvasPointerPayload) => {
+      if (tool === Tool.Pen && !isDrawingRef.current) {
+        smartAssistController.handlePenPointerMove(payload.point);
+      }
+
       pendingMoveRef.current = payload;
       if (rafMoveIdRef.current !== null) return;
 
@@ -503,11 +507,11 @@ export const useDrawMode = ({
         flushPendingMove();
       });
     },
-    [flushPendingMove]
+    [flushPendingMove, smartAssistController, tool]
   );
 
   const handlePointerUp = useCallback(
-    ({ shiftKey }: CanvasPointerPayload) => {
+    ({ point, shiftKey }: CanvasPointerPayload) => {
       if (rafMoveIdRef.current !== null) {
         window.cancelAnimationFrame(rafMoveIdRef.current);
         rafMoveIdRef.current = null;
@@ -542,7 +546,7 @@ export const useDrawMode = ({
 
       useHistoryStore.getState().addAction(stroke);
       if (stroke.tool === Tool.Pen) {
-        smartAssistController.enqueueCommittedPenStroke(stroke);
+        smartAssistController.enqueueCommittedPenStroke(stroke, point);
       }
       pointsRef.current = [];
       rawStartPointRef.current = null;

@@ -48,6 +48,7 @@ interface VisionRecognizeTextOptions {
 }
 
 const VISION_OPTIONS_HEADER = "x-quick-doodle-vision-options";
+const RASTERIZE_WORKER_TIMEOUT_MS = 2000;
 
 export interface VisionTextRecognitionResult extends VisionRecognizeTextResult {
   debug: VisionRecognitionDebug;
@@ -95,11 +96,15 @@ const renderStrokesForVisionInWorker = (
 
   const id = (rasterizeRequestId += 1);
   return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      worker.removeEventListener("message", handleMessage);
+      worker.removeEventListener("error", handleError);
+    };
     const handleMessage = (event: MessageEvent<VisionRasterizeWorkerResponse>) => {
       if (event.data.id !== id) return;
 
-      worker.removeEventListener("message", handleMessage);
-      worker.removeEventListener("error", handleError);
+      cleanup();
       if (!event.data.ok) {
         reject(new Error(event.data.error ?? "vision-rasterizer-worker-error"));
         return;
@@ -107,10 +112,13 @@ const renderStrokesForVisionInWorker = (
       resolve(event.data.result ?? null);
     };
     const handleError = (error: ErrorEvent) => {
-      worker.removeEventListener("message", handleMessage);
-      worker.removeEventListener("error", handleError);
+      cleanup();
       reject(new Error(error.message || "vision-rasterizer-worker-error"));
     };
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("vision-rasterizer-worker-timeout"));
+    }, RASTERIZE_WORKER_TIMEOUT_MS);
 
     worker.addEventListener("message", handleMessage);
     worker.addEventListener("error", handleError);
