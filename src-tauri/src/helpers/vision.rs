@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tauri::{ipc::InvokeBody, AppHandle};
+use tauri::ipc::InvokeBody;
 
 const VISION_OPTIONS_HEADER: &str = "x-quick-doodle-vision-options";
 
@@ -505,29 +505,22 @@ fn vision_request_from_ipc_request(
 }
 
 #[tauri::command]
-pub fn smart_assist_vision_recognize_text(
-	app: AppHandle,
+pub async fn smart_assist_vision_recognize_text(
 	request: tauri::ipc::Request<'_>,
 ) -> Result<VisionRecognizeTextResult, String> {
 	let request = vision_request_from_ipc_request(request)?;
 
 	#[cfg(target_os = "macos")]
 	{
-		let (sender, receiver) = std::sync::mpsc::channel();
-		app.run_on_main_thread(move || {
-			let result = vision_recognize_text_macos(request);
-			let _ = sender.send(result);
+		return tauri::async_runtime::spawn_blocking(move || {
+			vision_recognize_text_macos(request)
 		})
-		.map_err(|err| format!("Failed to schedule Vision recognition: {:?}", err))?;
-
-		return receiver
-			.recv()
-			.map_err(|err| format!("Failed to receive Vision recognition result: {}", err))?;
+		.await
+		.map_err(|err| format!("Failed to run Vision recognition: {:?}", err))?;
 	}
 
 	#[cfg(not(target_os = "macos"))]
 	{
-		let _ = app;
 		let _ = request;
 		Ok(VisionRecognizeTextResult {
 			supported: false,

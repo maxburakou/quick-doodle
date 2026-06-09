@@ -36,6 +36,8 @@ export interface SmartAssistBatch {
   startedAt: number;
   updatedAt: number;
   status: SmartAssistBatchStatus;
+  interStrokeGapsMs?: number[];
+  lastStrokeStartDistanceFromPreviousEndPx?: number;
 }
 
 export interface SmartAssistTransition {
@@ -115,6 +117,11 @@ export interface ShapeRecognizer {
 export interface SmartAssistConfig {
   enabledByDefault: boolean;
   shapeDebounceMs: number;
+  pointerStillMs: number;
+  pointerStillInterStrokeGraceMs: number;
+  pointerStillMaxAdaptiveMs: number;
+  pointerStillMicroMovePx: number;
+  pointerStillMicroMoveMs: number;
   maxBatchStrokes: number;
   maxBatchAgeMs: number;
   maxRawPoints: number;
@@ -130,6 +137,11 @@ export interface SmartAssistConfig {
     earlyIntentThreshold: number;
     intentThreshold: number;
     singleStrokeIntentThreshold: number;
+    pointerStillMs: number;
+    pointerStillInterStrokeGraceMs: number;
+    pointerStillMaxAdaptiveMs: number;
+    pointerStillConnectedStartPx: number;
+    pointerStillConnectedStartMs: number;
     recognitionTimeoutMs: number;
     vision: {
       recognitionLevel: "accurate" | "fast";

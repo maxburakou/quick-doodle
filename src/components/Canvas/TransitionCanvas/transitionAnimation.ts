@@ -203,9 +203,6 @@ const drawShrinkingStrokes = (
   ctx.restore();
 };
 
-const shouldDrawLoadingEffect = (batch: SmartAssistBatch) =>
-  batch.status !== "recognizing-text";
-
 export const drawTransitionFrame = (
   ctx: CanvasRenderingContext2D,
   transition: SmartAssistTransition,
@@ -231,13 +228,10 @@ export const drawBatchLoadingFrame = (
   now: number,
   reduceMotion: boolean
 ) => {
-  const drawLoadingEffect = shouldDrawLoadingEffect(batch);
-  const bounds = drawLoadingEffect
-    ? combineBounds(batch.strokes, LOADING_PADDING)
-    : null;
+  const bounds = combineBounds(batch.strokes, LOADING_PADDING);
 
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-  if (!reduceMotion && drawLoadingEffect) {
+  if (!reduceMotion) {
     drawSoftStrokeGlow(ctx, batch.strokes, now);
   }
   drawSmartAssistStrokes(batch.strokes, ctx);

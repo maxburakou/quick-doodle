@@ -23,7 +23,7 @@ import {
   SmartAssistClearReason,
 } from "./types";
 import { useSmartAssistStore } from "./useSmartAssistStore";
-import { expandBBox, getStrokesBBox, isPointInBBox } from "./utils";
+import { distanceSq, expandBBox, getStrokesBBox, isPointInBBox } from "./utils";
 
 const createBatchId = () =>
   `sa_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -64,8 +64,71 @@ interface RecognitionGuard {
 const countBatchRawPoints = (batch: SmartAssistBatch): number =>
   batch.strokes.reduce((acc, stroke) => acc + stroke.points.length, 0);
 
+const RECENT_INTER_STROKE_GAP_LIMIT = 4;
+
+const getPointerStillDelayMs = (batch: SmartAssistBatch): number => {
+  const isTextCandidate = batch.status === "text-candidate";
+  let baseDelay = isTextCandidate
+    ? SMART_ASSIST_CONFIG.text.pointerStillMs
+    : SMART_ASSIST_CONFIG.pointerStillMs;
+  const graceDelay = isTextCandidate
+    ? SMART_ASSIST_CONFIG.text.pointerStillInterStrokeGraceMs
+    : SMART_ASSIST_CONFIG.pointerStillInterStrokeGraceMs;
+  const maxDelay = isTextCandidate
+    ? SMART_ASSIST_CONFIG.text.pointerStillMaxAdaptiveMs
+    : SMART_ASSIST_CONFIG.pointerStillMaxAdaptiveMs;
+
+  if (
+    isTextCandidate &&
+    (batch.lastStrokeStartDistanceFromPreviousEndPx ?? Number.POSITIVE_INFINITY) <=
+      SMART_ASSIST_CONFIG.text.pointerStillConnectedStartPx
+  ) {
+    baseDelay = Math.max(
+      baseDelay,
+      SMART_ASSIST_CONFIG.text.pointerStillConnectedStartMs
+    );
+  }
+
+  const gaps = batch.interStrokeGapsMs ?? [];
+  if (gaps.length === 0) return baseDelay;
+
+  const recentGaps = gaps.slice(-RECENT_INTER_STROKE_GAP_LIMIT);
+  const recentGap = isTextCandidate
+    ? recentGaps[recentGaps.length - 1] ?? 0
+    : Math.max(...recentGaps);
+  return Math.min(
+    maxDelay,
+    Math.max(baseDelay, recentGap + graceDelay)
+  );
+};
+
 const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
+
+const getPointEventTime = (point: StrokePoint | null | undefined): number | null =>
+  typeof point?.t === "number" && Number.isFinite(point.t) ? point.t : null;
+
+const getPointerMoveElapsedMs = (
+  from: StrokePoint | null,
+  to: StrokePoint
+): number => {
+  const fromTime = getPointEventTime(from);
+  const toTime = getPointEventTime(to);
+  if (fromTime === null || toTime === null) {
+    return SMART_ASSIST_CONFIG.pointerStillMicroMoveMs;
+  }
+
+  return Math.max(0, toTime - fromTime);
+};
+
+const getPointDistance = (
+  previousPoint: StrokePoint | null | undefined,
+  nextPoint: StrokePoint | null | undefined
+): number | undefined => {
+  if (!previousPoint || !nextPoint) return undefined;
+
+  return Math.sqrt(distanceSq(previousPoint, nextPoint));
+};
 
 const getStrokeSourceSignature = (stroke: Stroke): string =>
   JSON.stringify({
@@ -204,6 +267,11 @@ const applySmartAssistShapeFill = (
 export class SmartAssistController {
   private recognitionSessionId = 0;
   private recognitionTimer: number | null = null;
+  private pointerSettleTimer: number | null = null;
+  private pointerSettleAnchor: StrokePoint | null = null;
+  private pointerSettleBatchId: string | null = null;
+  private lastPenPointerPoint: StrokePoint | null = null;
+  private lastCommittedPenUpPoint: StrokePoint | null = null;
   private transitionTimer: number | null = null;
   private ignoreNextHistoryChange = false;
   private unsubscribeHistory: (() => void) | null = null;
@@ -240,13 +308,16 @@ export class SmartAssistController {
     }
   }
 
-  enqueueCommittedPenStroke(stroke: Stroke) {
+  enqueueCommittedPenStroke(stroke: Stroke, pointerUpPoint?: StrokePoint) {
     const { enabled, batch } = useSmartAssistStore.getState();
     if (stroke.tool !== Tool.Pen) return;
     if (!enabled) return;
 
     const now = Date.now();
     const isTextBatch = batch?.status === "text-candidate";
+    const strokeStartPoint = stroke.points[0] ?? null;
+    const pointerUpAnchor =
+      pointerUpPoint ?? stroke.points[stroke.points.length - 1] ?? null;
     const nextBatch = batch ?? {
       id: createBatchId(),
       strokeIds: [],
@@ -262,6 +333,16 @@ export class SmartAssistController {
       strokes: [...nextBatch.strokes, stroke],
       updatedAt: now,
       status: isTextBatch ? "text-candidate" : "collecting",
+      lastStrokeStartDistanceFromPreviousEndPx: getPointDistance(
+        batch ? this.lastCommittedPenUpPoint : null,
+        strokeStartPoint
+      ),
+      interStrokeGapsMs: batch
+        ? [
+            ...(batch.interStrokeGapsMs ?? []),
+            now - batch.updatedAt,
+          ].slice(-RECENT_INTER_STROKE_GAP_LIMIT)
+        : [],
     };
 
     const predictedTextBatch =
@@ -297,6 +378,9 @@ export class SmartAssistController {
 
     useSmartAssistStore.getState().setBatch(candidateBatch);
     this.cancelPendingTimer();
+    this.cancelPointerSettleTimer();
+    this.lastPenPointerPoint = pointerUpAnchor;
+    this.lastCommittedPenUpPoint = pointerUpAnchor;
     this.recognitionTimer = window.setTimeout(() => {
       if (candidateBatch.status === "text-candidate") {
         void this.runTextRecognition();
@@ -304,15 +388,19 @@ export class SmartAssistController {
       }
       this.runShapeRecognition();
     }, predictedTextBatch ? SMART_ASSIST_CONFIG.text.idleDebounceMs : SMART_ASSIST_CONFIG.shapeDebounceMs);
+    this.armPointerStillRecognition(candidateBatch, this.lastPenPointerPoint);
+    this.scheduleArmedPointerStillRecognition(candidateBatch);
   }
 
   handlePenPointerDown(point: StrokePoint) {
+    this.lastPenPointerPoint = point;
     const { transition, batch } = useSmartAssistStore.getState();
     if (transition) {
       this.finishTransitionNow();
     }
     if (!batch) return;
 
+    this.cancelPointerSettleTimer();
     this.cancelPendingTimer();
     if (batch.status === "text-candidate") {
       if (isPointLikelyContinuingTextBatch(point, batch)) return;
@@ -332,12 +420,47 @@ export class SmartAssistController {
     this.runShapeRecognition();
   }
 
+  handlePenPointerMove(point: StrokePoint) {
+    this.lastPenPointerPoint = point;
+    if (!this.pointerSettleAnchor || !this.pointerSettleBatchId) return;
+
+    const currentBatch = useSmartAssistStore.getState().batch;
+    if (
+      !currentBatch ||
+      currentBatch.id !== this.pointerSettleBatchId ||
+      (currentBatch.status !== "collecting" &&
+        currentBatch.status !== "text-candidate")
+    ) {
+      this.cancelPointerSettleTimer();
+      return;
+    }
+
+    const microMoveDistanceSq =
+      SMART_ASSIST_CONFIG.pointerStillMicroMovePx *
+      SMART_ASSIST_CONFIG.pointerStillMicroMovePx;
+    const isMicroMove =
+      distanceSq(point, this.pointerSettleAnchor) <= microMoveDistanceSq;
+    const isEarlyMicroMove =
+      isMicroMove &&
+      getPointerMoveElapsedMs(this.pointerSettleAnchor, point) <
+        SMART_ASSIST_CONFIG.pointerStillMicroMoveMs;
+
+    if (isEarlyMicroMove) return;
+    if (isMicroMove && this.pointerSettleTimer !== null) return;
+
+    if (!isMicroMove) {
+      this.pointerSettleAnchor = point;
+    }
+    this.scheduleArmedPointerStillRecognition(currentBatch);
+  }
+
   clearBatch(
     reason: SmartAssistClearReason,
     detectionResult?: DetectionResult,
     textDebug?: TextRecognitionDebug
   ) {
     this.cancelPendingTimer();
+    this.cancelPointerSettleTimer();
     const { debugEnabled, batch, setBatch, setLastDebugResult } =
       useSmartAssistStore.getState();
 
@@ -410,6 +533,60 @@ export class SmartAssistController {
     this.recognitionTimer = null;
   }
 
+  private cancelPointerSettleTimer() {
+    if (this.pointerSettleTimer !== null) {
+      window.clearTimeout(this.pointerSettleTimer);
+    }
+    this.pointerSettleTimer = null;
+    this.pointerSettleAnchor = null;
+    this.pointerSettleBatchId = null;
+  }
+
+  private clearScheduledPointerSettleTimer() {
+    if (this.pointerSettleTimer === null) return;
+    window.clearTimeout(this.pointerSettleTimer);
+    this.pointerSettleTimer = null;
+  }
+
+  private armPointerStillRecognition(
+    batch: SmartAssistBatch,
+    anchor: StrokePoint | null | undefined
+  ) {
+    if (!anchor) return;
+
+    this.pointerSettleAnchor = anchor;
+    this.pointerSettleBatchId = batch.id;
+    this.pointerSettleTimer = null;
+  }
+
+  private scheduleArmedPointerStillRecognition(batch: SmartAssistBatch) {
+    this.clearScheduledPointerSettleTimer();
+    this.pointerSettleTimer = window.setTimeout(() => {
+      const batchId = this.pointerSettleBatchId;
+      this.pointerSettleTimer = null;
+      this.pointerSettleAnchor = null;
+      this.pointerSettleBatchId = null;
+
+      const currentBatch = useSmartAssistStore.getState().batch;
+      if (
+        !currentBatch ||
+        currentBatch.id !== batchId ||
+        (currentBatch.status !== "collecting" &&
+          currentBatch.status !== "text-candidate")
+      ) {
+        return;
+      }
+
+      this.cancelPendingTimer();
+      if (currentBatch.status === "text-candidate") {
+        void this.runTextRecognition();
+        return;
+      }
+
+      this.runShapeRecognition();
+    }, getPointerStillDelayMs(batch));
+  }
+
   finishTransitionNow() {
     if (this.transitionTimer !== null) {
       window.clearTimeout(this.transitionTimer);
@@ -429,6 +606,9 @@ export class SmartAssistController {
     this.unsubscribeHistory = null;
     this.unsubscribeEnabled = null;
     this.onWindowBlur = null;
+    this.lastPenPointerPoint = null;
+    this.lastCommittedPenUpPoint = null;
+    this.ignoreNextHistoryChange = false;
     if (singletonController === this) {
       singletonController = null;
     }
@@ -605,10 +785,13 @@ export class SmartAssistController {
       if (!this.isRecognitionGuardCurrent(guard)) return;
 
       if (textIntent.probableText) {
-        useSmartAssistStore.getState().setBatch({
+        const textCandidateBatch: SmartAssistBatch = {
           ...batch,
           status: "text-candidate",
           updatedAt: Date.now(),
+        };
+        useSmartAssistStore.getState().setBatch({
+          ...textCandidateBatch,
         });
         if (useSmartAssistStore.getState().debugEnabled) {
           useSmartAssistStore.getState().setLastDebugResult({
@@ -628,9 +811,15 @@ export class SmartAssistController {
           });
         }
         this.cancelPendingTimer();
+        this.cancelPointerSettleTimer();
         this.recognitionTimer = window.setTimeout(() => {
           void this.runTextRecognition();
         }, SMART_ASSIST_CONFIG.text.idleDebounceMs);
+        this.armPointerStillRecognition(
+          textCandidateBatch,
+          this.lastPenPointerPoint
+        );
+        this.scheduleArmedPointerStillRecognition(textCandidateBatch);
         return;
       }
 
