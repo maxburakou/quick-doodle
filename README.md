@@ -17,28 +17,8 @@ Quick Doodle is a lightweight macOS application that allows you to draw directly
 - Minimal and intuitive UI with tray icon control.
 
 ## 📦 Download
-- 🖥 [Download for Intel Macs (x64)](https://github.com/maksim-burakou/quick-doodle/releases/download/app-v0.1.0/Quick.Doodle_0.1.0_x64.dmg)
-- 🍏 [Download for Apple Silicon Macs](https://github.com/maksim-burakou/quick-doodle/releases/download/app-v0.1.0/Quick.Doodle_0.1.0_aarch64.dmg)
-
-⚠️ **Note:** This app is not code-signed with an Apple Developer certificate.  
-When opening it for the first time, macOS may say:
-
-> “Quick Doodle” is damaged and can’t be opened. You should move it to the Trash.
-
-Don’t worry — the app is fine. macOS adds a quarantine flag to unsigned apps downloaded from the internet.
-
-
-### 🛠️ To fix this:
-
-1. Open the **Terminal**.
-2. Paste and run the following command:
-
-```bash
-xattr -cr /Applications/Quick\ Doodle.app
-```
->(If you installed it elsewhere, update the path accordingly.)
-
-Now it should open without any issues! 🎉
+- 🖥 [Download for Intel Macs (x64)](https://github.com/maxburakou/quick-doodle/releases/latest/download/Quick.Doodle_x64.dmg)
+- 🍏 [Download for Apple Silicon Macs](https://github.com/maxburakou/quick-doodle/releases/latest/download/Quick.Doodle_aarch64.dmg)
 
 ## 🚀 How It Works
 ### Tray Icon Controls
