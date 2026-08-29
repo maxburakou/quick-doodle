@@ -1,58 +1,100 @@
-# 🎨 Quick Doodle
-_A lightweight macOS annotation tool_
+<div align="center">
 
-📽 **Preview**  
+# 🎨 Quick Doodle
+
+**A lightweight macOS annotation tool for sketches, explanations, and presentations.**
+
+</div>
+
+## 📽 Preview
+
 <p align="center">
-  <img src="demo/quick-doodle-demo-preview.gif" alt="Quick Doodle Demo" width="700"/>
+  <img src="demo/quick-doodle-demo-preview.gif" alt="Quick Doodle demo" width="700" />
 </p>
 
----
+Quick Doodle lets you draw directly over anything on your screen. Open a transparent canvas whenever you need it, add an annotation, then hide it without losing your work.
 
-Quick Doodle is a lightweight macOS application that allows you to draw directly on your screen with ease. Designed for quick annotations, sketches, or presentations, it seamlessly integrates into your workflow.
+## ✨ Features
 
-## 🛠 Features
-- Draw anywhere on your screen with a simple click.
-- Toggle visibility of your drawing without losing progress.
-- Undo, redo, clear, or reset your canvas with shortcuts.
-- Minimal and intuitive UI with tray icon control.
+- **Nine tools:** Pen, Highlighter, Arrow, Line, Rectangle, Diamond, Ellipse, Text, and Select.
+- **Smart Assist:** turn rough pen strokes into clean lines, arrows, rectangles, diamonds, and ellipses—or convert handwritten English into editable text using macOS-native recognition.
+- **Flexible editing:** select one or multiple elements, then move, resize, rotate, copy, cut, paste, or delete them.
+- **Snap hints:** align new and existing elements to nearby points, edges, and axes.
+- **Custom styling:** choose colors and stroke widths, adjust font size, and add fills to supported shapes.
+- **Canvas history:** undo, redo, clear, or reset the canvas; clearing is undoable, while resetting starts fresh.
+- **Light, dark, and system themes**, plus a draggable toolbar that stays out of the way.
+- **Tray-first workflow:** show or hide the canvas without losing progress, or create a new canvas at any time.
+- **Dedicated Settings window:** customize shortcuts, startup behavior, tray actions, and the canvas activation frame.
+
+> [!TIP]
+> Smart Assist is available in the Pen tool. Enable it with the sparkle button in the toolbar, then pause briefly after drawing.
 
 ## 📦 Download
-- 🖥 [Download for Intel Macs (x64)](https://github.com/maxburakou/quick-doodle/releases/latest/download/Quick.Doodle_x64.dmg)
+
+- 🖥️ [Download for Intel Macs (x64)](https://github.com/maxburakou/quick-doodle/releases/latest/download/Quick.Doodle_x64.dmg)
 - 🍏 [Download for Apple Silicon Macs](https://github.com/maxburakou/quick-doodle/releases/latest/download/Quick.Doodle_aarch64.dmg)
 
 ## 🚀 How It Works
+
 ### Tray Icon Controls
-- **Right-click** on the tray icon to open the app menu.
-- Click **again** to close it.
-- **Left-click** on the tray icon to start drawing. The icon will turn **green** to indicate drawing mode is active.
-- Click **again** to stop drawing.
+
+- **Left-click** the tray icon to show or hide the drawing canvas. The icon turns green while the canvas is active.
+- **Right-click** the tray icon to access canvas actions, theme controls, Settings, and Quit.
+- By default, reopening the canvas restores your previous drawing. You can change the left-click behavior in Settings so it creates a fresh canvas instead.
+
+### Settings
+
+Open **Settings** from the tray menu to:
+
+- record, clear, or restore shortcuts;
+- launch Quick Doodle automatically when you sign in;
+- choose whether tray left-click restores the previous canvas or opens a new one;
+- show or hide the activation frame, including when the canvas already contains a drawing.
 
 ## 🎹 Keyboard Shortcuts
 
-> 💡 On macOS, use `⌘` (Command) instead of `Ctrl`.
+These are the default shortcuts. All global, history, clipboard, tool-selection, and toggle shortcuts can be changed or cleared in **Settings**.
 
 ### 🌍 Global Shortcuts
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl + Shift + D` | **Create New Canvas** (always fresh) |
-| `Ctrl + Shift + S` | **Show/Hide Canvas** (toggle previous one) |
 
-### 🖌 Application Shortcuts
 | Shortcut | Action |
-|----------|--------|
-| `Ctrl + Z` | **Undo** (reverts last drawn element) |
-| `Ctrl + Shift + Z` | **Redo** (restores last undone action) |
-| `Ctrl + Shift + C` | **Clear Canvas** (can be undone) |
-| `Ctrl + R` | **Reset Canvas** (cannot be undone) |
-| `Ctrl + C` | **Copy Selection** (Select tool) |
-| `Ctrl + X` | **Cut Selection** (Select tool) |
-| `Ctrl + V` | **Paste** (Select tool) |
-| `Ctrl + Q` | **Toggle Toolbar** |
-| `Ctrl + A` | **Toggle Background** |
-| `[` / `]` | **Cycle through available thickness or font size** |
-| `Shift + [` / `Shift + ]` | **Cycle through available colors** |
+| --- | --- |
+| `⌘ ⇧ D` | **Create New Canvas** — open an empty canvas |
+| `⌘ ⇧ S` | **Show / Hide Canvas** — toggle the previous canvas |
 
-### ⚙ Other
+### 🖌 Canvas Shortcuts
+
 | Shortcut | Action |
-|----------|--------|
-| `Ctrl + Q` | **Quit App** |
+| --- | --- |
+| `⌘ Z` | **Undo** |
+| `⌘ ⇧ Z` | **Redo** |
+| `⌘ ⇧ C` | **Clear Canvas** — can be undone |
+| `⌘ R` | **Reset Canvas** — cannot be undone |
+| `⌘ C` | **Copy Selection** — Select tool |
+| `⌘ X` | **Cut Selection** — Select tool |
+| `⌘ V` | **Paste** — Select tool |
+| `⌘ T` | **Show / Hide Toolbar** |
+| `⌘ A` | **Toggle Canvas Background** |
+| `⌘ E` | **Toggle Snap Hints** |
+| `⌘ ⇧ M` | **Cycle Theme** — light, dark, and system |
+
+### 🧰 Tool Shortcuts
+
+The number-row and numeric-keypad keys both work.
+
+| Shortcut | Tool | Shortcut | Tool |
+| --- | --- | --- | --- |
+| `1` | Pen | `6` | Diamond |
+| `2` | Highlighter | `7` | Ellipse |
+| `3` | Arrow | `8` | Text |
+| `4` | Line | `9` | Select |
+| `5` | Rectangle |  |  |
+
+### ⚡ Quick Controls
+
+| Shortcut | Action |
+| --- | --- |
+| `[` / `]` | Previous / next stroke width, or font size when using Text |
+| `⇧ [` / `⇧ ]` | Previous / next color |
+| `Delete` / `Backspace` | Delete the current selection |
+| `⌘ Q` | Quit Quick Doodle |
