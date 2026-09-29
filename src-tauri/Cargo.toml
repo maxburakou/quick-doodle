@@ -1,6 +1,6 @@
 [package]
 name = "quick-doodle"
-version = "0.1.2"
+version = "0.1.3"
 description = "Quick Doodle is a lightweight macOS application that allows you to draw directly on your screen with ease."
 authors = ["you"]
 license = ""
