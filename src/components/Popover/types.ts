@@ -1,6 +1,6 @@
-import { ReactNode } from "react";
+import { ButtonHTMLAttributes, ReactElement, ReactNode, RefAttributes } from "react";
 
 export interface PopoverProps {
-  children: ReactNode;
+  children: ReactElement<ButtonHTMLAttributes<HTMLButtonElement> & RefAttributes<HTMLButtonElement>>;
   content: ReactNode;
 }

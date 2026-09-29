@@ -3,18 +3,6 @@
   display: inline-block;
 }
 
-.popover-trigger {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  margin: 0;
-  padding: 0;
-  width: auto;
-  height: auto;
-}
-
 .popover-content {
   position: absolute;
   top: 120%;

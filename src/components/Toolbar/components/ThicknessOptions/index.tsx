@@ -19,6 +19,8 @@ export const ThicknessOptions = () => {
           className={`options-button thickness-button ${
             thickness === contextThickness ? "--active" : ""
           }`}
+          aria-label={`Thickness ${thickness}`}
+          aria-pressed={thickness === contextThickness}
         >
           <Minus size={16} strokeWidth={thickness} />
         </button>

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { cloneElement, useState, useRef, useEffect } from "react";
 import "./styles.css";
 import { PopoverProps } from "./types";
 
@@ -31,16 +31,13 @@ export const Popover: React.FC<PopoverProps> = ({ children, content }) => {
 
   return (
     <div className="popover-container">
-      <button
-        ref={triggerRef}
-        onClick={toggleVisibility}
-        className="popover-trigger"
-        aria-haspopup="true"
-        aria-expanded={isVisible}
-        aria-controls="popover-content"
-      >
-        {children}
-      </button>
+      {cloneElement(children, {
+        ref: triggerRef,
+        onClick: toggleVisibility,
+        "aria-haspopup": "dialog",
+        "aria-expanded": isVisible,
+        "aria-controls": "popover-content",
+      })}
       {isVisible && (
         <div
           id="popover-content"
