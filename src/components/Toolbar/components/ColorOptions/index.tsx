@@ -30,6 +30,8 @@ export const ColorOptions = () => {
             backgroundColor: color,
             ["--swatch-bg" as string]: color,
           }}
+          aria-label={`Color ${color}`}
+          aria-pressed={color === contextColor}
         />
       ))}
       <Popover content={<ToolbarColorPicker />}>
